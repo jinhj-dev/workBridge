@@ -1,0 +1,76 @@
+name: WorkFlow CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci --prefix frontend
+
+      - name: Lint
+        run: npm --prefix frontend run lint
+
+      - name: Type Check
+        run: npm --prefix frontend run typecheck
+
+      - name: Unit Test
+        run: npm --prefix frontend test
+
+      - name: Build
+        run: npm --prefix frontend run build
+
+  backend:
+    name: Backend Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci --prefix backend
+
+      - name: Lint
+        run: npm --prefix backend run lint
+
+      - name: Type Check
+        run: npm --prefix backend run typecheck
+
+      - name: Unit Test
+        run: npm --prefix backend test
+
+      - name: Build
+        run: npm --prefix backend run build
