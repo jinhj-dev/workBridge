@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { messages } from '@/messages/ja';
 
@@ -16,6 +16,8 @@ interface ModalProps {
 // <dialog> の showModal でフォーカストラップと Esc での閉じる操作をブラウザに任せる。
 export function Modal({ open, title, onClose, children, footer }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null);
+  // 同じ画面に複数のモーダルがあっても見出しの id が重ならないようにする
+  const titleId = useId();
 
   // open の変化を <dialog> の命令的 API に反映する
   useEffect(() => {
@@ -28,12 +30,12 @@ export function Modal({ open, title, onClose, children, footer }: ModalProps) {
   return (
     <dialog
       ref={ref}
-      aria-labelledby="modal-title"
+      aria-labelledby={titleId}
       onClose={onClose}
       className="m-auto w-[calc(100%-2rem)] max-w-105 rounded-md bg-white p-7 text-general-100 shadow-card backdrop:bg-general-100/50"
     >
       <div className="flex items-start justify-between gap-4">
-        <h2 id="modal-title" className="text-xl/7 font-bold">
+        <h2 id={titleId} className="text-xl/7 font-bold">
           {title}
         </h2>
         <button

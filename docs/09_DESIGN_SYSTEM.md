@@ -182,9 +182,21 @@ Designed Pages 프레임 (이커머스 어드민 템플릿):
 | | `textButtonClass` | 텍스트 버튼(14/20 Medium, hover 밑줄). 로그아웃 등 보조 링크성 동작 | `primary-100` | 같음 |
 | | `FieldError`, `ErrorIcon` | 필드 아래 오류 문구(아이콘 + 14/20) | `danger-100`(아이콘), `general-100`(문구) | `id`를 입력의 `aria-describedby`에 지정. 아이콘은 `aria-hidden` |
 | `components/Toast.tsx` | `ToastProvider`, `useToast().showToast(message, variant)` | Notification floating. 상단 중앙, 1건만(새 알림이 교체), 4초 후 자동 소멸, 화면 이동 후에도 유지(`app/layout.tsx`에 배치). variant `success`/`error` | success: `success-100` 테두리 + `success-40` 배경 / error: `danger-100` + `danger-30`, `shadow-card`, radius 4 | `role="status"` + `aria-live="polite"` 영역이 항상 존재 |
-| `components/Modal.tsx` | `Modal({open,title,onClose,children,footer})` | 제목 + 닫기(X) + 본문 + 우측 정렬 footer. 폭 최대 420, padding 28, radius 6 | `shadow-card`, backdrop `general-100/50` | `<dialog>` `showModal()`로 포커스 트랩·Esc 닫기, `aria-labelledby`, X 버튼 `aria-label`(`messages.common.close`) |
+| `components/Modal.tsx` | `Modal({open,title,onClose,children,footer})` | 제목 + 닫기(X) + 본문 + 우측 정렬 footer. 폭 최대 420, padding 28, radius 6 | `shadow-card`, backdrop `general-100/50` | `<dialog>` `showModal()`로 포커스 트랩·Esc 닫기, `aria-labelledby`(제목 id는 `useId()`로 생성해 여러 모달이 동시에 있어도 중복되지 않음), X 버튼 `aria-label`(`messages.common.close`) |
 | `components/Spinner.tsx` | `Spinner` | Loader. 20px, 색은 부모 글자색 | — | `aria-hidden`. 단독 로딩 표시일 때는 부모에 `role="status"` + `sr-only` 문구(`messages.common.loading`)를 둔다 |
 | `components/Logo.tsx` | `Logo` | workBridge 마크 + 워드마크(20 Bold) | `primary-100` | 마크 `aria-hidden`, 이름은 텍스트 |
+| `components/Card.tsx` | `Card({title,action?,children})` | Card Panel. 제목(16/24 Bold) + 우측 `action` + 본문. padding 20(`sm` 이상 28), radius 6 | `shadow-card`, 흰 배경 | `<section aria-labelledby>`(제목 id는 `useId()`) |
+| `components/Skeleton.tsx` | `Skeleton({className})`, `SkeletonLines({count})` | Loading 스켈레톤. 크기는 호출측 지정 / 영역 전체용 줄 묶음 | `general-40` + `animate-pulse` | `Skeleton`은 `aria-hidden`. `SkeletonLines`는 `role="status"` + `sr-only`(`messages.common.loading`) |
+| `components/SectionError.tsx` | `SectionError({onRetry})` | 영역 단위 조회 실패 문구 + [다시 시도](03 공통 UI 규칙 Error) | `ErrorIcon`, `secondaryButtonClass`(높이 36) | 문구에 `role="alert"` |
+| `components/Badge.tsx` | `Badge({variant,children})`, `BadgeVariant` | 상태 배지. 높이 24, radius 4, 14px. variant `neutral`/`success`/`danger`/`dark` | neutral: `general-40` 배경+`general-80` / success: `success-40`+`general-100` / danger: `danger-30`+`general-100` / dark: `general-80`+흰색 | 상태는 색과 문구를 함께 표시 |
+| `components/StatCard.tsx` | `StatCard({label,value,href?})` | stats 카드. 항목명(14/20) + 수치(Heading 6). `href`가 있으면 카드 전체가 링크(우측 화살표) | `shadow-card`, hover `primary-30`, `text-h6`, `tabular-nums` | 링크일 때 focus-visible outline `primary-100` |
+| `components/layout/AppShell.tsx` | `AppShell({children})` | 로그인 후 화면 공통 레이아웃 + 라우트 가드(비로그인 → `/login?redirect=`, mustChangePassword → `/password`). TopBar 68 + Sidebar 250(`lg` 이상 고정), `lg` 미만은 드로어(배경 클릭·Esc·메뉴 선택 시 닫힘) | 본문 `general-30` 배경, 드로어 backdrop `general-100/50` | 드로어 열면 첫 메뉴로 포커스. 인증 확인 중에는 `role="status"` Spinner |
+| `components/layout/Sidebar.tsx` | `SidebarNav({isAdmin,onNavigate?})` | 03 전역 내비게이션 메뉴. 항목 높이 44, 좌우 margin 16. ADMIN은 그룹 라벨 아래 관리자 메뉴 추가 | 활성 `primary-100`+흰색, hover `general-30`, 그룹 라벨 12px `general-80` | `<nav aria-label>`, 활성 항목 `aria-current="page"` |
+| `components/layout/TopBar.tsx` | `TopBar({userName,drawerOpen,drawerId,onToggleDrawer,onLogout})` | Top Navigation. 높이 68, 로고(대시보드 링크), `lg` 미만 햄버거 버튼, 사용자 메뉴(비밀번호 변경·로그아웃) | 흰 배경 + `shadow-card` | 햄버거 `aria-expanded`/`aria-controls`, 사용자 메뉴는 바깥 클릭·Esc로 닫힘 |
+| `components/leave/LeaveDetailModal.tsx` | `LeaveDetailModal({leaveId,onClose,onProcessed})`, `LEAVE_STATUS_BADGE` | 공통 휴가 상세 모달(SCR-004 §4.4). `leaveId`가 null이면 닫힘. 처리 가능하면 승인 확인·반려 사유 입력을 모달 안 단계 전환으로 처리(중첩 dialog 없음) | `Modal`·`Badge`·form 클래스 재사용 | `Modal`과 같음 |
 
-- 타이포 토큰: `text-h4`(Heading 4 32/44, `@theme`의 `--text-h4`)를 로그인·비밀번호 변경 제목에 사용. 다른 Heading이 필요해지면 같은 방식(`--text-h5` 등)으로 추가한다.
+- 데이터 조회 훅: `lib/api/useApiQuery.ts` `useApiQuery<T>(path | null, {onError?})` → `{status:'loading'|'error'|'success', data, error, reload, setData}`. `path`가 null이면 호출하지 않는다. 403 `PASSWORD_CHANGE_REQUIRED`이면 `/password`로 이동한다. 영역별로 독립 조회할 때 사용한다.
+- 대비 결정: 2.1절의 "성공 = 텍스트 Green 100 + 배경 Green 40"은 대비 약 2.7:1로 WCAG AA 미달이므로, Badge success·danger의 글자색은 General 100으로 한다. 사이드바 그룹 라벨도 3절의 General 60 대신 General 80을 쓴다.
+
+- 타이포 토큰: `text-h4`(Heading 4 32/44, `@theme`의 `--text-h4`)를 로그인·비밀번호 변경 제목에 사용. `text-h5`(Heading 5 24/34, 페이지 제목)·`text-h6`(Heading 6 20/28, 통계 수치)를 같은 방식으로 추가했다. 다른 Heading이 필요해지면 같은 방식으로 추가한다.
 - Auth Layout 카드(SCR-001·009): 폭 최대 540, padding 28(`sm` 이상 40), radius 6, `general-40` 테두리 + `shadow-card`.

@@ -22,13 +22,13 @@
 |---|---|---|---|---|---|
 | 1 | 개발 기반 | NFR-003 | 완료 | 완료 | 완료 |
 | 2 | 데이터베이스 | 05 전체 | 완료 | - | 완료 |
-| 3 | 인증 | FR-AUTH-001~003, NFR-001 | 완료 | 진행 중 | 진행 중 |
-| 4 | 권한·접근 제어 | NFR-001, 03 Screen Access Rules | 진행 중 | 대기 | 진행 중 |
-| 5 | 근태 | FR-ATT-001~005 | 대기 | 대기 | 대기 |
-| 6 | 휴가 신청·조회·취소 | FR-LEAVE-001, 004, 005, 006 | 대기 | 대기 | 대기 |
-| 7 | 휴가 승인 | FR-LEAVE-002, 003 | 대기 | 대기 | 대기 |
+| 3 | 인증 | FR-AUTH-001~003, NFR-001 | 완료 | 완료 | 완료 |
+| 4 | 권한·접근 제어 | NFR-001, 03 Screen Access Rules | 진행 중 | 진행 중 | 진행 중 |
+| 5 | 근태 | FR-ATT-001~005 | 진행 중 | 대기 | 진행 중 |
+| 6 | 휴가 신청·조회·취소 | FR-LEAVE-001, 004, 005, 006 | 진행 중 | 진행 중 | 진행 중 |
+| 7 | 휴가 승인 | FR-LEAVE-002, 003 | 완료 | 대기 | 진행 중 |
 | 8 | 사원 관리 | FR-USER-001, 002, FR-LEAVE-006 | 대기 | 대기 | 대기 |
-| 9 | 대시보드 | FR-DASH-001 | 대기 | 대기 | 대기 |
+| 9 | 대시보드 | FR-DASH-001 | 완료 | 완료 | 완료 |
 | 10 | 테스트·품질 | 08_TEST_PLAN | 진행 중 | 진행 중 | 진행 중 |
 | 11 | 배포 | 01_PRD §7 | 대기 | 대기 | 대기 |
 
@@ -51,7 +51,7 @@
 - [x] DB 통합 테스트: CRUD, UNIQUE, FK, CHECK 14개, DATE·Decimal 왕복, seed 멱등성
 - [x] DB 사용 절차 문서화(`backend/README.md`)
 
-### 3. 인증 — 진행 중
+### 3. 인증 — 완료
 
 백엔드
 - [x] 로그인 API-AUTH-001 (FR-AUTH-001) — Access Token 15분, Refresh Token 쿠키 발급
@@ -64,54 +64,54 @@
 - [x] 로그인 화면 SCR-001 (반응형 360px~, 성공 후 이동은 대시보드가 생길 때까지 임시 팝업)
 - [x] 비밀번호 변경 화면 SCR-009 (최초 로그인 강제 포함)
 - [x] 앱 최초 로드 시 refresh → me(새로고침 후 유지), 401 시 1회 갱신 후 재시도(single-flight), Access Token 메모리 보관 (03 Common UI Rules)
-- [ ] 로그아웃 UI(사용자 메뉴) — 함수만 있음, 전역 내비게이션과 함께 구현
-- [ ] 로그인 성공 후 이동(`/password`, `redirect`, `/dashboard`) — `/password` 이동(mustChangePassword) 완료. `redirect`·`/dashboard` 이동은 대시보드 구현 시 임시 팝업을 교체
+- [x] 로그아웃 UI(사용자 메뉴) — 상단바 사용자 메뉴(비밀번호 변경·로그아웃)
+- [x] 로그인 성공 후 이동(`/password`, `redirect`, `/dashboard`) — 임시 팝업 제거. `redirect`는 같은 origin 내부 경로만 허용(`safeRedirect`, `/login` 제외)
 
 ### 4. 권한·접근 제어 — 진행 중
 
 백엔드
 - [x] 전역 인증 Guard(토큰 검증, 비활성 계정 차단), PUBLIC 지정 (07 §3)
 - [x] 비밀번호 변경 Guard(`PASSWORD_CHANGE_REQUIRED`) (06 §0) — 인증 Guard가 순서대로 호출, 테스트 전용 보호 라우트로 e2e 확인. 실제 보호 API가 생기면 권한 매트릭스(08 §6) e2e 추가
-- [ ] Role Guard(`/admin/*`는 ADMIN만) (07 §3)
+- [x] Role Guard(`/admin/*`는 ADMIN만) (07 §3) — `@AdminOnly()` 메타데이터, 인증 → 비밀번호 변경 → Role 순서
 - [ ] 리소스 단위 권한(신청자·할당된 승인자·ADMIN)은 각 도메인 Service에서 구현 (07 §3)
 
 프론트엔드
-- [ ] 라우트 가드: 비로그인, mustChangePassword, 비관리자 `/admin/*` (03 Screen Access Rules)
+- [ ] 라우트 가드: 비로그인, mustChangePassword, 비관리자 `/admin/*` (03 Screen Access Rules) — 비로그인(`/login?redirect=`)·mustChangePassword(`/password`) 완료(`AppShell`). 비관리자 `/admin/*`는 관리자 화면 구현 시
 
-### 5. 근태 — 대기
+### 5. 근태 — 진행 중
 
 백엔드
-- [ ] 출근 등록 API-ATT-001 (FR-ATT-001)
-- [ ] 퇴근 등록 API-ATT-002 (FR-ATT-002)
-- [ ] 오늘 근태 API-ATT-003
+- [x] 출근 등록 API-ATT-001 (FR-ATT-001)
+- [x] 퇴근 등록 API-ATT-002 (FR-ATT-002)
+- [x] 오늘 근태 API-ATT-003
 - [ ] 내 근태 이력 API-ATT-004 (FR-ATT-003, 상태 계산, 조회 기간 제한)
 - [ ] 전체 근태 조회 API-ATT-005 (FR-ATT-004)
 - [ ] 근태 수정 API-ATT-006 (FR-ATT-005, 24시간·근무일 규칙)
-- [ ] 도쿄 기준 "오늘"·근무일 계산 공통 유틸리티, 주입 가능한 시계 (05 §9, 08 §3)
+- [x] 도쿄 기준 "오늘"·근무일 계산 공통 유틸리티, 주입 가능한 시계 (05 §9, 08 §3) — `common/time`(`Clock`, `tokyo-date`)
 
 프론트엔드
 - [ ] 근태 관리 화면 SCR-003
 - [ ] 전체 근태 관리 화면 SCR-008 (수정 모달 포함)
 
-### 6. 휴가 신청·조회·취소 — 대기
+### 6. 휴가 신청·조회·취소 — 진행 중
 
 백엔드
 - [ ] 휴가 신청 API-LEAVE-001 (일수 계산, 날짜 중복, 잔여 연차, 즉시 승인, 사용자 단위 잠금 — FR-LEAVE-001, NFR-004, 05 §8)
 - [ ] 승인자 후보 목록 API-LEAVE-002
 - [ ] 내 휴가 이력 API-LEAVE-003 (FR-LEAVE-005)
-- [ ] 휴가 상세 API-LEAVE-004 (조회 권한 — FR-LEAVE-005)
+- [x] 휴가 상세 API-LEAVE-004 (조회 권한 — FR-LEAVE-005)
 - [ ] 휴가 취소 API-LEAVE-005 (FR-LEAVE-004, 조건부 UPDATE)
-- [ ] 내 휴가 현황(잔여 연차) API-LEAVE-006 (FR-LEAVE-001, 006)
+- [x] 내 휴가 현황(잔여 연차) API-LEAVE-006 (FR-LEAVE-001, 006)
 
 프론트엔드
-- [ ] 휴가 관리 화면 SCR-004 (신청 탭, 이력, 공통 휴가 상세 모달)
+- [ ] 휴가 관리 화면 SCR-004 (신청 탭, 이력, 공통 휴가 상세 모달) — 공통 휴가 상세 모달(`LeaveDetailModal`, 승인·반려 포함)은 대시보드 작업에서 완료
 
-### 7. 휴가 승인 — 대기
+### 7. 휴가 승인 — 진행 중
 
 백엔드
-- [ ] 승인 대기 목록 API-LEAVE-007 (`scope=mine` / `all`, FR-LEAVE-003)
-- [ ] 휴가 승인 API-LEAVE-008 (FR-LEAVE-002, 조건부 UPDATE)
-- [ ] 휴가 반려 API-LEAVE-009 (FR-LEAVE-002)
+- [x] 승인 대기 목록 API-LEAVE-007 (`scope=mine` / `all`, FR-LEAVE-003)
+- [x] 휴가 승인 API-LEAVE-008 (FR-LEAVE-002, 조건부 UPDATE)
+- [x] 휴가 반려 API-LEAVE-009 (FR-LEAVE-002)
 
 프론트엔드
 - [ ] 휴가 승인 화면 SCR-005
@@ -131,13 +131,13 @@
 - [ ] 사원 관리 화면 SCR-006
 - [ ] 사원 상세 화면 SCR-007
 
-### 9. 대시보드 — 대기
+### 9. 대시보드 — 완료
 
 백엔드
-- [ ] 관리자 오늘 현황 API-DASH-001 (FR-DASH-001: 출근·미출근·휴가 인원, 전체 승인 대기)
+- [x] 관리자 오늘 현황 API-DASH-001 (FR-DASH-001: 출근·미출근·휴가 인원, 전체 승인 대기)
 
 프론트엔드
-- [ ] 대시보드 화면 SCR-002 (출퇴근 버튼, 개인 휴가 현황, 승인 대기 5건, ADMIN 전체 현황)
+- [x] 대시보드 화면 SCR-002 (출퇴근 버튼, 개인 휴가 현황, 승인 대기 5건, ADMIN 전체 현황) — 공통 셸(사이드바·상단바·드로어) 포함
 
 ### 10. 테스트·품질 — 진행 중
 
@@ -146,7 +146,7 @@
 - [ ] API 통합 테스트 (08 §5) — 각 도메인 구현과 함께
 - [ ] 권한 매트릭스 테스트 (08 §6)
 - [ ] 동시성 테스트: 휴가 신청 잠금, 조건부 UPDATE (NFR-004)
-- [ ] 화면 테스트 (08 §7) — SCR-001 완료(Vitest 18건, Playwright 7건), SCR-009 완료(Vitest 17건, Playwright 2건)
+- [ ] 화면 테스트 (08 §7) — SCR-001 완료(Vitest 51건 — 화면 25·redirect 검증 26, Playwright 7건), SCR-009 완료(Vitest 17건, Playwright 2건), SCR-002 완료(Vitest 51건 — 화면 19·휴가 상세 모달 19·공통 셸 13, Playwright 5건)
 - [ ] E2E 핵심 여정 E2E-01~05 (08 §8, Playwright)
 - [ ] CI(GitHub Actions): lint, 타입 검사, unit, e2e(postgres 서비스 컨테이너), build
 
@@ -167,3 +167,4 @@
 | 2026-11-08 | 토큰 갱신 API-AUTH-002 완료(unit 72건, e2e 105건 통과) |
 | 2026-11-08 | 로그인 화면 SCR-001, 인증 유지(refresh → me), 프론트엔드 테스트 구성 완료(Vitest 18건, Playwright 7건 — 실제 백엔드 연동) |
 | 2026-11-08 | 비밀번호 변경 API-AUTH-005·화면 SCR-009 완료, 로그인 후 `/password` 이동(unit 96건, e2e 124건, frontend 36건 통과, Playwright 9건 통과) |
+| 2026-11-08 | 대시보드 SCR-002·API-DASH-001 완료. Role Guard, 근태 API-ATT-001~003·시계 유틸, 휴가 API-LEAVE-004·006~009, 공통 셸·라우트 가드(비관리자 제외)·로그인 후 이동·로그아웃 UI(unit 140건, e2e 193건, frontend 129건 통과. Playwright 14건 중 Run 1 13건 통과, Run 2는 개발 DB 관리자 비밀번호 불일치로 로그인 필요 6건 미통과 — 환경 문제) |

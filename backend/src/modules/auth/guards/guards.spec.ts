@@ -1,11 +1,13 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthService } from '../auth.service.js';
 import type { AuthUser } from '../auth.types.js';
+import { AdminOnly } from '../decorators/admin-only.decorator.js';
 import { AllowPasswordChangeRequired } from '../decorators/allow-password-change-required.decorator.js';
 import { Public } from '../decorators/public.decorator.js';
+import { AdminGuard } from './admin.guard.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { PasswordChangeGuard } from './password-change.guard.js';
 
@@ -33,6 +35,11 @@ class AuthLikeController {
   handler(): void {}
 }
 
+@AdminOnly()
+class AdminController {
+  handler(): void {}
+}
+
 function makeContext(
   controller: { prototype: { handler: () => void } },
   request: Record<string, unknown>,
@@ -48,6 +55,7 @@ describe('JwtAuthGuard', () => {
   let authService: { authenticateAccessToken: ReturnType<typeof vi.fn> };
   let guard: JwtAuthGuard;
   const passwordChangeGuard = new PasswordChangeGuard(new Reflector());
+  const adminGuard = new AdminGuard(new Reflector());
 
   beforeEach(() => {
     authService = { authenticateAccessToken: vi.fn().mockResolvedValue(USER) };
@@ -55,6 +63,7 @@ describe('JwtAuthGuard', () => {
       new Reflector(),
       authService as unknown as AuthService,
       passwordChangeGuard,
+      adminGuard,
     );
   });
 
@@ -96,6 +105,44 @@ describe('JwtAuthGuard', () => {
     await expect(guard.canActivate(allowed)).resolves.toBe(true);
   });
 
+  it('shouldCheckPasswordChangeBeforeRoleWhenAdminMustChangePassword', async () => {
+    authService.authenticateAccessToken.mockResolvedValue({
+      ...USER,
+      role: 'ADMIN',
+      mustChangePassword: true,
+    });
+    const ctx = makeContext(AdminController, { headers: { authorization: 'Bearer good' } });
+    await expect(guard.canActivate(ctx)).rejects.toMatchObject({
+      code: 'PASSWORD_CHANGE_REQUIRED',
+      status: 403,
+    });
+  });
+
+  it('shouldCheckPasswordChangeBeforeRoleWhenEmployeeMustChangePassword', async () => {
+    authService.authenticateAccessToken.mockResolvedValue({ ...USER, mustChangePassword: true });
+    const ctx = makeContext(AdminController, { headers: { authorization: 'Bearer good' } });
+    await expect(guard.canActivate(ctx)).rejects.toMatchObject({
+      code: 'PASSWORD_CHANGE_REQUIRED',
+    });
+  });
+
+  it('shouldRejectEmployeeOnAdminEndpointAfterAuthentication', async () => {
+    const ctx = makeContext(AdminController, { headers: { authorization: 'Bearer good' } });
+    await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(authService.authenticateAccessToken).toHaveBeenCalledWith('good');
+  });
+
+  it('shouldRejectAdminEndpointWithoutTokenAs401', async () => {
+    const ctx = makeContext(AdminController, { headers: {} });
+    await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('shouldAllowAdminOnAdminEndpoint', async () => {
+    authService.authenticateAccessToken.mockResolvedValue({ ...USER, role: 'ADMIN' });
+    const ctx = makeContext(AdminController, { headers: { authorization: 'Bearer good' } });
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+  });
+
   it('shouldRejectWhenServiceRejectsToken', async () => {
     authService.authenticateAccessToken.mockRejectedValue(new UnauthorizedException());
     const ctx = makeContext(PlainController, { headers: { authorization: 'Bearer forged' } });
@@ -133,5 +180,30 @@ describe('PasswordChangeGuard', () => {
   it('shouldAllowAuthEndpointWhenPasswordChangeIsRequired', () => {
     const ctx = makeContext(AuthLikeController, { user: { ...USER, mustChangePassword: true } });
     expect(guard.canActivate(ctx)).toBe(true);
+  });
+});
+
+describe('AdminGuard', () => {
+  const guard = new AdminGuard(new Reflector());
+
+  it('shouldAllowWhenAdminOnlyMetadataIsAbsent', () => {
+    expect(guard.canActivate(makeContext(PlainController, { user: USER }))).toBe(true);
+    expect(guard.canActivate(makeContext(PlainController, {}))).toBe(true);
+  });
+
+  it('shouldAllowAdminOnAdminOnlyEndpoint', () => {
+    const ctx = makeContext(AdminController, { user: { ...USER, role: 'ADMIN' } });
+    expect(guard.canActivate(ctx)).toBe(true);
+  });
+
+  it('shouldRejectEmployeeOnAdminOnlyEndpointWith403', () => {
+    const ctx = makeContext(AdminController, { user: USER });
+    expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
+  });
+
+  it('shouldRejectAdminOnlyEndpointWithoutUserAs401', () => {
+    expect(() => guard.canActivate(makeContext(AdminController, {}))).toThrow(
+      UnauthorizedException,
+    );
   });
 });

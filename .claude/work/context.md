@@ -36,8 +36,13 @@
 - `backend/src/modules/auth/auth.service.ts` `hashRefreshToken(token)` (SHA-256 hex)
 - `frontend/src/lib/api/client.ts` `apiFetch<T>(path, init)`(401 시 1회 refresh 후 재시도), `ApiError{statusCode,code,message,details}`, `NetworkError`
 - `frontend/src/lib/auth/AuthProvider.tsx` `useAuth()` → `{status:'loading'|'authenticated'|'unauthenticated', user, login, logout}`
-- `frontend/src/components/` Logo, Modal(`<dialog>`), Spinner
-- 아직 없음: Toast, 전역 내비게이션(사이드바·상단바), 라우트 가드, /dashboard
+- `frontend/src/components/` Logo, Modal(`<dialog>`), Spinner, Toast(`useToast().showToast(msg, 'success'|'error')`), form.tsx(inputClass, labelClass, primary/secondary/textButtonClass, FieldError) — 상세는 `docs/09_DESIGN_SYSTEM.md` §6
+- `backend/test/db/db-helpers.ts` TestDataTracker.cleanup()은 leaves·attendance·leave_grants·refresh_tokens까지 FK 순서로 삭제
+- `backend/src/common/time/` `Clock`(전역 TimeModule, 테스트는 `overrideProvider(Clock)`), `tokyo-date.ts`(도쿄 날짜·일시 변환) / `common/pagination/pagination.ts`(`paginationQuerySchema`, `toSkipTake`, `Page<T>`) / `common/mappers/user-summary.ts`(`USER_SUMMARY_SELECT`, `toUserSummary`)
+- Role Guard: `@AdminOnly()`(`modules/auth/decorators/admin-only.decorator.ts`) + `AdminGuard`. JwtAuthGuard가 인증 → PasswordChange → Admin 순으로 호출
+- `frontend/src/components/layout/AppShell.tsx`(`app/(app)/layout.tsx`에서 사용, 라우트 가드 포함), Card·Skeleton·SectionError·Badge·StatCard, `components/leave/LeaveDetailModal.tsx`, `lib/api/useApiQuery.ts`, `lib/api/types.ts`, `lib/format.ts`, `lib/auth/redirect.ts`(`safeRedirect`) — 상세는 09 §6
+- `backend/test/e2e-helpers.ts` FixedClock, 토큰 서명, leaves·attendance·leave_grants INSERT 헬퍼
+- 아직 없음: 비관리자 `/admin/*` 프론트 가드, 사이드바 승인 대기 배지
 
 ## 명령어
 - DB: 루트 `npm run db:up` / backend `npm run db:migrate`, `npm run db:migrate:test`(e2e 전 필요), `npm run db:seed`
@@ -45,3 +50,17 @@
 - Backend 단일 파일: `npx vitest run src/modules/auth/auth.service.spec.ts`, e2e `npx vitest run --config ./vitest.config.e2e.ts test/auth.e2e-spec.ts`
 - Frontend(`frontend/`): `npm run build`, `npm run lint`, 타입체크 `npx tsc --noEmit`, `npm test`, 단일 `npx vitest run src/app/login/LoginForm.test.tsx`, `npm run test:e2e`(E2E_ADMIN_PASSWORD 필요, 미설정 시 skip)
 - 포맷: 루트 `npm run format` / `npm run format:check`
+- 개발 서버: 루트 `npm run dev:backend`(http://localhost:4000, API `/api/v1`) / `npm run dev:frontend`(http://localhost:3000, `/api/v1/*`를 `BACKEND_URL`로 rewrite)
+- backend e2e는 `fileParallelism: false`(파일 순차 실행). Playwright는 개발 DB를 쓰므로 실행 시 데이터가 남는다
+
+## 문서 맵
+- `docs/01_PRD.md` — 제품 개요·범위·성공 기준 — reviewer
+- `docs/02_REQUIREMENTS.md` — 업무 규칙 단일 기준(FR/NFR) — backend, tester, reviewer, security
+- `docs/03_SCREEN_LIST.md` — 화면 목록, 접근 규칙, 공통 UI 규칙(상태 처리·전역 내비게이션) — frontend, tester, reviewer
+- `docs/04_SCREEN_SPECIFICATIONS/SCR-00N_*.md` — 화면별 명세(구성·동작·문구·API) — frontend, tester
+- `docs/05_DATABASE_DESIGN.md` — 테이블·제약·잠금·날짜 처리(§9) — backend, reviewer
+- `docs/06_API_SPECIFICATION.md` — API 계약(경로·권한·입출력·에러 코드) — backend, frontend, tester, reviewer, security
+- `docs/07_ARCHITECTURE.md` — 계층 구조, 인증·Guard 구성 — backend, reviewer, security
+- `docs/08_TEST_PLAN.md` — 테스트 수준·TC 목록·권한 매트릭스 — tester, reviewer
+- `docs/09_DESIGN_SYSTEM.md` — 디자인 토큰·구현된 공용 컴포넌트(§6) — frontend, reviewer
+- `docs/10_DEVELOPMENT_ROADMAP.md` — 진행 상태 체크리스트(완료 시 갱신) — reviewer

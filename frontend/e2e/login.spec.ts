@@ -33,12 +33,21 @@ test('shouldKeepSessionAfterReloadWithRefreshCookie', async ({ page, context }) 
   await page.goto('/login');
   await page.getByLabel(t.empId).fill(EMP_ID);
   await page.getByLabel(t.password).fill(PASSWORD);
+  const loginResponse = page.waitForResponse('**/api/v1/auth/login');
   await page.getByRole('button', { name: t.submit }).click();
+  const loggedIn = (await (await loginResponse).json()) as {
+    user: { mustChangePassword: boolean };
+  };
 
-  // seed の初期 ADMIN は初回ログイン扱い(mustChangePassword = true)のため、ダイアログではなく変更画面へ移る
-  // (変更不要な利用者のダイアログ表示は LoginForm のコンポーネントテストで確認する)
-  await expect(page).toHaveURL(/\/password$/);
-  await expect(page.getByRole('heading', { name: messages.password.title })).toBeVisible();
+  // ログイン後はダイアログを出さずに次の画面へ移る。
+  // 初回ログイン扱い(mustChangePassword = true)なら変更画面、それ以外はダッシュボード
+  // (開発 DB の管理者がどちらの状態かは環境による。両方の分岐は LoginForm のコンポーネントテストで確認する)
+  const expectedPath = loggedIn.user.mustChangePassword ? /\/password$/ : /\/dashboard$/;
+  const expectedHeading = loggedIn.user.mustChangePassword
+    ? messages.password.title
+    : messages.dashboard.title;
+  await expect(page).toHaveURL(expectedPath);
+  await expect(page.getByRole('heading', { level: 1, name: expectedHeading })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
   // Refresh Token は httpOnly Cookie として、認証 API のパスにだけ保存される
@@ -57,8 +66,7 @@ test('shouldKeepSessionAfterReloadWithRefreshCookie', async ({ page, context }) 
     '{}',
   );
 
-  if (SCREENSHOT_DIR)
-    await page.screenshot({ path: `${SCREENSHOT_DIR}/login-success-password.png` });
+  if (SCREENSHOT_DIR) await page.screenshot({ path: `${SCREENSHOT_DIR}/login-success.png` });
 
   // 再読み込み: refresh → me で復元される
   const refreshRequest = page.waitForRequest('**/api/v1/auth/refresh');
@@ -66,9 +74,9 @@ test('shouldKeepSessionAfterReloadWithRefreshCookie', async ({ page, context }) 
   await page.reload();
   expect(await (await refreshRequest).headerValue('cookie')).toContain('refreshToken=');
   expect(await (await meRequest).headerValue('authorization')).toMatch(/^Bearer /);
-  // 復元できればログイン画面へ戻されず、変更画面のまま表示される
-  await expect(page.getByRole('heading', { name: messages.password.title })).toBeVisible();
-  await expect(page).toHaveURL(/\/password$/);
+  // 復元できればログイン画面へ戻されず、同じ画面のまま表示される
+  await expect(page.getByRole('heading', { level: 1, name: expectedHeading })).toBeVisible();
+  await expect(page).toHaveURL(expectedPath);
 });
 
 test.describe('レスポンシブ表示', () => {

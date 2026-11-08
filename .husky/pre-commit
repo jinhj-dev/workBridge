@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+
+set -e
+
+echo "===== FRONTEND CHECK ====="
+
+npm --prefix frontend run lint
+npm --prefix frontend run typecheck
+npm --prefix frontend test
+
+echo "===== BACKEND CHECK ====="
+
+npm --prefix backend run lint
+npm --prefix backend run typecheck
+npm --prefix backend test
+
+echo "===== ALL CHECKS PASSED ====="

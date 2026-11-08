@@ -75,6 +75,7 @@ async function fillAndSubmit(ui: ReturnType<typeof userEvent.setup>, empId: stri
 beforeEach(() => {
   setAccessToken(null);
   vi.clearAllMocks();
+  window.history.replaceState(null, '', '/login');
 });
 
 afterEach(() => {
@@ -114,7 +115,7 @@ describe('LoginForm 入力検証', () => {
 
     await fillAndSubmit(ui, '  00001  ', 'pw');
 
-    await screen.findByRole('dialog');
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/dashboard'));
     const [, init] = callsTo(fetchMock, '/auth/login')[0];
     expect(JSON.parse(String(init?.body))).toEqual({ empId: '00001', password: 'pw' });
   });
@@ -181,27 +182,53 @@ describe('LoginForm 送信中の制御', () => {
     expect(callsTo(fetchMock, '/auth/login')).toHaveLength(1);
 
     resolveLogin(json(200, { accessToken: 't', user }));
-    await screen.findByRole('dialog');
-    expect(button).toBeEnabled();
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/dashboard'));
+    await waitFor(() => expect(button).toBeEnabled());
   });
 });
 
 describe('LoginForm 成功時と認証の復元', () => {
-  it('shouldShowLoginSuccessDialogWithUserName', async () => {
+  it('shouldRedirectToDashboardWithoutDialogWhenLoginSucceeds', async () => {
     mockApi({ '/auth/login': () => json(200, { accessToken: 't', user }) });
     const ui = await renderForm();
 
     await fillAndSubmit(ui, '00001', 'pw');
 
-    const dialog = await screen.findByRole('dialog');
-    expect(dialog).toHaveTextContent(t.temporaryDialog.loggedInTitle);
-    expect(dialog).toHaveTextContent(t.temporaryDialog.welcome('管理者'));
-    expect(router.replace).not.toHaveBeenCalled();
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/dashboard'));
+    expect(router.replace).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 
-    // フッターの「閉じる」ボタン(X ボタンと同名なので最後の要素)
-    const closeButtons = screen.getAllByRole('button', { name: messages.common.close });
-    await ui.click(closeButtons[closeButtons.length - 1]);
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  it('shouldRedirectToInternalRedirectPathAfterLogin', async () => {
+    window.history.replaceState(null, '', '/login?redirect=%2Fleaves');
+    mockApi({ '/auth/login': () => json(200, { accessToken: 't', user }) });
+    const ui = await renderForm();
+
+    await fillAndSubmit(ui, '00001', 'pw');
+
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/leaves'));
+    expect(router.replace).not.toHaveBeenCalledWith('/dashboard');
+  });
+
+  it.each([
+    'https://evil.example',
+    '//evil',
+    '/\\evil',
+    '/login',
+    '/\t/evil.example',
+    '/\n/evil.example',
+    '/\r/evil.example',
+    '\\/evil',
+    '/dashboard/../login',
+  ])('shouldIgnoreUnsafeRedirectAndGoToDashboard(%j)', async (redirect) => {
+    window.history.replaceState(null, '', `/login?redirect=${encodeURIComponent(redirect)}`);
+    mockApi({ '/auth/login': () => json(200, { accessToken: 't', user }) });
+    const ui = await renderForm();
+
+    await fillAndSubmit(ui, '00001', 'pw');
+
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/dashboard'));
+    expect(router.replace).toHaveBeenCalledTimes(1);
   });
 
   it('shouldRedirectToPasswordWithoutDialogWhenMustChangePassword', async () => {
@@ -228,7 +255,7 @@ describe('LoginForm 成功時と認証の復元', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('shouldRestoreSessionWithRefreshThenMeOnFirstLoad', async () => {
+  it('shouldRestoreSessionAndRedirectToDashboardWhenAlreadyLoggedIn', async () => {
     const fetchMock = mockApi({
       '/auth/refresh': () => json(200, { accessToken: 'restored' }),
       '/auth/me': (init) =>
@@ -238,8 +265,8 @@ describe('LoginForm 成功時と認証の復元', () => {
     });
     renderApp();
 
-    const dialog = await screen.findByRole('dialog');
-    expect(dialog).toHaveTextContent(t.temporaryDialog.alreadyLoggedInTitle);
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/dashboard'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(callsTo(fetchMock, '/auth/refresh')).toHaveLength(1);
     expect(callsTo(fetchMock, '/auth/me')).toHaveLength(1);
   });

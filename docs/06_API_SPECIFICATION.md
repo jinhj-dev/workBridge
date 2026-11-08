@@ -77,6 +77,7 @@ Query: `page`(기본 1), `limit`(기본 20, 최대 100)
 }
 ```
 - 즉시 승인 건은 `approver = null`, `autoApproved = true`이다.
+- `processedBy`는 처리자(승인·반려·취소한 사용자)의 `UserSummary` 또는 `null`(PENDING)이다. 즉시 승인 건은 신청자이다.
 
 `Attendance`
 ```json
@@ -183,7 +184,7 @@ Response 200
 
 ### API-ATT-003: 오늘 근태
 - `GET /attendance/today` · USER · FR-ATT-001, FR-ATT-002
-- Response 200: `Attendance` 또는 `null`(미출근)
+- Response 200: `Attendance` 또는 `null`(미출근. 본문은 JSON 리터럴 `null`, `Content-Type: application/json`)
 
 ### API-ATT-004: 내 근태 이력
 - `GET /attendance` · USER · FR-ATT-003
@@ -261,7 +262,7 @@ Response 201: `Leave`
 ### API-LEAVE-004: 휴가 상세
 - `GET /leaves/:id` · USER(신청자, 할당된 승인자, ADMIN만) · FR-LEAVE-005
 - Response 200: `Leave`
-- 403 FORBIDDEN, 404 NOT_FOUND
+- 403 FORBIDDEN, 404 NOT_FOUND(`:id`가 UUID 형식이 아닌 경우 포함)
 
 ### API-LEAVE-005: 휴가 취소
 - `PATCH /leaves/:id/cancel` · USER(신청자만) · FR-LEAVE-004
@@ -274,7 +275,7 @@ Response 201: `Leave`
 
 ### API-LEAVE-006: 내 휴가 현황(잔여 연차)
 - `GET /leaves/balance` · USER · FR-LEAVE-001, FR-LEAVE-006
-- Query: `year`(기본: 올해)
+- Query: `year`(기본: Asia/Tokyo 기준 올해, 2000~2100 정수. 그 외는 400 VALIDATION_ERROR)
 
 Response 200
 ```json
@@ -287,6 +288,7 @@ Response 200
 - Response 200: 페이지네이션(`Leave[]`), 신청일 내림차순(동순위는 id 내림차순)
 - `scope=mine`: approverId = 로그인 사용자, status = PENDING
 - `scope=all`: 모든 PENDING (ADMIN이 아니면 403)
+- `scope`가 `mine` / `all` 외이면 400 VALIDATION_ERROR
 
 ### API-LEAVE-008: 휴가 승인
 - `PATCH /leaves/:id/approve` · USER(할당된 승인자 또는 ADMIN) · FR-LEAVE-002
@@ -296,6 +298,7 @@ Response 200
 | HTTP | Code | 설명 |
 |---|---|---|
 | 403 | FORBIDDEN | 할당된 승인자도 ADMIN도 아님, 또는 본인 신청 |
+| 404 | NOT_FOUND | 휴가 없음(`:id`가 UUID 형식이 아닌 경우 포함) |
 | 409 | ALREADY_PROCESSED | PENDING이 아님(다른 사용자가 먼저 처리함) |
 
 ### API-LEAVE-009: 휴가 반려
@@ -305,7 +308,7 @@ Request
 ```json
 { "rejectReason": "업무 일정상 불가" }
 ```
-- rejectReason: 필수, 최대 500자
+- rejectReason: 필수, 앞뒤 공백 제거 후 1~500자(공백 제거한 값을 저장)
 - Response 200: `Leave`
 - 에러는 API-LEAVE-008과 같고, 추가로 400 VALIDATION_ERROR가 있다.
 
