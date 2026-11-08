@@ -45,10 +45,10 @@
 - 아직 없음: 비관리자 `/admin/*` 프론트 가드, 사이드바 승인 대기 배지
 
 ## 명령어
-- DB: 루트 `npm run db:up` / backend `npm run db:migrate`, `npm run db:migrate:test`(e2e 전 필요), `npm run db:seed`
+- DB: 루트 `npm run db:up` / backend `npm run db:migrate`, `npm run db:migrate:test`(e2e 전 필요), `npm run db:seed`, `npm run db:e2e-accounts`(개발 DB 전용, seed 후 실행. E2E 계정 900001/900002 생성·초기화, localhost DB만 허용)
 - Backend(`backend/`): `npm run build`, `npm run lint`, 타입체크 `npx tsc --noEmit`, `npm test`(unit), `npm run test:e2e`
 - Backend 단일 파일: `npx vitest run src/modules/auth/auth.service.spec.ts`, e2e `npx vitest run --config ./vitest.config.e2e.ts test/auth.e2e-spec.ts`
-- Frontend(`frontend/`): `npm run build`, `npm run lint`, 타입체크 `npx tsc --noEmit`, `npm test`, 단일 `npx vitest run src/app/login/LoginForm.test.tsx`, `npm run test:e2e`(E2E_ADMIN_PASSWORD 필요, 미설정 시 skip)
+- Frontend(`frontend/`): `npm run build`, `npm run lint`, 타입체크 `npx tsc --noEmit`, `npm test`, 단일 `npx vitest run src/app/login/LoginForm.test.tsx`, `npm run test:e2e`(globalSetup이 개발 DB의 E2E 계정 900001/900002를 자동 초기화. `E2E_ADMIN_PASSWORD`·`E2E_INITIAL_PASSWORD` 필요, 둘 다 없으면 초기화 skip·로그인 테스트 skip, `PLAYWRIGHT_BASE_URL` 지정 시 초기화 안 함)
 - 포맷: 루트 `npm run format` / `npm run format:check`
 - 개발 서버: 루트 `npm run dev:backend`(http://localhost:4000, API `/api/v1`) / `npm run dev:frontend`(http://localhost:3000, `/api/v1/*`를 `BACKEND_URL`로 rewrite)
 - backend e2e는 `fileParallelism: false`(파일 순차 실행). Playwright는 개발 DB를 쓰므로 실행 시 데이터가 남는다

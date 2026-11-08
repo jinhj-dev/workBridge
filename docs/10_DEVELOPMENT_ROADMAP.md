@@ -146,7 +146,7 @@
 - [ ] API 통합 테스트 (08 §5) — 각 도메인 구현과 함께
 - [ ] 권한 매트릭스 테스트 (08 §6)
 - [ ] 동시성 테스트: 휴가 신청 잠금, 조건부 UPDATE (NFR-004)
-- [ ] 화면 테스트 (08 §7) — SCR-001 완료(Vitest 51건 — 화면 25·redirect 검증 26, Playwright 7건), SCR-009 완료(Vitest 17건, Playwright 2건), SCR-002 완료(Vitest 51건 — 화면 19·휴가 상세 모달 19·공통 셸 13, Playwright 5건)
+- [ ] 화면 테스트 (08 §7) — SCR-001 완료(Vitest 51건 — 화면 25·redirect 검증 26, Playwright 7건), SCR-009 완료(Vitest 17건, Playwright 3건), SCR-002 완료(Vitest 51건 — 화면 19·휴가 상세 모달 19·공통 셸 13, Playwright 5건)
 - [ ] E2E 핵심 여정 E2E-01~05 (08 §8, Playwright)
 - [ ] CI(GitHub Actions): lint, 타입 검사, unit, e2e(postgres 서비스 컨테이너), build
 
@@ -168,3 +168,4 @@
 | 2026-11-08 | 로그인 화면 SCR-001, 인증 유지(refresh → me), 프론트엔드 테스트 구성 완료(Vitest 18건, Playwright 7건 — 실제 백엔드 연동) |
 | 2026-11-08 | 비밀번호 변경 API-AUTH-005·화면 SCR-009 완료, 로그인 후 `/password` 이동(unit 96건, e2e 124건, frontend 36건 통과, Playwright 9건 통과) |
 | 2026-11-08 | 대시보드 SCR-002·API-DASH-001 완료. Role Guard, 근태 API-ATT-001~003·시계 유틸, 휴가 API-LEAVE-004·006~009, 공통 셸·라우트 가드(비관리자 제외)·로그인 후 이동·로그아웃 UI(unit 140건, e2e 193건, frontend 129건 통과. Playwright 14건 중 Run 1 13건 통과, Run 2는 개발 DB 관리자 비밀번호 불일치로 로그인 필요 6건 미통과 — 환경 문제) |
+| 2026-11-09 | E2E 전용 계정 900001(ADMIN)/900002(최초 로그인 EMPLOYEE) 도입, `npm run db:e2e-accounts`를 Playwright globalSetup이 자동 실행해 매 실행 초기화(Playwright 15건 연속 2회 통과). 기존 "개발 DB 관리자 비밀번호 불일치"(14건 중 Run 2 미통과) 환경 문제 해소 |

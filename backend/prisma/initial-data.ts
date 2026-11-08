@@ -26,27 +26,26 @@ export interface SeedResult {
   admin: 'created' | 'skipped';
 }
 
+// 環境変数で受け取ったパスワードを検証する。不正な値は例外にする(e2e-account-data.ts からも使う)
+export function assertValidPassword(envName: string, value: string): void {
+  if (!value) {
+    throw new Error(`環境変数 ${envName} が設定されていません。backend/.env に設定してください。`);
+  }
+  // パスワード規則は FR-AUTH-003(8 文字以上、英字と数字を含む)に合わせる
+  if (value.length < PASSWORD_MIN_LENGTH || !/[A-Za-z]/.test(value) || !/[0-9]/.test(value)) {
+    throw new Error(
+      `${envName} は ${PASSWORD_MIN_LENGTH} 文字以上で、英字と数字を含めてください。`,
+    );
+  }
+  if (Buffer.byteLength(value) > PASSWORD_MAX_BYTES) {
+    throw new Error(`${envName} は ${PASSWORD_MAX_BYTES} バイト以下にしてください。`);
+  }
+}
+
 // 環境変数から設定を読み、検証する。不正な値は例外にする
 export function parseSeedConfig(env: NodeJS.ProcessEnv): SeedConfig {
   const adminPassword = env.SEED_ADMIN_PASSWORD ?? '';
-  if (!adminPassword) {
-    throw new Error(
-      '環境変数 SEED_ADMIN_PASSWORD が設定されていません。backend/.env に設定してください。',
-    );
-  }
-  // パスワード規則は FR-AUTH-003(8 文字以上、英字と数字を含む)に合わせる
-  if (
-    adminPassword.length < PASSWORD_MIN_LENGTH ||
-    !/[A-Za-z]/.test(adminPassword) ||
-    !/[0-9]/.test(adminPassword)
-  ) {
-    throw new Error(
-      `SEED_ADMIN_PASSWORD は ${PASSWORD_MIN_LENGTH} 文字以上で、英字と数字を含めてください。`,
-    );
-  }
-  if (Buffer.byteLength(adminPassword) > PASSWORD_MAX_BYTES) {
-    throw new Error(`SEED_ADMIN_PASSWORD は ${PASSWORD_MAX_BYTES} バイト以下にしてください。`);
-  }
+  assertValidPassword('SEED_ADMIN_PASSWORD', adminPassword);
 
   // 社員番号は前後の空白を除いたうえで、数字のみ(最大 50 桁、先頭の 0 は保持)であること(FR-USER-001)
   const adminEmpId = (env.SEED_ADMIN_EMP_ID || DEFAULT_ADMIN_EMP_ID).trim();
