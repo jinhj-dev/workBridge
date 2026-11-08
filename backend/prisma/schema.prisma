@@ -1,0 +1,180 @@
+// workBridge のデータベーススキーマ
+// 正本は docs/05_DATABASE_DESIGN.md。テーブル名・カラム名は設計書どおり snake_case に @map する。
+//
+// Prisma スキーマで表現できない CHECK 制約(14 個)は、マイグレーション SQL(prisma/migrations)で管理する。
+// そのため DB は必ずマイグレーションで構成し、prisma db push は使わない。
+// Prisma は CHECK の差分を検知しないため、存在確認は test/db/schema.e2e-spec.ts で行う。
+//   attendance  : clock_out IS NULL OR clock_out > clock_in
+//                 clock_out IS NULL OR clock_out <= clock_in + 24 時間
+//                 clock_in の東京日付 = work_date
+//                 modified_by と modified_at は両方 NULL か両方 NOT NULL
+//   leave_grants: granted_days >= 0 AND granted_days * 2 = FLOOR(granted_days * 2)
+//   leaves      : start_date <= end_date
+//                 start_date と end_date は同じ年
+//                 leave_type NOT IN (HALF_AM, HALF_PM) OR start_date = end_date
+//                 半休は days = 0.5、それ以外は days >= 1 の整数
+//                 approver_id IS NULL OR approver_id <> user_id
+//                 status = PENDING なら approver_id NOT NULL、processed_by / processed_at は NULL
+//                 status が APPROVED / REJECTED / CANCELLED なら processed_by / processed_at は NOT NULL
+//                 status = REJECTED なら reject_reason NOT NULL
+//                 status = REJECTED なら approver_id NOT NULL
+//
+// PK の UUID はアプリ側(Prisma)で生成し、DB の既定値は持たない。seed や raw SQL では id を明示する。
+// ユーザー・部署は物理削除しない運用(無効化のみ)のため、外部キーはすべて ON DELETE RESTRICT とする。
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// 権限
+enum Role {
+  ADMIN
+  EMPLOYEE
+
+  @@map("user_role")
+}
+
+// 休暇の種類
+enum LeaveType {
+  ANNUAL
+  HALF_AM
+  HALF_PM
+  SPECIAL
+  OTHER
+
+  @@map("leave_type")
+}
+
+// 休暇申請の状態
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+
+  @@map("leave_status")
+}
+
+// 部署(seed で登録する)
+model Department {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  users User[]
+
+  @@map("departments")
+}
+
+// ユーザー
+model User {
+  id                 String   @id @default(uuid()) @db.Uuid
+  name               String   @db.VarChar(100)
+  empId              String   @unique @map("emp_id") @db.VarChar(50)
+  passwordHash       String   @map("password_hash") @db.VarChar(255)
+  role               Role
+  approvalRequired   Boolean  @default(true) @map("approval_required")
+  isActive           Boolean  @default(true) @map("is_active")
+  mustChangePassword Boolean  @default(true) @map("must_change_password")
+  departmentId       String?  @map("department_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  refreshTokens       RefreshToken[]
+  attendances         Attendance[]   @relation("AttendanceUser")
+  modifiedAttendances Attendance[]   @relation("AttendanceModifiedBy")
+  leaveGrants         LeaveGrant[]
+  leaves              Leave[]        @relation("LeaveUser")
+  approverLeaves      Leave[]        @relation("LeaveApprover")
+  processedLeaves     Leave[]        @relation("LeaveProcessedBy")
+
+  @@index([departmentId])
+  @@map("users")
+}
+
+// Refresh Token(ハッシュで保存する)
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// 勤怠(状態は保存せず、work_date と clock_out から計算する)
+model Attendance {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  workDate   DateTime  @map("work_date") @db.Date
+  clockIn    DateTime  @map("clock_in") @db.Timestamptz
+  clockOut   DateTime? @map("clock_out") @db.Timestamptz
+  modifiedBy String?   @map("modified_by") @db.Uuid
+  modifiedAt DateTime? @map("modified_at") @db.Timestamptz
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user     User  @relation("AttendanceUser", fields: [userId], references: [id], onDelete: Restrict)
+  modifier User? @relation("AttendanceModifiedBy", fields: [modifiedBy], references: [id], onDelete: Restrict)
+
+  @@unique([userId, workDate])
+  @@index([workDate])
+  @@map("attendance")
+}
+
+// 付与年休(ユーザー・年ごと。残日数は保存せず計算する)
+model LeaveGrant {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  year        Int      @db.SmallInt
+  grantedDays Decimal  @map("granted_days") @db.Decimal(4, 1)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, year])
+  @@map("leave_grants")
+}
+
+// 休暇申請(物理削除しない。取消は status = CANCELLED)
+model Leave {
+  id           String      @id @default(uuid()) @db.Uuid
+  userId       String      @map("user_id") @db.Uuid
+  approverId   String?     @map("approver_id") @db.Uuid
+  leaveType    LeaveType   @map("leave_type")
+  startDate    DateTime    @map("start_date") @db.Date
+  endDate      DateTime    @map("end_date") @db.Date
+  days         Decimal     @db.Decimal(4, 1)
+  reason       String      @db.VarChar(500)
+  status       LeaveStatus
+  processedBy  String?     @map("processed_by") @db.Uuid
+  processedAt  DateTime?   @map("processed_at") @db.Timestamptz
+  rejectReason String?     @map("reject_reason") @db.VarChar(500)
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user      User  @relation("LeaveUser", fields: [userId], references: [id], onDelete: Restrict)
+  approver  User? @relation("LeaveApprover", fields: [approverId], references: [id], onDelete: Restrict)
+  processor User? @relation("LeaveProcessedBy", fields: [processedBy], references: [id], onDelete: Restrict)
+
+  @@index([userId, status])
+  @@index([approverId, status])
+  @@index([startDate, endDate])
+  @@map("leaves")
+}

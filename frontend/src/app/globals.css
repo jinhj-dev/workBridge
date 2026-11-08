@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+
+/* 09_DESIGN_SYSTEM §2 のデザイントークン。色名は Figma の Color Style に対応させる */
+@theme {
+  /* Primary(Secondary も同値) */
+  --color-primary-100: #1e5eff;
+  --color-primary-90: #336dff;
+  --color-primary-80: #4f81ff;
+  --color-primary-70: #608dff;
+  --color-primary-60: #89abff;
+  --color-primary-50: #b6cbff;
+  --color-primary-40: #d9e4ff;
+  --color-primary-30: #ecf2ff;
+
+  /* General */
+  --color-general-100: #131523;
+  --color-general-90: #333752;
+  --color-general-80: #5a607f;
+  --color-general-70: #7e84a3;
+  --color-general-60: #a1a7c4;
+  --color-general-50: #d7dbec;
+  --color-general-40: #e6e9f4;
+  --color-general-30: #f5f6fa;
+
+  /* Green(成功) */
+  --color-success-100: #06a561;
+  --color-success-40: #c4f8e2;
+
+  /* Red(エラー・削除) */
+  --color-danger-100: #f0142f;
+  --color-danger-30: #fde7ea;
+
+  /* 入力枠線(09 §2.1 でパレット外と明記された値) */
+  --color-input-border: #d9e1ec;
+
+  /* カード影(09 §2.3: 0 1 4 rgba(21,34,50,.08)) */
+  --shadow-card: 0 1px 4px rgba(21, 34, 50, 0.08);
+
+  /* 09 §2.2 Heading 4(32 / 44 Bold、ログイン・パスワード変更の見出し) */
+  --text-h4: 2rem;
+  --text-h4--line-height: 2.75rem;
+
+  --font-sans: var(--font-inter), var(--font-noto-sans-jp), sans-serif;
+}
+
+body {
+  background: var(--color-general-30);
+  color: var(--color-general-100);
+  font-family: var(--font-sans);
+}

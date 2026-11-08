@@ -1,0 +1,24 @@
+# 開発用 PostgreSQL。アプリはホストで実行する。
+# 接続情報はルートの .env から読み込む(.env.example を参照)。
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER を .env に設定してください}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD を .env に設定してください}
+      POSTGRES_DB: ${POSTGRES_DB:-workbridge}
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      # PostgreSQL 18 以降のイメージは /var/lib/postgresql をマウントする
+      - postgres-data:/var/lib/postgresql
+      # 初回のボリューム作成時のみ実行される(やり直しは docker compose down -v)
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
