@@ -14,6 +14,10 @@
     "format": "npm --prefix backend run format && npm --prefix frontend run format",
     "format:check": "npm --prefix backend run format:check && npm --prefix frontend run format:check",
     "test": "npm --prefix backend test",
-    "test:e2e": "npm --prefix backend run test:e2e"
+    "test:e2e": "npm --prefix backend run test:e2e",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
   }
 }
