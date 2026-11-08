@@ -3,16 +3,18 @@ import { Reflector } from '@nestjs/core';
 import { AuthService } from '../auth.service.js';
 import type { AuthenticatedRequest } from '../auth.types.js';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
+import { AdminGuard } from './admin.guard.js';
 import { PasswordChangeGuard } from './password-change.guard.js';
 
 // 全 API に適用する認証 Guard。Bearer Access Token を検証し、毎回 DB でユーザーの存在と活性を確認する。
-// 認証後にパスワード変更チェックを行う(認証 → チェックの順をここで固定する)
+// 認証後にパスワード変更チェック、続けて Role チェックを行う(認証 → パスワード変更 → Role の順をここで固定する)
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly authService: AuthService,
     private readonly passwordChangeGuard: PasswordChangeGuard,
+    private readonly adminGuard: AdminGuard,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -29,7 +31,7 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
     request.user = await this.authService.authenticateAccessToken(token);
-    return this.passwordChangeGuard.canActivate(context);
+    return this.passwordChangeGuard.canActivate(context) && this.adminGuard.canActivate(context);
   }
 
   private extractBearerToken(header: string | undefined): string | null {

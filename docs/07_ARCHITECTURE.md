@@ -51,8 +51,9 @@ Database
 - Access Token 만료 시 Refresh Token으로 1회 갱신 후 재요청, 실패하면 로그인 화면으로 이동
 - 보호된 API에 Guard 적용
   - 인증 Guard: 토큰 검증, 비활성 계정 차단
-  - Role Guard: `/admin/*` API는 ADMIN만
+  - Role Guard: `/admin/*` API는 ADMIN만. 경로 매칭이 아니라 `/admin/*` Controller에 `@AdminOnly()` 메타데이터를 부여하는 방식
   - 비밀번호 변경 Guard: `mustChangePassword = true`이면 `/auth/*` 외 API 차단
+  - 호출 순서: 전역 인증 Guard(`JwtAuthGuard`)가 인증 → 비밀번호 변경 Guard → Role Guard 순으로 호출한다
 - 리소스 단위 권한(휴가 승인자, 신청자 등)은 Service 계층에서 검증
 - Frontend: 라우트 가드로 03_SCREEN_LIST의 Screen Access Rules를 적용하되, 최종 권한 판단은 서버가 한다.
 

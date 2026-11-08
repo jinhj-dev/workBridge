@@ -40,6 +40,14 @@
   --text-h4: 2rem;
   --text-h4--line-height: 2.75rem;
 
+  /* 09 §2.2 Heading 5(24 / 34 Bold、ページ見出し) */
+  --text-h5: 1.5rem;
+  --text-h5--line-height: 2.125rem;
+
+  /* 09 §2.2 Heading 6(20 / 28 Bold、統計の数値) */
+  --text-h6: 1.25rem;
+  --text-h6--line-height: 1.75rem;
+
   --font-sans: var(--font-inter), var(--font-noto-sans-jp), sans-serif;
 }
 
