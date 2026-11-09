@@ -40,11 +40,9 @@
 - `backend/test/db/db-helpers.ts` TestDataTracker.cleanup()은 leaves·attendance·leave_grants·refresh_tokens까지 FK 순서로 삭제
 - `backend/src/common/time/` `Clock`(전역 TimeModule, 테스트는 `overrideProvider(Clock)`), `tokyo-date.ts`(도쿄 날짜·일시 변환) / `common/pagination/pagination.ts`(`paginationQuerySchema`, `toSkipTake`, `Page<T>`) / `common/mappers/user-summary.ts`(`USER_SUMMARY_SELECT`, `toUserSummary`)
 - Role Guard: `@AdminOnly()`(`modules/auth/decorators/admin-only.decorator.ts`) + `AdminGuard`. JwtAuthGuard가 인증 → PasswordChange → Admin 순으로 호출
-- `frontend/src/components/layout/AppShell.tsx`(`app/(app)/layout.tsx`에서 사용, 라우트 가드: 비로그인 → `/login?redirect=`, mustChangePassword → `/password`, 비관리자 `/admin`·`/admin/*` → 토스트 1회 + `/dashboard` replace), Card·Skeleton·SectionError·Badge·StatCard, `components/leave/LeaveDetailModal.tsx`, `lib/api/useApiQuery.ts`, `lib/api/types.ts`, `lib/format.ts`, `lib/auth/redirect.ts`(`safeRedirect`) — 상세는 09 §6
-- `frontend/src/components/` Pagination, Tooltip, `table.ts`(thClass/tdClass), `form.tsx` selectClass, `attendance/`(ATTENDANCE_STATUS_BADGE, MISSING_ROW_CLASS, DateRangeFields) / `lib/date-range.ts`(기간 기본값·검증·URL Query 파싱), `lib/useSyncedState.ts` — 상세는 09 §6
-- `backend/src/modules/attendance/attendance-rules.ts`(`resolveDateRange`, `assertValidTimeRange`, `MAX_RANGE_DAYS`) / `modules/departments/`(GET /departments)
+- `frontend/src/components/layout/AppShell.tsx`(`app/(app)/layout.tsx`에서 사용, 라우트 가드 포함), Card·Skeleton·SectionError·Badge·StatCard, `components/leave/LeaveDetailModal.tsx`, `lib/api/useApiQuery.ts`, `lib/api/types.ts`, `lib/format.ts`, `lib/auth/redirect.ts`(`safeRedirect`) — 상세는 09 §6
 - `backend/test/e2e-helpers.ts` FixedClock, 토큰 서명, leaves·attendance·leave_grants INSERT 헬퍼
-- 아직 없음: 사이드바 승인 대기 배지
+- 아직 없음: 비관리자 `/admin/*` 프론트 가드, 사이드바 승인 대기 배지
 
 ## 명령어
 - DB: 루트 `npm run db:up` / backend `npm run db:migrate`, `npm run db:migrate:test`(e2e 전 필요), `npm run db:seed`, `npm run db:e2e-accounts`(개발 DB 전용, seed 후 실행. E2E 계정 900001/900002 생성·초기화, localhost DB만 허용)

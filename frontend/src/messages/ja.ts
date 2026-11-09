@@ -17,8 +17,6 @@ export const messages = {
     loadError: 'データを読み込めませんでした。',
     noValue: '—',
     days: (n: number) => `${n}日`,
-    forbidden: 'アクセス権限がありません。',
-    all: 'すべて',
   },
   nav: {
     mainLabel: 'メインメニュー',

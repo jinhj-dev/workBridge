@@ -51,7 +51,6 @@ function attendance(overrides: Partial<Attendance> = {}): Attendance {
     clockOut: null,
     workMinutes: null,
     status: 'WORKING',
-    modifiedAt: null,
     ...overrides,
   };
 }

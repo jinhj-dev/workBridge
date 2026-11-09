@@ -37,13 +37,6 @@ export interface Attendance {
   clockOut: string | null;
   workMinutes: number | null;
   status: AttendanceStatus;
-  modifiedAt: string | null; // 管理者が修正した日時(未修正は null)
-}
-
-// API-DEPT-001
-export interface Department {
-  id: string;
-  name: string;
 }
 
 export interface Paginated<T> {

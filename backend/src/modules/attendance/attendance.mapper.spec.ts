@@ -14,7 +14,6 @@ function makeRow(overrides: Partial<AttendanceRow> = {}): AttendanceRow {
     workDate: new Date('2026-11-09T00:00:00Z'),
     clockIn: new Date('2026-11-09T00:00:00Z'),
     clockOut: null,
-    modifiedAt: null,
     user: { id: 'user-1', name: 'テスト太郎', empId: '00001', department: { name: '開発部' } },
     ...overrides,
   };
@@ -61,16 +60,7 @@ describe('toAttendanceResponse', () => {
       clockOut: '2026-11-09T18:30:00+09:00',
       workMinutes: 570,
       status: 'DONE',
-      modifiedAt: null,
     });
-  });
-
-  it('shouldMapModifiedAtToTokyoTimeWhenModifiedByAdmin', () => {
-    const res = toAttendanceResponse(
-      makeRow({ modifiedAt: new Date('2026-11-09T01:12:00Z') }),
-      TODAY,
-    );
-    expect(res.modifiedAt).toBe('2026-11-09T10:12:00+09:00');
   });
 
   it('shouldMapWorkingRowWithNullWorkMinutes', () => {

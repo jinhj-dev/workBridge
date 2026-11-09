@@ -46,35 +46,6 @@ export function formatDate(ymd: string): string {
   return ymd.replaceAll('-', '/');
 }
 
-const weekdayFormatter = new Intl.DateTimeFormat('ja-JP', { timeZone: 'UTC', weekday: 'short' });
-
-// 勤務日(YYYY-MM-DD)を曜日付きで → 2026/11/07(土)
-export function formatWorkDate(ymd: string): string {
-  const weekday = weekdayFormatter.format(new Date(`${ymd}T00:00:00Z`));
-  return `${formatDate(ymd)}(${weekday})`;
-}
-
-// 勤務時間(分) → 8:05。退勤前(null)は「—」
-export function formatWorkMinutes(minutes: number | null): string {
-  if (minutes === null) return messages.common.noValue;
-  const hours = Math.floor(minutes / 60);
-  return `${hours}:${String(minutes % 60).padStart(2, '0')}`;
-}
-
-// 退勤時刻。勤務日の翌日以降(日付をまたぐ勤務)のときだけ日付も付ける。未退勤は「—」
-export function formatClockOut(workDate: string, clockOut: string | null): string {
-  if (clockOut === null) return messages.common.noValue;
-  return formatTokyoDate(clockOut) === formatDate(workDate)
-    ? formatTokyoTime(clockOut)
-    : formatTokyoDateTime(clockOut);
-}
-
-// datetime-local 入力の値(YYYY-MM-DDTHH:mm)にする。東京の壁時計で表す
-export function toTokyoDateTimeInput(iso: string): string {
-  const date = formatTokyoDate(iso).replaceAll('/', '-');
-  return `${date}T${formatTokyoTime(iso)}`;
-}
-
 // 休暇の期間。開始日と終了日が同じなら 1 つだけ表示する
 export function formatPeriod(startDate: string, endDate: string): string {
   if (startDate === endDate) return formatDate(startDate);

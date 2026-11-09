@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { messages } from '../src/messages/ja';
-import { E2E_ADMIN } from './accounts';
 
 // 実バックエンド・開発 DB と接続したダッシュボードの E2E。
 // 出勤・退勤は開発 DB に 1 日 1 回しか登録できず繰り返し実行できないため、ここでは押さない
 // (コンポーネントテストと API の結合テストで確認する)
-// ログインには E2E 管理者(900001、globalSetup が毎回初期化する)を使う
+const EMP_ID = '00001';
+const PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? '';
 const t = messages.dashboard;
 const SCREENSHOT_DIR = process.env.E2E_SCREENSHOT_DIR;
 
@@ -17,21 +17,20 @@ test('shouldRedirectToLoginWithReturnPathWhenUnauthenticated', async ({ page }) 
 });
 
 test.describe('ログイン後', () => {
-  test.skip(!E2E_ADMIN.password, 'E2E_ADMIN_PASSWORD が未設定のため実行しない');
+  test.skip(!PASSWORD, 'E2E_ADMIN_PASSWORD が未設定のため実行しない');
 
   // ログインして、パスワード変更が不要な管理者であることを確かめる(必要ならダッシュボードは使えない)
   async function login(page: Page): Promise<void> {
-    await page.getByLabel(messages.login.empId).fill(E2E_ADMIN.empId);
-    await page.getByLabel(messages.login.password).fill(E2E_ADMIN.password);
+    await page.getByLabel(messages.login.empId).fill(EMP_ID);
+    await page.getByLabel(messages.login.password).fill(PASSWORD);
     const loginResponse = page.waitForResponse('**/api/v1/auth/login');
     await page.getByRole('button', { name: messages.login.submit }).click();
     const body = (await (await loginResponse).json()) as {
       user: { role: string; mustChangePassword: boolean };
     };
-    expect(
-      body.user.mustChangePassword,
-      'E2E 管理者はパスワード変更不要の状態に初期化されていること',
-    ).toBe(false);
+    expect(body.user.mustChangePassword, '開発 DB の管理者のパスワード変更が済んでいること').toBe(
+      false,
+    );
     expect(body.user.role).toBe('ADMIN');
   }
 

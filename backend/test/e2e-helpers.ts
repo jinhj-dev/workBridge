@@ -97,14 +97,7 @@ export function insertLeave(
 // 勤怠を直接 INSERT する。clockIn は ISO 文字列(work_date は東京日付で一致させる)
 export function insertAttendance(
   prisma: PrismaClient,
-  params: {
-    userId: string;
-    workDate: string;
-    clockIn: string;
-    clockOut?: string | null;
-    modifiedBy?: string;
-    modifiedAt?: string;
-  },
+  params: { userId: string; workDate: string; clockIn: string; clockOut?: string | null },
 ): Promise<Prisma.AttendanceGetPayload<object>> {
   return prisma.attendance.create({
     data: {
@@ -112,8 +105,6 @@ export function insertAttendance(
       workDate: toDbDate(params.workDate),
       clockIn: new Date(params.clockIn),
       clockOut: params.clockOut ? new Date(params.clockOut) : null,
-      ...(params.modifiedBy ? { modifiedBy: params.modifiedBy } : {}),
-      ...(params.modifiedAt ? { modifiedAt: new Date(params.modifiedAt) } : {}),
     },
   });
 }

@@ -1,8 +1,6 @@
-import type { ReactElement } from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ToastProvider } from '@/components/Toast';
 import { ApiError } from '@/lib/api/client';
 import type { AuthUser } from '@/lib/auth/AuthProvider';
 import { messages } from '@/messages/ja';
@@ -38,16 +36,11 @@ const EMPLOYEE: AuthUser = {
 };
 const ADMIN: AuthUser = { ...EMPLOYEE, role: 'ADMIN', name: '管理者' };
 
-// AppShell は useToast を使うため、ToastProvider の内側で描画する
-function renderWithToast(ui: ReactElement) {
-  return render(<ToastProvider>{ui}</ToastProvider>);
-}
-
 function renderShell(status: Status, user: AuthUser | null) {
   auth.status = status;
   auth.user = user;
   const ui = userEvent.setup();
-  renderWithToast(
+  render(
     <AppShell>
       <p>子コンテンツ</p>
     </AppShell>,
@@ -69,7 +62,7 @@ beforeEach(() => {
 describe('AppShell 画面の保護', () => {
   it('shouldShowSpinnerWithoutChildrenWhileLoading', () => {
     renderShell('loading', null);
-    expect(screen.getByText(messages.common.loading)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(messages.common.loading);
     expect(screen.queryByText('子コンテンツ')).not.toBeInTheDocument();
     expect(router.replace).not.toHaveBeenCalled();
   });
@@ -191,48 +184,20 @@ describe('AppShell ログアウト', () => {
         <p>子コンテンツ</p>
       </AppShell>
     );
-    const { rerender } = renderWithToast(shell);
+    const { rerender } = render(shell);
 
     await ui.click(screen.getByRole('button', { name: `${nav.userMenu}: 山田太郎` }));
     await ui.click(screen.getByRole('button', { name: nav.logout }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/login'));
     // 未認証になった状態で描画し直しても、戻り先付きのログイン画面へは移らない
     rerender(
-      <ToastProvider>
-        <AppShell>
-          <p>子コンテンツ（再描画）</p>
-        </AppShell>
-      </ToastProvider>,
+      <AppShell>
+        <p>子コンテンツ（再描画）</p>
+      </AppShell>,
     );
 
     expect(screen.queryByText('子コンテンツ（再描画）')).not.toBeInTheDocument();
     expect(router.replace).not.toHaveBeenCalledWith(expect.stringContaining('redirect='));
-  });
-});
-
-describe('AppShell 管理者ガード', () => {
-  it('shouldRedirectEmployeeToDashboardWithOneToastOnAdminPath', async () => {
-    location.pathname = '/admin/attendance';
-    renderShell('authenticated', EMPLOYEE);
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/dashboard'));
-    expect(router.replace).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText(messages.common.forbidden)).toBeInTheDocument();
-    expect(screen.getAllByText(messages.common.forbidden)).toHaveLength(1);
-    expect(screen.queryByText('子コンテンツ')).not.toBeInTheDocument();
-  });
-
-  it('shouldNotRedirectEmployeeOnNonAdminPath', () => {
-    location.pathname = '/attendance';
-    renderShell('authenticated', EMPLOYEE);
-    expect(screen.getByText('子コンテンツ')).toBeInTheDocument();
-    expect(router.replace).not.toHaveBeenCalled();
-  });
-
-  it('shouldRenderAdminPathForAdmin', () => {
-    location.pathname = '/admin/attendance';
-    renderShell('authenticated', ADMIN);
-    expect(screen.getByText('子コンテンツ')).toBeInTheDocument();
-    expect(router.replace).not.toHaveBeenCalled();
   });
 });
 
