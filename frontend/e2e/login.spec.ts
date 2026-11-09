@@ -31,21 +31,23 @@ test('shouldRejectNonDigitEmpIdOnClientSide', async ({ page }) => {
 
 test('shouldKeepSessionAfterReloadWithRefreshCookie', async ({ page, context }) => {
   await page.goto('/login');
-  await page.getByLabel(t.empId).fill(E2E_ADMIN.empId);
-  await page.getByLabel(t.password).fill(E2E_ADMIN.password);
+  await page.getByLabel(t.empId).fill(EMP_ID);
+  await page.getByLabel(t.password).fill(PASSWORD);
   const loginResponse = page.waitForResponse('**/api/v1/auth/login');
   await page.getByRole('button', { name: t.submit }).click();
   const loggedIn = (await (await loginResponse).json()) as {
     user: { mustChangePassword: boolean };
   };
 
-  // パスワード変更が不要な利用者は、ダイアログを出さずにダッシュボードへ移る
-  // (変更が必要な場合の分岐は password.spec と LoginForm のコンポーネントテストで確認する)
-  expect(loggedIn.user.mustChangePassword).toBe(false);
-  await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(
-    page.getByRole('heading', { level: 1, name: messages.dashboard.title }),
-  ).toBeVisible();
+  // ログイン後はダイアログを出さずに次の画面へ移る。
+  // 初回ログイン扱い(mustChangePassword = true)なら変更画面、それ以外はダッシュボード
+  // (開発 DB の管理者がどちらの状態かは環境による。両方の分岐は LoginForm のコンポーネントテストで確認する)
+  const expectedPath = loggedIn.user.mustChangePassword ? /\/password$/ : /\/dashboard$/;
+  const expectedHeading = loggedIn.user.mustChangePassword
+    ? messages.password.title
+    : messages.dashboard.title;
+  await expect(page).toHaveURL(expectedPath);
+  await expect(page.getByRole('heading', { level: 1, name: expectedHeading })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
   // Refresh Token は httpOnly Cookie として、認証 API のパスにだけ保存される
@@ -73,10 +75,8 @@ test('shouldKeepSessionAfterReloadWithRefreshCookie', async ({ page, context }) 
   expect(await (await refreshRequest).headerValue('cookie')).toContain('refreshToken=');
   expect(await (await meRequest).headerValue('authorization')).toMatch(/^Bearer /);
   // 復元できればログイン画面へ戻されず、同じ画面のまま表示される
-  await expect(
-    page.getByRole('heading', { level: 1, name: messages.dashboard.title }),
-  ).toBeVisible();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByRole('heading', { level: 1, name: expectedHeading })).toBeVisible();
+  await expect(page).toHaveURL(expectedPath);
 });
 
 test.describe('レスポンシブ表示', () => {
