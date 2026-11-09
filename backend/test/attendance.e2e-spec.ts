@@ -20,6 +20,7 @@ interface AttendanceBody {
   clockOut: string | null;
   workMinutes: number | null;
   status: string;
+  modifiedAt: string | null;
 }
 interface ErrorBody {
   code?: string;
@@ -198,6 +199,180 @@ describe('勤怠 API(e2e)', () => {
       where: { userId_workDate: { userId: other.id, workDate: toDbDate('2026-11-09') } },
     });
     expect((res.body as AttendanceBody).id).not.toBe(otherRow.id);
+  });
+
+  // ATT-004 内の勤怠履歴(本人のみ、期間・ページネーション)
+  describe('ATT-004 勤怠履歴', () => {
+    interface PageBody {
+      items: AttendanceBody[];
+      page: number;
+      limit: number;
+      totalCount: number;
+      totalPages: number;
+    }
+
+    function history(token: string, query: Record<string, string | number> = {}): request.Test {
+      return request(app.getHttpServer())
+        .get('/api/v1/attendance')
+        .query(query)
+        .set('Authorization', `Bearer ${token}`);
+    }
+
+    it('shouldReturnThisMonthRecordsOnlyInWorkDateDescOrderByDefault', async () => {
+      const user = await createUserWithToken();
+      for (const day of ['2026-11-02', '2026-11-05', '2026-11-08']) {
+        await insertAttendance(prisma, {
+          userId: user.id,
+          workDate: day,
+          clockIn: `${day}T09:00:00+09:00`,
+          clockOut: `${day}T18:00:00+09:00`,
+        });
+      }
+      await insertAttendance(prisma, {
+        userId: user.id,
+        workDate: '2026-10-20',
+        clockIn: '2026-10-20T09:00:00+09:00',
+        clockOut: '2026-10-20T18:00:00+09:00',
+      });
+
+      const res = await history(user.token).expect(200);
+      const body = res.body as PageBody;
+      expect(body).toMatchObject({ page: 1, limit: 20, totalCount: 3, totalPages: 1 });
+      expect(body.items.map((item) => item.workDate)).toEqual([
+        '2026-11-08',
+        '2026-11-05',
+        '2026-11-02',
+      ]);
+    });
+
+    it('shouldReturnOnlyOwnRecordsEvenWhenOtherUserIdIsGiven', async () => {
+      const me = await createUserWithToken();
+      const other = await createUserWithToken();
+      await insertAttendance(prisma, {
+        userId: me.id,
+        workDate: '2026-11-03',
+        clockIn: '2026-11-03T09:00:00+09:00',
+      });
+      await insertAttendance(prisma, {
+        userId: other.id,
+        workDate: '2026-11-03',
+        clockIn: '2026-11-03T10:00:00+09:00',
+      });
+
+      const res = await history(me.token, { userId: other.id }).expect(200);
+      const body = res.body as PageBody;
+      expect(body.totalCount).toBe(1);
+      expect(body.items).toHaveLength(1);
+      expect(body.items[0]?.user.id).toBe(me.id);
+    });
+
+    it('shouldDeriveStatusAndWorkMinutesFromClockOutAndWorkDate', async () => {
+      const user = await createUserWithToken();
+      await insertAttendance(prisma, {
+        userId: user.id,
+        workDate: '2026-11-09',
+        clockIn: '2026-11-09T09:00:00+09:00',
+      });
+      await insertAttendance(prisma, {
+        userId: user.id,
+        workDate: '2026-11-08',
+        clockIn: '2026-11-08T09:00:00+09:00',
+      });
+      await insertAttendance(prisma, {
+        userId: user.id,
+        workDate: '2026-11-07',
+        clockIn: '2026-11-07T09:00:00+09:00',
+        clockOut: '2026-11-07T18:00:00+09:00',
+      });
+
+      const res = await history(user.token).expect(200);
+      const items = (res.body as PageBody).items;
+      expect(items.map((item) => [item.status, item.workMinutes])).toEqual([
+        ['WORKING', null],
+        ['MISSING_CLOCK_OUT', null],
+        ['DONE', 540],
+      ]);
+    });
+
+    it('shouldReturn400InvalidDateRangeWhenRangeExceeds366Days', async () => {
+      const user = await createUserWithToken();
+      // 2026-11-01 〜 2027-11-02 は両端を含めて 367 日
+      const res = await history(user.token, {
+        startDate: '2026-11-01',
+        endDate: '2027-11-02',
+      }).expect(400);
+      expect((res.body as ErrorBody).code).toBe('INVALID_DATE_RANGE');
+    });
+
+    it('shouldReturn400InvalidDateRangeWhenStartDateIsAfterEndDate', async () => {
+      const user = await createUserWithToken();
+      const res = await history(user.token, {
+        startDate: '2026-11-09',
+        endDate: '2026-11-01',
+      }).expect(400);
+      expect((res.body as ErrorBody).code).toBe('INVALID_DATE_RANGE');
+    });
+
+    it('shouldReturn400ValidationErrorForInvalidDateOrLimit', async () => {
+      const user = await createUserWithToken();
+      const invalidDate = await history(user.token, { startDate: '2026-13-01' }).expect(400);
+      expect((invalidDate.body as ErrorBody).code).toBe('VALIDATION_ERROR');
+      const overLimit = await history(user.token, { limit: 101 }).expect(400);
+      expect((overLimit.body as ErrorBody).code).toBe('VALIDATION_ERROR');
+    });
+
+    it('shouldPaginateWithTotalCountAndTotalPages', async () => {
+      const user = await createUserWithToken();
+      for (const day of ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05']) {
+        await insertAttendance(prisma, {
+          userId: user.id,
+          workDate: day,
+          clockIn: `${day}T09:00:00+09:00`,
+        });
+      }
+
+      const res = await history(user.token, {
+        startDate: '2026-11-01',
+        endDate: '2026-11-09',
+        page: 2,
+        limit: 2,
+      }).expect(200);
+      const body = res.body as PageBody;
+      expect(body).toMatchObject({ page: 2, limit: 2, totalCount: 5, totalPages: 3 });
+      expect(body.items.map((item) => item.workDate)).toEqual(['2026-11-03', '2026-11-02']);
+    });
+
+    it('shouldReturnModifiedAtOnlyForRecordsModifiedByAdmin', async () => {
+      const user = await createUserWithToken();
+      const admin = await tracker.createUser({ role: 'ADMIN', mustChangePassword: false });
+      await insertAttendance(prisma, {
+        userId: user.id,
+        workDate: '2026-11-08',
+        clockIn: '2026-11-08T09:00:00+09:00',
+        clockOut: '2026-11-08T18:00:00+09:00',
+        modifiedBy: admin.id,
+        modifiedAt: '2026-11-08T10:00:00+09:00',
+      });
+      await insertAttendance(prisma, {
+        userId: user.id,
+        workDate: '2026-11-07',
+        clockIn: '2026-11-07T09:00:00+09:00',
+        clockOut: '2026-11-07T18:00:00+09:00',
+      });
+
+      const res = await history(user.token).expect(200);
+      const items = (res.body as PageBody).items;
+      expect(items[0]?.modifiedAt).toBe('2026-11-08T10:00:00+09:00');
+      expect(items[0]?.modifiedAt).toMatch(OFFSET_PATTERN);
+      expect(items[1]?.modifiedAt).toBeNull();
+    });
+
+    it('shouldReturn401WithoutTokenAnd403PasswordChangeRequiredForHistory', async () => {
+      await request(app.getHttpServer()).get('/api/v1/attendance').expect(401);
+      const user = await createUserWithToken({ mustChangePassword: true });
+      const res = await history(user.token).expect(403);
+      expect((res.body as ErrorBody).code).toBe('PASSWORD_CHANGE_REQUIRED');
+    });
   });
 
   describe('認証・パスワード変更', () => {

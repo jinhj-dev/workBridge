@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client.js';
 import { USER_SUMMARY_SELECT } from '../../common/mappers/user-summary.js';
+import { toSkipTake } from '../../common/pagination/pagination.js';
+import type { PaginationQuery } from '../../common/pagination/pagination.js';
+import { toDbDate } from '../../common/time/tokyo-date.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 const ATTENDANCE_SELECT = {
@@ -8,6 +11,7 @@ const ATTENDANCE_SELECT = {
   workDate: true,
   clockIn: true,
   clockOut: true,
+  modifiedAt: true,
   user: { select: USER_SUMMARY_SELECT },
 } as const satisfies Prisma.AttendanceSelect;
 
@@ -53,4 +57,96 @@ export class AttendanceRepository {
     });
     return result.count;
   }
+
+  // 本人の勤怠一覧(期間は両端を含む)
+  findPageByUser(
+    userId: string,
+    range: DateRange,
+    pagination: PaginationQuery,
+  ): Promise<AttendancePageResult> {
+    const where: Prisma.AttendanceWhereInput = { userId, workDate: toRangeFilter(range) };
+    return this.findPageWhere(where, [{ workDate: 'desc' }], pagination);
+  }
+
+  // 全ユーザーの勤怠一覧(管理者用)。today は status 条件の判定に使う東京の日付
+  findPage(
+    filter: DateRange & {
+      name?: string;
+      departmentId?: string;
+      status?: 'WORKING' | 'DONE' | 'MISSING_CLOCK_OUT';
+    },
+    today: string,
+    pagination: PaginationQuery,
+  ): Promise<AttendancePageResult> {
+    const where: Prisma.AttendanceWhereInput = { workDate: toRangeFilter(filter) };
+    const userWhere: Prisma.UserWhereInput = {};
+    if (filter.name) {
+      userWhere.name = { contains: filter.name, mode: 'insensitive' };
+    }
+    if (filter.departmentId) {
+      userWhere.departmentId = filter.departmentId;
+    }
+    if (Object.keys(userWhere).length > 0) {
+      where.user = userWhere;
+    }
+    const todayDate = toDbDate(today);
+    if (filter.status === 'WORKING') {
+      where.AND = [{ workDate: todayDate, clockOut: null }];
+    } else if (filter.status === 'DONE') {
+      where.AND = [{ clockOut: { not: null } }];
+    } else if (filter.status === 'MISSING_CLOCK_OUT') {
+      where.AND = [{ workDate: { lt: todayDate }, clockOut: null }];
+    }
+    return this.findPageWhere(
+      where,
+      [{ workDate: 'desc' }, { user: { name: 'asc' } }, { id: 'asc' }],
+      pagination,
+    );
+  }
+
+  findById(id: string): Promise<AttendanceRow | null> {
+    return this.prisma.attendance.findUnique({ where: { id }, select: ATTENDANCE_SELECT });
+  }
+
+  updateTimes(params: {
+    id: string;
+    clockIn: Date;
+    clockOut: Date | null;
+    modifiedBy: string;
+    modifiedAt: Date;
+  }): Promise<AttendanceRow> {
+    const { id, ...data } = params;
+    return this.prisma.attendance.update({ where: { id }, data, select: ATTENDANCE_SELECT });
+  }
+
+  private async findPageWhere(
+    where: Prisma.AttendanceWhereInput,
+    orderBy: Prisma.AttendanceOrderByWithRelationInput[],
+    pagination: PaginationQuery,
+  ): Promise<AttendancePageResult> {
+    const [items, totalCount] = await this.prisma.$transaction([
+      this.prisma.attendance.findMany({
+        where,
+        select: ATTENDANCE_SELECT,
+        orderBy,
+        ...toSkipTake(pagination),
+      }),
+      this.prisma.attendance.count({ where }),
+    ]);
+    return { items, totalCount };
+  }
+}
+
+interface DateRange {
+  startDate: string;
+  endDate: string;
+}
+
+interface AttendancePageResult {
+  items: AttendanceRow[];
+  totalCount: number;
+}
+
+function toRangeFilter(range: DateRange): Prisma.DateTimeFilter {
+  return { gte: toDbDate(range.startDate), lte: toDbDate(range.endDate) };
 }

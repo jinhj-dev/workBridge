@@ -4,6 +4,7 @@ import { ConfigModule } from './config/config.module.js';
 import { AttendanceModule } from './modules/attendance/attendance.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { DepartmentsModule } from './modules/departments/departments.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { LeavesModule } from './modules/leaves/leaves.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -18,6 +19,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     AttendanceModule,
     LeavesModule,
     DashboardModule,
+    DepartmentsModule,
   ],
 })
 export class AppModule {}

@@ -14,6 +14,7 @@ export interface AttendanceResponse {
   clockOut: string | null;
   workMinutes: number | null;
   status: AttendanceStatus;
+  modifiedAt: string | null;
 }
 
 // 勤怠状態を計算する(docs/05 §4)。workDate と today は東京の日付 'YYYY-MM-DD'
@@ -46,5 +47,6 @@ export function toAttendanceResponse(row: AttendanceRow, today: string): Attenda
     clockOut: row.clockOut ? formatTokyoDateTime(row.clockOut) : null,
     workMinutes: calculateWorkMinutes(row.clockIn, row.clockOut),
     status: calculateAttendanceStatus(workDate, row.clockOut, today),
+    modifiedAt: row.modifiedAt ? formatTokyoDateTime(row.modifiedAt) : null,
   };
 }

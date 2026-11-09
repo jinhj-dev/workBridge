@@ -1,14 +1,25 @@
-import { Controller, Get, HttpCode, Post, Res } from '@nestjs/common';
+import { Controller, Get, HttpCode, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
+import type { Page } from '../../common/pagination/pagination.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { AttendanceResponse } from './attendance.mapper.js';
 import { AttendanceService } from './attendance.service.js';
+import { attendanceHistoryQuerySchema } from './dto/attendance-history-query.dto.js';
+import type { AttendanceHistoryQueryDto } from './dto/attendance-history-query.dto.js';
 
 // 本人の勤怠のみを扱う。対象ユーザーは常に認証済みユーザーで、リクエストから userId を受け取らない
 @Controller('attendance')
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
+
+  @Get()
+  list(
+    @CurrentUser() user: AuthUser,
+    @Query({ schema: attendanceHistoryQuerySchema }) query: AttendanceHistoryQueryDto,
+  ): Promise<Page<AttendanceResponse>> {
+    return this.attendanceService.listMine(user.id, query);
+  }
 
   @Post('clock-in')
   @HttpCode(201)
