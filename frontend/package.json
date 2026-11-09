@@ -12,7 +12,7 @@
     "format:check": "prettier --check . --ignore-path ../.gitignore --ignore-path .gitignore --ignore-path ../.prettierignore",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "next": "16.4.5",
