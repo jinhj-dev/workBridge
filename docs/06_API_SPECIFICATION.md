@@ -88,10 +88,12 @@ Query: `page`(기본 1), `limit`(기본 20, 최대 100)
   "clockIn": "2026-11-08T09:01:00+09:00",
   "clockOut": null,
   "workMinutes": null,
-  "status": "WORKING"
+  "status": "WORKING",
+  "modifiedAt": null
 }
 ```
 - status: `WORKING`(근무 중) / `DONE`(퇴근 완료) / `MISSING_CLOCK_OUT`(퇴근 누락)
+- `modifiedAt`: 관리자가 마지막으로 수정한 일시(API-ATT-006) 또는 `null`(수정 이력 없음). 수정자 ID는 노출하지 않는다.
 
 ---
 
@@ -188,15 +190,27 @@ Response 200
 
 ### API-ATT-004: 내 근태 이력
 - `GET /attendance` · USER · FR-ATT-003
-- Query: `startDate`, `endDate`(기본: 이번 달), `page`, `limit`
+- Query: `startDate`, `endDate`(`YYYY-MM-DD`), `page`, `limit`
+- 기본 기간: `startDate` 생략 시 이번 달 1일, `endDate` 생략 시 오늘(둘 다 Asia/Tokyo 기준, 각각 따로 적용)
+- 대상은 항상 토큰의 본인이다(사용자 지정 파라미터 없음).
 - Response 200: 페이지네이션(`Attendance[]`), 근무일 내림차순
-- 400 INVALID_DATE_RANGE: 시작일이 종료일보다 늦거나 최대 기간 초과
+
+| HTTP | Code | 설명 |
+|---|---|---|
+| 400 | VALIDATION_ERROR | 날짜 형식 오류, `page`·`limit` 범위 오류 |
+| 400 | INVALID_DATE_RANGE | 시작일이 종료일보다 늦음, 또는 기간이 양끝 포함 366일 초과 |
 
 ### API-ATT-005: 전체 근태 조회
 - `GET /admin/attendance` · ADMIN · FR-ATT-004
-- Query: `name`(부분 일치), `departmentId`, `startDate`, `endDate`, `status`(`WORKING` / `DONE` / `MISSING_CLOCK_OUT`), `page`, `limit`
+- Query: `name`(앞뒤 공백 제거 후 최대 100자, 대소문자 무시 부분 일치), `departmentId`(UUID), `startDate`, `endDate`, `status`(`WORKING` / `DONE` / `MISSING_CLOCK_OUT`), `page`, `limit`
+- 기본 기간과 기간 규칙은 API-ATT-004와 같다. 비활성 사용자의 기록도 포함한다.
 - Response 200: 페이지네이션(`Attendance[]`), 근무일 내림차순 후 사원명 오름차순(동순위는 id 오름차순)
-- 400 INVALID_DATE_RANGE
+
+| HTTP | Code | 설명 |
+|---|---|---|
+| 400 | VALIDATION_ERROR | 날짜·`departmentId`·`status`·`name` 길이·`page`·`limit` 형식 오류 |
+| 400 | INVALID_DATE_RANGE | API-ATT-004와 같음 |
+| 403 | FORBIDDEN | ADMIN이 아님 |
 
 ### API-ATT-006: 근태 수정
 - `PATCH /admin/attendance/:id` · ADMIN · FR-ATT-005

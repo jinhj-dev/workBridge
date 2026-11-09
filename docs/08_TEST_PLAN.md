@@ -37,6 +37,14 @@
 | emp5 | EMPLOYEE | true | 활성, must_change_password = true | 최초 로그인 검증 |
 
 - 각 테스트는 독립된 트랜잭션 또는 테이블 초기화로 격리한다.
+- Playwright용 E2E 계정(개발 DB, 위 테스트 DB 시드와는 별개): 개발 DB에 `npm run db:seed` 후 `npm run db:e2e-accounts`(backend)로 생성/초기화한다. Playwright 실행 시 globalSetup이 자동으로 실행한다.
+
+| 사원번호 | 이름 | 역할 | must_change_password | 비밀번호 환경변수 |
+|---|---|---|---|---|
+| 900001 | E2E管理者 | ADMIN | false | `E2E_ADMIN_PASSWORD` |
+| 900002 | E2E初回ログイン | EMPLOYEE | true | `E2E_INITIAL_PASSWORD` |
+
+- 실행할 때마다 비밀번호·플래그를 되돌리고 해당 사용자의 Refresh Token을 삭제한다. NODE_ENV=production이거나 DATABASE_URL 호스트가 localhost / 127.0.0.1 / ::1 이외이면 실행 불가.
 
 ## 4. 업무 규칙 단위 테스트 (02_REQUIREMENTS 기준)
 

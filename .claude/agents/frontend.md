@@ -1,6 +1,7 @@
 ---
 name: frontend
 description: MUST BE USED for frontend implementation in the feature-dev pipeline. Builds UI with the system components defined in docs/09_DESIGN_SYSTEM.md, following the project screen list, using the impeccable skill, from context.md, design-frontend.md and the API section of backend.md. Also fixes frontend issues raised by tester, reviewer or security. Does not edit project docs.
+model: sonnet
 tools: Read, Grep, Glob, Write, Edit, Bash, Skill
 skills: impeccable
 ---

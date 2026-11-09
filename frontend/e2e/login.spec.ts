@@ -1,17 +1,17 @@
 import { expect, test } from '@playwright/test';
 import { messages } from '../src/messages/ja';
+import { E2E_ADMIN } from './accounts';
 
-// 実バックエンド・開発 DB のログイン可能な管理者。パスワードは環境変数 E2E_ADMIN_PASSWORD で渡す(コードに書かない)
-const EMP_ID = '00001';
-const PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? '';
+// 実バックエンド・開発 DB の E2E 管理者(パスワード変更不要)。globalSetup が毎回初期化する。
+// パスワードは環境変数 E2E_ADMIN_PASSWORD で渡す(コードに書かない)
 const t = messages.login;
 const SCREENSHOT_DIR = process.env.E2E_SCREENSHOT_DIR;
 
-test.skip(!PASSWORD, 'E2E_ADMIN_PASSWORD が未設定のため実行しない');
+test.skip(!E2E_ADMIN.password, 'E2E_ADMIN_PASSWORD が未設定のため実行しない');
 
 test('shouldShowErrorMessageWhenPasswordIsWrong', async ({ page }) => {
   await page.goto('/login');
-  await page.getByLabel(t.empId).fill(EMP_ID);
+  await page.getByLabel(t.empId).fill(E2E_ADMIN.empId);
   await page.getByLabel(t.password).fill('wrong-password-xyz');
   await page.getByRole('button', { name: t.submit }).click();
 

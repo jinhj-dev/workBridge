@@ -176,6 +176,7 @@ Designed Pages 프레임 (이커머스 어드민 템플릿):
 | 파일 | export | 용도·변형 | 사용 토큰 | 접근성 |
 |---|---|---|---|---|
 | `components/form.tsx` | `inputClass` | Input Large(높이 48, 좌우 16, radius 4). 상태 default/focus/error | `input-border`, `primary-100`(focus 테두리+ring), `danger-100`(`aria-invalid` 시) | `aria-invalid`로 error 표시, `aria-describedby`로 FieldError 연결 |
+| | `selectClass` | Dropdown(Select) Regular. `inputClass`와 같은 높이·테두리 + `cursor-pointer` | `inputClass`와 같음 | `inputClass`와 같음 |
 | | `labelClass` | 입력 위 라벨(14/20 Medium, 아래 간격 4) | `general-80` | `<label htmlFor>`와 함께 사용 |
 | | `primaryButtonClass` | Button Primary(채움). 높이·폭은 호출측 지정, disabled는 `disabled:bg-primary-60` | `primary-100`, hover `primary-90` | focus-visible 2px outline `primary-100` |
 | | `secondaryButtonClass` | Button White(아웃라인). 취소 등 Primary 옆 보조 동작 | 테두리 `general-50`, hover `general-30`, 글자 `general-100` | 같음 |

@@ -3,6 +3,9 @@
 export const inputClass =
   'h-12 w-full rounded border border-input-border bg-white px-4 text-base/6 text-general-100 outline-none focus-visible:border-primary-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-100 aria-invalid:border-danger-100 aria-invalid:focus-visible:ring-danger-100';
 
+// 09 §3 Dropdown(Regular)。Input と同じ高さ・枠線
+export const selectClass = `${inputClass} cursor-pointer`;
+
 export const labelClass = 'mb-1 block text-sm/5 font-medium text-general-80';
 
 export const primaryButtonClass =
