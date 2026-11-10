@@ -182,8 +182,8 @@ describe('部署コードと所属の必須化', () => {
     // Prisma のクライアントは department を必須として検証するため、DB の NOT NULL を直接確かめる(生 SQL)
     await expect(
       prisma.$executeRaw`
-        INSERT INTO users (id, name, emp_id, password_hash, role)
-        VALUES (gen_random_uuid(), ${'テスト太郎'}, ${`T${uniqueSuffix()}`}, 'dummy-hash', 'EMPLOYEE')`,
+        INSERT INTO users (id, name, emp_id, password_hash, role, hire_date)
+        VALUES (gen_random_uuid(), ${'テスト太郎'}, ${`T${uniqueSuffix()}`}, 'dummy-hash', 'EMPLOYEE', '2026-01-01')`,
     ).rejects.toThrow(/department_id/);
   });
 
@@ -675,5 +675,50 @@ describe('エラー形式(API のエラーマッピング用の記録)', () => {
     expect(fk.code).toBe('P2003');
     expect(extractAdapterCause(fk.meta).kind).toBe('ForeignKeyConstraintViolation');
     expect(extractAdapterCause(fk.meta).originalCode).toBe('23503');
+  });
+});
+
+describe('users.hire_date', () => {
+  it('DATE 型・NOT NULL・既定値なしで定義されている', async () => {
+    const rows = await prisma.$queryRaw<
+      { data_type: string; is_nullable: string; column_default: string | null }[]
+    >`
+      SELECT data_type::text, is_nullable::text, column_default::text
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'hire_date'
+    `;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.data_type).toBe('date');
+    expect(rows[0]?.is_nullable).toBe('NO');
+    expect(rows[0]?.column_default).toBeNull();
+  });
+
+  it('入社日を保存し、YYYY-MM-DD のまま読み出せる', async () => {
+    const user = await tracker.createUser({ hireDate: toDbDate('2026-04-01') });
+    const read = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(fromDbDate(read.hireDate)).toBe('2026-04-01');
+  });
+
+  it('入社日なしの INSERT を拒否する', async () => {
+    // hire_date 以外の必須列は埋めておき、NOT NULL 違反だけが起きる状態にする
+    const info = await captureDbError(
+      () => prisma.$executeRaw`
+        INSERT INTO users (id, name, emp_id, password_hash, role)
+        VALUES (${crypto.randomUUID()}::uuid, 'テスト太郎', ${`T${uniqueSuffix()}`}, 'dummy-hash', 'EMPLOYEE'::user_role)`,
+    );
+    expect(info.code).toBe('P2010');
+    expect(info.sqlState).toBe('23502');
+  });
+
+  it('閏年・月末・未来の日付がずれずに往復する', async () => {
+    for (const ymd of ['2028-02-29', '2026-12-31', '2030-04-01']) {
+      const user = await tracker.createUser({ hireDate: toDbDate(ymd) });
+      const read = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+      expect(fromDbDate(read.hireDate)).toBe(ymd);
+      // DB 側の実値も同じ日付になっている
+      const raw = await prisma.$queryRaw<{ s: string }[]>`
+        SELECT hire_date::text AS s FROM users WHERE id = ${user.id}::uuid`;
+      expect(raw[0]?.s).toBe(ymd);
+    }
   });
 });

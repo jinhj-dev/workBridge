@@ -343,11 +343,13 @@ Request
 
 ### API-USER-001: 사원 목록
 - `GET /admin/users` · ADMIN · FR-USER-001
-- Query: `name`, `empId`, `departmentId`, `role`, `approvalRequired`(true/false), `isActive`(true/false), `page`, `limit`
+- Query: `name`, `empId`, `departmentId`, `role`, `approvalRequired`(true/false), `isActive`(true/false), `hireDateFrom`, `hireDateTo`, `page`, `limit`
 - `isActive`를 생략하면 활성·비활성 전체를 반환한다. 화면 기본값("활성")은 화면이 `isActive=true`를 명시적으로 보낸다(SCR-006).
+- `hireDateFrom`·`hireDateTo`: YYYY-MM-DD, 양끝 포함, 한쪽만 지정 가능. 형식 오류이거나 `hireDateFrom > hireDateTo`이면 400 VALIDATION_ERROR
+- 정렬: 입사일 오름차순, 같은 날이면 사원번호 오름차순
 - Response 200: 페이지네이션
 ```json
-{ "id": "uuid", "name": "홍길동", "empId": "00001", "departmentId": "uuid", "departmentName": "개발팀",
+{ "id": "uuid", "name": "홍길동", "empId": "00001", "hireDate": "2026-04-01", "departmentId": "uuid", "departmentName": "개발팀",
   "role": "EMPLOYEE", "approvalRequired": true, "isActive": true, "createdAt": "2026-01-02T09:00:00+09:00" }
 ```
 
@@ -356,10 +358,11 @@ Request
 
 Request
 ```json
-{ "name": "홍길동", "empId": "00001", "initialPassword": "Temp1234", "departmentId": "uuid",
+{ "name": "홍길동", "empId": "00001", "initialPassword": "Temp1234", "hireDate": "2026-04-01", "departmentId": "uuid",
   "role": "EMPLOYEE", "approvalRequired": true }
 ```
-- name, empId, initialPassword, departmentId, role, approvalRequired 필수. 未所属 부서도 지정할 수 있다
+- name, empId, initialPassword, hireDate, departmentId, role, approvalRequired 필수. 未所属 부서도 지정할 수 있다
+- hireDate: YYYY-MM-DD, 실재하는 날짜, 미래 날짜 허용, 기본값 없음. 누락·형식 오류는 400 VALIDATION_ERROR
 - Response 201: 사원 상세(API-USER-003과 같은 구조). `isActive = true`, `mustChangePassword = true`
 
 | HTTP | Code | 설명 |
@@ -374,7 +377,8 @@ Request
 
 ### API-USER-004: 사원 수정
 - `PATCH /admin/users/:id` · ADMIN · FR-USER-002
-- Request(변경할 필드만): `name`, `empId`, `departmentId`, `role`, `approvalRequired`, `isActive`
+- Request(변경할 필드만): `name`, `empId`, `hireDate`, `departmentId`, `role`, `approvalRequired`, `isActive`
+- `hireDate`를 지정하면 API-USER-002와 같은 규칙으로 검증한다(null 불가)
 - `departmentId: null`은 허용하지 않는다(400 VALIDATION_ERROR)
 - Response 200: 사원 상세
 - `isActive`를 false로 바꾸면 FR-USER-002의 비활성화 처리를 같은 트랜잭션에서 수행한다.

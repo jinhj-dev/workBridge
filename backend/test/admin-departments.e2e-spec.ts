@@ -96,6 +96,7 @@ describe('管理者 部署 API(e2e)', () => {
       passwordHash: 'dummy-hash',
       role: 'EMPLOYEE',
       departmentId,
+      hireDate: new Date('2026-01-01T00:00:00.000Z'),
     };
   }
 

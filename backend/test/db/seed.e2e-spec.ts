@@ -9,7 +9,7 @@ import {
   type SeedResult,
 } from '../../prisma/initial-data.js';
 import { Role } from '../../src/generated/prisma/client.js';
-import { createTestPrisma, uniqueSuffix } from './db-helpers.js';
+import { createTestPrisma, fromDbDate, uniqueSuffix } from './db-helpers.js';
 
 const VALID_PASSWORD = 'Seed1234pass';
 
@@ -83,6 +83,8 @@ describe('seedInitialData', () => {
       approvalRequired: false,
       mustChangePassword: true,
     });
+    // 初期 ADMIN の入社日は固定日
+    expect(fromDbDate(admin.hireDate)).toBe('2026-01-01');
     expect(await bcrypt.compare(VALID_PASSWORD, admin.passwordHash)).toBe(true);
     const ga = await prisma.department.findUniqueOrThrow({ where: { code: 'GA' } });
     expect(admin.departmentId).toBe(ga.id);

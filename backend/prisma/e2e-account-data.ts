@@ -32,6 +32,9 @@ export const E2E_ACCOUNTS = {
   },
 } as const satisfies Record<string, E2eAccountDefinition>;
 
+// E2E アカウントの入社日(再初期化のたびにこの日に戻す)
+export const E2E_HIRE_DATE = '2026-01-01';
+
 export interface E2eAccountSpec {
   empId: string;
   name: string;
@@ -148,6 +151,7 @@ export async function resetE2eAccounts(
         isActive: true,
         mustChangePassword: account.mustChangePassword,
         departmentId: department.id,
+        hireDate: toDbDate(E2E_HIRE_DATE),
       };
       const user = await tx.user.upsert({
         where: { empId: account.empId },

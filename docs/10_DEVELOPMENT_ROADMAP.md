@@ -46,7 +46,7 @@
 ### 2. 데이터베이스 — 완료
 
 - [x] Prisma Schema(테이블 6개, ENUM 3개, FK RESTRICT, 인덱스) — 05 §0~§7
-- [x] 마이그레이션(`init`, `split_leaves_rejected_check`, `department_code_and_required_user_department`), CHECK 14개 — 마지막은 departments.code(UNIQUE)·未所属 부서·users.department_id NOT NULL (05 §1·§2)
+- [x] 마이그레이션(`init`, `split_leaves_rejected_check`, `add_users_hire_date`, `department_code_and_required_user_department`), CHECK 14개 — 마지막은 departments.code(UNIQUE)·未所属 부서·users.department_id NOT NULL (05 §1·§2)
 - [x] Seed: 부서 5개(未所属 포함, 코드 부여), 초기 ADMIN(활성 ADMIN이 없을 때만, 総務部 소속)
 - [x] DB 통합 테스트: CRUD, UNIQUE, FK, CHECK 14개, DATE·Decimal 왕복, seed 멱등성, departments.code UNIQUE·users.department_id NOT NULL·마이그레이션 후 상태
 - [x] DB 사용 절차 문서화(`backend/README.md`)
@@ -176,5 +176,6 @@
 | 2026-11-10 | 휴가 승인 완료: 휴가 승인 화면 SCR-005, 사이드바 승인 대기 배지. 공용 컴포넌트 Tabs·PendingApprovalCount, LeaveDetailModal `initialStep`(09 §6). E2E 관리자 근태 초기화 스크립트 `db:e2e-attendance-reset` 추가(backend unit 176건, e2e 229건, frontend 245건 통과, Playwright 23건 통과) |
 | 2026-11-10 | 휴가 신청·조회·취소 백엔드 완료: API-LEAVE-001·002·003·005. 휴가 관리 화면 SCR-004와 LeaveDetailModal [취소] 단계 구현, 공용 컴포넌트 ApproverSelect·`textareaClass`·`lib/leave-days.ts`(09 §6). E2E 관리자 휴가 초기화 스크립트 `db:e2e-leaves-reset` 추가(backend unit 199건, e2e 274건, frontend 334건 통과. Playwright `e2e/leaves.spec.ts` 7건은 E2E 환경변수 미설정으로 미실행 — SCR-004는 진행 중 유지) |
 | 2026-11-10 | 휴가 관리 개편: SCR-004 탭 삭제, 휴가 신청을 공통 모달 `LeaveApplyModal`로 변경(SCR-002 휴가 현황 카드에서도 사용, 화면 이동 없음), 이력 필터를 상태·휴가 종류 토글 복수 선택(`LeaveFilterButtons`)으로 변경. API-LEAVE-003 `status` 쉼표 복수·`leaveType` 추가(06), 공용 컴포넌트·`LEAVE_TYPES`(09 §6)(backend unit 199건, e2e 277건, frontend 358건 통과. Playwright `e2e/leaves.spec.ts` 8건은 E2E 환경변수 미설정으로 미실행 — SCR-004는 진행 중 유지) |
+| 2026-11-10 | 사원 입사일: `users.hire_date`(DATE, NOT NULL, 기본값 없음)와 마이그레이션 `add_users_hire_date` 추가(기존 행·seed 초기 ADMIN·E2E 계정은 2026-01-01). 02·05·06·SCR-006·SCR-007·08에 입사일 계약 반영. API-USER-001~004·SCR-006/007 구현은 기능 8에서 진행(backend unit 185건, e2e 238건 통과) |
 | 2026-11-10 | 부서 관리 백엔드 완료: API-DEPT-002~006(FR-DEPT-001 신설), departments.code·시스템 부서 未所属·users.department_id NOT NULL 마이그레이션, seed·E2E 계정 부서 지정. 부서 관리 화면 SCR-010·사이드바 部署管理 구현. 사원 쪽 부서 필수화는 문서(02·06·SCR-006·007)만 반영(backend unit 222건, e2e 313건, frontend 391건 통과 — 임시 테스트 DB. Playwright `e2e/departments.spec.ts`는 개발 DB 미마이그레이션으로 미실행 — SCR-010은 진행 중 유지) |
 | 2026-11-10 | 부서 관리 화면 SCR-010 완료: Playwright `e2e/departments.spec.ts` 4건 임시 DB에서 통과. 부서 API `:id` 형식 오류 400 VALIDATION_ERROR, 검색어 `%`·`_`·`\` 문자 그대로 일치, 未所属 부재 시 500(06·08 반영)(backend unit 222건, e2e 317건, frontend 391건 통과). 범위 밖 기존 Playwright 실패 7건(attendance-status 6, leaves 1)은 §2 #10 "E2E 하네스 정비"로 분리 |
