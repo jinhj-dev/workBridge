@@ -1,0 +1,21 @@
+[
+  {
+    "title": "承認待ち一覧",
+    "section": {
+      "top": 226,
+      "height": 172,
+      "width": 950
+    },
+    "header": {
+      "top": 254,
+      "height": 28,
+      "width": 894
+    },
+    "heading": {
+      "top": 256,
+      "height": 24,
+      "width": 96
+    },
+    "headerChildCount": 1
+  }
+]

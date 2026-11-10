@@ -13,8 +13,13 @@ import { messages } from '@/messages/ja';
 
 const t = messages.dashboard.leave;
 
+interface LeaveBalanceSectionProps {
+  // 申請が成功したとき(即時承認の休暇をカレンダーへ反映するため)
+  onApplied?: () => void;
+}
+
 // SCR-002 §3-4 休暇状況(今年)。残日数はサーバーの計算値をそのまま表示する
-export function LeaveBalanceSection() {
+export function LeaveBalanceSection({ onApplied }: LeaveBalanceSectionProps) {
   const query = useApiQuery<LeaveBalance>('/leaves/balance');
   const [applyOpen, setApplyOpen] = useState(false);
   // 開くたびに入力を初期状態に戻すため、モーダルの key を更新する
@@ -96,6 +101,7 @@ export function LeaveBalanceSection() {
         onApplied={() => {
           setApplyOpen(false);
           query.reload();
+          onApplied?.();
         }}
         onBalanceStale={query.reload}
       />

@@ -83,3 +83,24 @@ export interface AdminDashboardSummary {
   onLeaveCount: number;
   pendingLeaveCount: number;
 }
+
+// API-DASH-002(月間の休暇取得人数。人数 1 以上の日だけ)
+export interface LeaveCalendarMonth {
+  month: string;
+  days: { date: string; count: number }[];
+}
+
+export type HalfDay = 'AM' | 'PM';
+
+// API-DASH-003(1 日分の休暇取得者。種別・理由は含まない)
+export interface LeaveCalendarMember {
+  userId: string;
+  name: string;
+  departmentName: string;
+  halfDay: HalfDay | null;
+}
+
+export interface LeaveCalendarDay {
+  date: string;
+  items: LeaveCalendarMember[];
+}

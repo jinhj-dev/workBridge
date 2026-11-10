@@ -162,6 +162,19 @@
 | IT-DASH-01 | 일반 사용자가 `/admin/dashboard/summary` | 403 FORBIDDEN |
 | IT-DASH-02 | ADMIN의 오늘 현황 집계 | 출근·미출근·휴가 인원, 전체 PENDING 수가 시드 데이터와 일치 |
 | IT-DASH-03 | 미출근 집계에서 휴가 중인 사용자 제외 | 제외됨 |
+| IT-DASH-04 | 휴가 캘린더 월 집계(API-DASH-002): 평일 1일·월~금 5일·금~월(주말 포함) APPROVED 연차 | 해당 평일만 `count 1`, 토·일은 `days`에 없음 |
+| IT-DASH-05 | 월 경계: 1/29~2/3 APPROVED, `month=YYYY-01` / `YYYY-02` | 각 월에 그 월의 날짜만 반환 |
+| IT-DASH-06 | 사용자 단위 중복 없음: 같은 사용자 같은 날 HALF_AM + HALF_PM / 다른 사용자 2명 같은 날 | `count 1` / `count 2` |
+| IT-DASH-07 | 상태·활성 필터: PENDING·REJECTED·CANCELLED만 있는 날, APPROVED+PENDING+REJECTED 혼재, 비활성 사용자 APPROVED | 비승인·비활성은 집계·목록 모두 제외(혼재 시 `count 1`) |
+| IT-DASH-08 | `month` 생략(Clock 고정, UTC 2026-10-31 15:30 / 2026-11-30 15:00) | Asia/Tokyo 기준 `2026-11` / `2026-12` |
+| IT-DASH-09 | `month` = `2026-13`·`2026-1`·`abcd`·`1999-12`·`2101-01` / `date` 누락·`2026-02-30`·`2026/11/10`·`1999-12-31`·`2101-01-01` | 400 VALIDATION_ERROR, `details[0].field` = `month` / `date` |
+| IT-DASH-10 | 날짜별 목록(API-DASH-003): 다일 연차 중간 날짜, 같은 날 여러 사용자, 과거 날짜 | 해당 사용자 포함, `name`·`departmentName`이 DB와 일치, 사원번호 오름차순 |
+| IT-DASH-11 | `halfDay` 판정: HALF_AM만 / HALF_PM만 / HALF_AM+HALF_PM / ANNUAL·SPECIAL·OTHER / ANNUAL+HALF_PM(직접 INSERT) / 승인 HALF_AM + 대기·반려 HALF_PM | `"AM"` / `"PM"` / `null`(1행) / `null` / `null`(1행) / `"AM"` |
+| IT-DASH-12 | 휴가 없는 평일 / 휴가 기간 안의 토요일 | `items: []` |
+| IT-DASH-13 | 최소 공개: 월 `days[]` 키는 `date`·`count`만, 목록 `items[]` 키는 `userId`·`name`·`departmentName`·`halfDay`만(`reason`·`leaveType`·기간·`status`·`empId`·승인 정보 없음). EMPLOYEE·ADMIN 응답 동일 | 일치 |
+| IT-DASH-14 | 같은 날짜의 월 `count`와 목록 `items` 건수(반차 사용자 포함) | 같음 |
+| IT-DASH-15 | 집계 SQL을 DB 세션 타임존 America/Los_Angeles·Asia/Tokyo·UTC에서 실행 | 결과 동일 |
+| IT-DASH-16 | API-DASH-002·003 권한: 토큰 없음 / mustChangePassword 사용자 / EMPLOYEE·ADMIN | 401 / 403 PASSWORD_CHANGE_REQUIRED / 200 |
 
 ### 5.6 부서 관리 (FR-DEPT-001)
 
@@ -208,6 +221,7 @@
 | 부서 관리 `/admin/departments` API | 401 | 403 | 403 | 허용 |
 | 전체 근태 조회·수정 | 401 | 403 | 403 | 허용 |
 | 오늘 전체 현황 | 401 | 403 | 403 | 허용 |
+| 휴가 캘린더 월 집계·날짜별 목록 (API-DASH-002·003) | 401 | 허용 | 허용 | 허용(EMPLOYEE와 같은 응답) |
 
 화면 접근 검증(E2E 또는 라우트 테스트):
 - 비로그인이 `/dashboard` 접근 → `/login?redirect=/dashboard`
@@ -219,7 +233,7 @@
 | 화면 | 검증 항목 |
 |---|---|
 | SCR-001 | 빈 값 제출 시 필드 메시지, 로그인 실패 시 비밀번호 필드 초기화, 로그인 후 redirect 파라미터 이동(내부 경로만 허용: 외부 URL 입력 시 무시), 로그인 상태에서 `/login` 접근 시 대시보드 |
-| SCR-002 | 출근 버튼은 미출근일 때만, 퇴근은 근무 중일 때만 활성. 승인 대기 최대 5건. ADMIN 영역은 EMPLOYEE에게 렌더링되지 않음. 영역별 독립 실패(한 API 실패 시 나머지 표시) |
+| SCR-002 | 출근 버튼은 미출근일 때만, 퇴근은 근무 중일 때만 활성. 승인 대기 최대 5건. ADMIN 영역은 EMPLOYEE에게 렌더링되지 않음. 영역별 독립 실패(한 API 실패 시 나머지 표시). 休暇カレンダー: 날짜 배지 「{n}名」·0명 미표시(FS-01), [翌月]/[前月] 월 이동 재조회(FS-02), 월 조회 실패 SectionError·재시도(FS-03), 로딩 스켈레톤(FS-04), 날짜 클릭 시 그 날짜 상세만 1회 조회(FS-05), 모달에 이름·소속 부서만 표시(FS-06), 「午前半休」「午後半休」 라벨·라벨 없음(FS-06a), 0건 「この日の休暇取得者はいません。」(FS-07), 모달 내 실패·재시도(FS-08), 외부 갱신 시 표시 월 유지 재조회(FS-09). 공용 컴포넌트: `lib/calendar` 월 격자·월 이동(FU-01·02), `MonthCalendar` 오늘 `aria-current`·과거 표시·과거 클릭·요일 헤더(FC-01~04). 대시보드: EMPLOYEE·ADMIN 모두 캘린더 표시(FD-01·02), 승인 처리 후 캘린더 재조회(FD-03) |
 | SCR-003 | 시작일 > 종료일 검증, 기본 기간(이번 달), 퇴근 누락 행 강조 |
 | SCR-004 | [休暇申請] 버튼으로 공통 휴가 신청 모달 열기(SCR-002에서도 같은 모달), 휴가 종류 Radio 미선택 검증, 이력 상태·휴가 종류 토글 복수 선택 필터와 URL Query(쉼표 구분) 반영, 신청 성공 후 모달 닫기·요약·이력 재조회, 반차 선택 시 종료일 자동 고정, 주말 제외 일수 미리보기, 즉시 승인 사용자는 승인자 필드 미표시, 잔여 초과 422 메시지, 중복 클릭 방지(요청 중 버튼 비활성), 취소 버튼 노출 조건 |
 | SCR-005 | 반려 사유 필수, scope 전환(ADMIN만 노출), 본인 신청 건 버튼 비활성, 409 시 목록 재조회 |

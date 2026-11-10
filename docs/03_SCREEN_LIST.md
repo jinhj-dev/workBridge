@@ -3,7 +3,7 @@
 | ID | 화면명 | URL | 권한 | 기능 | 관련 요구사항 |
 |---|---|---|---|---|---|
 | SCR-001 | 로그인 | /login | 비로그인 | 로그인 | FR-AUTH-001, FR-AUTH-002 |
-| SCR-002 | 대시보드 | /dashboard | 공통 | 출퇴근 등록, 개인 근태·휴가 현황, 승인 대기 현황, (ADMIN) 오늘 전체 현황 | FR-DASH-001, FR-ATT-001, FR-ATT-002, FR-LEAVE-001, FR-LEAVE-002, FR-LEAVE-003, FR-LEAVE-006 |
+| SCR-002 | 대시보드 | /dashboard | 공통 | 출퇴근 등록, 개인 근태·휴가 현황, 승인 대기 현황, (ADMIN) 오늘 전체 현황, 월간 휴가 캘린더(공통) | FR-DASH-001, FR-ATT-001, FR-ATT-002, FR-LEAVE-001, FR-LEAVE-002, FR-LEAVE-003, FR-LEAVE-006 |
 | SCR-003 | 근태 관리 | /attendance | 공통 | 개인 근태 이력 조회 | FR-ATT-003 |
 | SCR-004 | 휴가 관리 | /leaves | 공통 | 휴가 신청(공통 모달), 내 신청 이력 조회(상태·종류 필터)·상세·취소 | FR-LEAVE-001, 004, 005, 006 |
 | SCR-005 | 휴가 승인 | /leaves/approvals | 공통 | 승인 대기 목록 조회, 승인·반려 | FR-LEAVE-002, 003, 005 |

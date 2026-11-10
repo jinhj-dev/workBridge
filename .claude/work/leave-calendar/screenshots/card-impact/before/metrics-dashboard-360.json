@@ -1,0 +1,97 @@
+[
+  {
+    "title": "本日の全体状況",
+    "section": {
+      "top": 206,
+      "height": 236,
+      "width": 328
+    },
+    "header": {
+      "top": 206,
+      "height": 236,
+      "width": 328
+    },
+    "heading": {
+      "top": 206,
+      "height": 24,
+      "width": 328
+    },
+    "headerChildCount": 2
+  },
+  {
+    "title": "勤怠状況",
+    "section": {
+      "top": 466,
+      "height": 213,
+      "width": 328
+    },
+    "header": {
+      "top": 486,
+      "height": 28,
+      "width": 288
+    },
+    "heading": {
+      "top": 488,
+      "height": 24,
+      "width": 64
+    },
+    "headerChildCount": 1
+  },
+  {
+    "title": "休暇状況",
+    "section": {
+      "top": 703,
+      "height": 316,
+      "width": 328
+    },
+    "header": {
+      "top": 723,
+      "height": 28,
+      "width": 288
+    },
+    "heading": {
+      "top": 725,
+      "height": 24,
+      "width": 64
+    },
+    "headerChildCount": 2
+  },
+  {
+    "title": "承認待ちの申請",
+    "section": {
+      "top": 1043,
+      "height": 156,
+      "width": 328
+    },
+    "header": {
+      "top": 1063,
+      "height": 28,
+      "width": 288
+    },
+    "heading": {
+      "top": 1065,
+      "height": 24,
+      "width": 112
+    },
+    "headerChildCount": 2
+  },
+  {
+    "title": "休暇カレンダー",
+    "section": {
+      "top": 1223,
+      "height": 430,
+      "width": 328
+    },
+    "header": {
+      "top": 1243,
+      "height": 48,
+      "width": 288
+    },
+    "heading": {
+      "top": 1243,
+      "height": 48,
+      "width": 110
+    },
+    "headerChildCount": 2
+  }
+]

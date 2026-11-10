@@ -27,7 +27,7 @@ export const messages = {
     closeMenu: 'メニューを閉じる',
     dashboard: 'ダッシュボード',
     attendance: '勤怠管理',
-    leaves: '休暇管理',
+    leaves: '自分の休暇',
     approvals: '休暇承認',
     adminUsers: '社員管理',
     adminDepartments: '部署管理',
@@ -36,6 +36,10 @@ export const messages = {
     changePassword: 'パスワード変更',
     logout: 'ログアウト',
     pendingCount: (n: number) => `承認待ち${n}件`,
+  },
+  calendar: {
+    weekdays: ['日', '月', '火', '水', '木', '金', '土'],
+    monthLabel: (year: number, month: number) => `${year}年${month}月`,
   },
   dashboard: {
     title: 'ダッシュボード',
@@ -87,6 +91,15 @@ export const messages = {
       days: '日数',
       createdAt: '申請日',
       openDetail: (name: string) => `${name}さんの申請の詳細を開く`,
+    },
+    calendar: {
+      title: '休暇カレンダー',
+      prevMonth: '前月',
+      nextMonth: '翌月',
+      people: (n: number) => `${n}名`,
+      dayDescription: (n: number) => `休暇 ${n}名`,
+      dayTitle: (label: string) => `${label}の休暇`,
+      empty: 'この日の休暇取得者はいません。',
     },
   },
   leave: {
@@ -149,7 +162,7 @@ export const messages = {
     alreadyProcessed: 'すでに処理された申請です。一覧を更新します。',
   },
   leaves: {
-    title: '休暇管理',
+    title: '自分の休暇',
     summaryTitle: '休暇の状況',
     applyButton: '休暇申請',
     granted: '付与日数',
