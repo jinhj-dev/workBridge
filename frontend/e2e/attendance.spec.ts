@@ -116,6 +116,8 @@ test.describe('一般社員の管理者画面アクセス', () => {
   // 900002 は最初のログインでパスワード変更が必要なため、変更してから確かめる。
   // 変更後の状態を残さないよう、終了後に E2E アカウントを初期化する(password.spec が元のパスワードを前提にするため)
   test.afterAll(() => {
+    // PLAYWRIGHT_BASE_URL 指定時は対象環境が別の DB のため、ローカル DB を触らない(global-setup と同じ条件)
+    if (process.env.PLAYWRIGHT_BASE_URL) return;
     execSync('npm run db:e2e-accounts', {
       cwd: path.resolve(__dirname, '../../backend'),
       stdio: 'inherit',

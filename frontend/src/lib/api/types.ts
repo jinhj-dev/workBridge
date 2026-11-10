@@ -46,6 +46,18 @@ export interface Department {
   name: string;
 }
 
+// API-DEPT-002〜006(管理者用の部署詳細)
+export interface DepartmentDetail {
+  id: string;
+  code: string;
+  name: string;
+  memberCount: number;
+  inactiveMemberCount: number;
+  isSystem: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Paginated<T> {
   items: T[];
   page: number;

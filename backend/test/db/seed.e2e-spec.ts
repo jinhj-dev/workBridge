@@ -3,7 +3,7 @@
 import bcrypt from 'bcrypt';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-  DEPARTMENT_NAMES,
+  DEPARTMENTS,
   seedInitialData,
   type SeedConfig,
   type SeedResult,
@@ -12,6 +12,8 @@ import { Role } from '../../src/generated/prisma/client.js';
 import { createTestPrisma, uniqueSuffix } from './db-helpers.js';
 
 const VALID_PASSWORD = 'Seed1234pass';
+
+const DEPARTMENT_NAMES = DEPARTMENTS.map((department) => department.name);
 
 describe('seedInitialData', () => {
   const prisma = createTestPrisma();
@@ -82,6 +84,12 @@ describe('seedInitialData', () => {
       mustChangePassword: true,
     });
     expect(await bcrypt.compare(VALID_PASSWORD, admin.passwordHash)).toBe(true);
+    const ga = await prisma.department.findUniqueOrThrow({ where: { code: 'GA' } });
+    expect(admin.departmentId).toBe(ga.id);
+    // 未所属を含む 5 部署がすべてコード付きで登録される
+    const codes = DEPARTMENTS.map((department) => department.code);
+    expect(codes).toHaveLength(5);
+    expect(await prisma.department.count({ where: { code: { in: codes } } })).toBe(5);
 
     // 別の社員番号で再実行しても、活性 ADMIN がいるので何もしない
     const second = await seedAndTrack({

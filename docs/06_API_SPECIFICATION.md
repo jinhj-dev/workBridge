@@ -56,6 +56,7 @@ Query: `page`(기본 1), `limit`(기본 20, 최대 100)
 ```json
 { "id": "uuid", "name": "홍길동", "empId": "00001", "departmentName": "개발팀" }
 ```
+- `departmentName`은 항상 값이 있다(non-null). 모든 사원은 1개 부서에 소속된다(05 §2).
 
 `Leave`
 ```json
@@ -116,6 +117,8 @@ Response 200 (Refresh Token은 Set-Cookie)
   }
 }
 ```
+- `departmentName`은 non-null이다(`UserSummary`와 같음).
+
 | HTTP | Code | 설명 |
 |---|---|---|
 | 401 | INVALID_CREDENTIALS | 사원번호 또는 비밀번호 불일치 |
@@ -356,7 +359,7 @@ Request
 { "name": "홍길동", "empId": "00001", "initialPassword": "Temp1234", "departmentId": "uuid",
   "role": "EMPLOYEE", "approvalRequired": true }
 ```
-- name, empId, initialPassword, role, approvalRequired 필수 / departmentId 선택
+- name, empId, initialPassword, departmentId, role, approvalRequired 필수. 未所属 부서도 지정할 수 있다
 - Response 201: 사원 상세(API-USER-003과 같은 구조). `isActive = true`, `mustChangePassword = true`
 
 | HTTP | Code | 설명 |
@@ -372,6 +375,7 @@ Request
 ### API-USER-004: 사원 수정
 - `PATCH /admin/users/:id` · ADMIN · FR-USER-002
 - Request(변경할 필드만): `name`, `empId`, `departmentId`, `role`, `approvalRequired`, `isActive`
+- `departmentId: null`은 허용하지 않는다(400 VALIDATION_ERROR)
 - Response 200: 사원 상세
 - `isActive`를 false로 바꾸면 FR-USER-002의 비활성화 처리를 같은 트랜잭션에서 수행한다.
 
@@ -393,3 +397,73 @@ Request
 ### API-DEPT-001: 부서 목록
 - `GET /departments` · USER · (부서 선택용)
 - Response 200: `[{ "id": "uuid", "name": "개발팀" }]`
+
+`DepartmentDetail` (API-DEPT-002~005 공통)
+```json
+{ "id": "uuid", "code": "DEV", "name": "開発部", "memberCount": 12, "inactiveMemberCount": 2,
+  "isSystem": false, "createdAt": "2026-11-10T09:00:00+09:00", "updatedAt": "2026-11-10T09:00:00+09:00" }
+```
+- `memberCount`: 소속 **활성** 사원 수. 삭제 가능 판단 기준(FR-DEPT-001)
+- `inactiveMemberCount`: 소속 비활성 사원 수. 삭제 시 未所属 부서로 이동되는 인원
+- `isSystem`: 시스템 부서 未所属(code `UNASSIGNED`)이면 `true`(05 §1)
+- 응답에 사원 개인정보는 넣지 않는다(건수만)
+
+입력 규칙(등록·수정 공통)
+- code: 앞뒤 공백 제거 후 영숫자·하이픈 1~20자. 대문자로 정규화하여 저장·중복 비교한다(`dev` → `DEV`)
+- name: 앞뒤 공백 제거 후 1~100자
+- code `UNASSIGNED`는 이미 사용 중이므로 등록·수정 시 409 DUPLICATE_DEPARTMENT_CODE가 된다
+
+### API-DEPT-002: 부서 관리 목록
+- `GET /admin/departments` · ADMIN · FR-DEPT-001
+- Query: `code`(앞뒤 공백 제거 후 최대 20자), `name`(앞뒤 공백 제거 후 최대 100자), `page`, `limit`. 둘 다 대소문자 무시 부분 일치. `%`·`_`·`\`도 와일드카드가 아닌 문자 그대로 일치한다
+- Response 200: 페이지네이션(`DepartmentDetail[]`), code 오름차순. 未所属 부서도 포함한다
+- 400 VALIDATION_ERROR: `code`·`name` 길이, `page`·`limit` 범위 오류
+
+### API-DEPT-003: 부서 상세
+- `GET /admin/departments/:id` · ADMIN · FR-DEPT-001
+- Response 200: `DepartmentDetail`
+- 400 VALIDATION_ERROR: `:id`가 UUID 형식이 아님
+- 404 NOT_FOUND 「部署が見つかりません。」
+
+`:id` 형식 오류 응답(API-DEPT-003·005·006 공통): code `VALIDATION_ERROR`, message 「入力内容に誤りがあります。」, `details: [{ "field": "id", "message": "部署 ID の形式が正しくありません。" }]`
+
+### API-DEPT-004: 부서 등록
+- `POST /admin/departments` · ADMIN · FR-DEPT-001
+
+Request
+```json
+{ "code": "DEV", "name": "開発部" }
+```
+- code, name 필수
+- Response 201: `DepartmentDetail`(`memberCount`·`inactiveMemberCount`는 0)
+
+| HTTP | Code | 설명 |
+|---|---|---|
+| 400 | VALIDATION_ERROR | 필수값 누락, 형식·길이 오류 |
+| 409 | DUPLICATE_DEPARTMENT_CODE | 부서 코드 중복(대문자 정규화 후 비교) |
+| 409 | DUPLICATE_DEPARTMENT_NAME | 부서명 중복 |
+
+### API-DEPT-005: 부서 수정
+- `PATCH /admin/departments/:id` · ADMIN · FR-DEPT-001
+- Request(변경할 필드만, 최소 1개): `code`, `name`
+- Response 200: `DepartmentDetail`
+
+| HTTP | Code | 설명 |
+|---|---|---|
+| 400 | VALIDATION_ERROR | `:id`가 UUID 형식이 아님, 형식·길이 오류, 변경할 필드가 없음(빈 객체) |
+| 404 | NOT_FOUND | 부서 없음 |
+| 409 | DUPLICATE_DEPARTMENT_CODE | 부서 코드 중복 |
+| 409 | DUPLICATE_DEPARTMENT_NAME | 부서명 중복 |
+| 409 | PROTECTED_DEPARTMENT | 未所属 부서는 변경할 수 없음 |
+
+### API-DEPT-006: 부서 삭제
+- `DELETE /admin/departments/:id` · ADMIN · FR-DEPT-001
+- Response 204. 소속 비활성 사원을 未所属 부서로 이동한 뒤 물리 삭제한다(같은 트랜잭션, 05 §8)
+
+| HTTP | Code | 설명 |
+|---|---|---|
+| 400 | VALIDATION_ERROR | `:id`가 UUID 형식이 아님 |
+| 404 | NOT_FOUND | 부서 없음 |
+| 409 | DEPARTMENT_HAS_MEMBERS | 소속 활성 사원이 1명 이상(삭제 처리 중 사원이 배정·재활성화된 경우 포함) |
+| 409 | PROTECTED_DEPARTMENT | 未所属 부서는 삭제할 수 없음 |
+| 500 | INTERNAL_SERVER_ERROR | 未所属(`UNASSIGNED`) 부서가 없음(서버 구성 오류). 「サーバーでエラーが発生しました。」, 트랜잭션 롤백 |

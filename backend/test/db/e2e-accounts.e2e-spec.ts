@@ -21,6 +21,7 @@ const TIMEOUT_MS = 30_000;
 describe('resetE2eAccounts', () => {
   const prisma = createTestPrisma();
   const tracker = new TestDataTracker(prisma);
+  let devDepartmentId = '';
 
   beforeAll(async () => {
     // 「他の活性 ADMIN がいない」ケースを確認するため、他のデータを消さずに前提を確かめる
@@ -29,6 +30,14 @@ describe('resetE2eAccounts', () => {
       throw new Error(
         `テスト用 DB に活性 ADMIN が ${activeAdmins} 件残っています。前回のテストの残骸を確認してください。`,
       );
+    }
+    // E2E アカウントの所属先(開発部)。なければ作り、afterAll で削除する
+    const dev = await prisma.department.findUnique({ where: { code: 'DEV' } });
+    if (dev) {
+      devDepartmentId = dev.id;
+    } else {
+      const created = await tracker.createDepartment({ code: 'DEV', name: '開発部' });
+      devDepartmentId = created.id;
     }
   });
 
@@ -113,7 +122,7 @@ describe('resetE2eAccounts', () => {
         mustChangePassword: false,
         isActive: true,
         approvalRequired: false,
-        departmentId: null,
+        departmentId: devDepartmentId,
       });
       expect(await bcrypt.compare(ADMIN_PASSWORD, admin.passwordHash)).toBe(true);
 
@@ -124,7 +133,7 @@ describe('resetE2eAccounts', () => {
         mustChangePassword: true,
         isActive: true,
         approvalRequired: false,
-        departmentId: null,
+        departmentId: devDepartmentId,
       });
       expect(await bcrypt.compare(INITIAL_PASSWORD, initial.passwordHash)).toBe(true);
     },
@@ -193,7 +202,7 @@ describe('resetE2eAccounts', () => {
         role: Role.EMPLOYEE,
         isActive: true,
         mustChangePassword: true,
-        departmentId: null,
+        departmentId: devDepartmentId,
       });
       expect(await bcrypt.compare(INITIAL_PASSWORD, initial.passwordHash)).toBe(true);
     },

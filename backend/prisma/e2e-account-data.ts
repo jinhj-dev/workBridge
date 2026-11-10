@@ -49,6 +49,8 @@ export interface E2eResetResult {
   accounts: { empId: string; status: 'created' | 'updated' }[];
 }
 
+const E2E_DEPARTMENT_CODE = 'DEV';
+
 const LOCAL_DATABASE_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
 
 // 接続先がローカルの DB であることを確認する。それ以外は何も変更せず例外にする。
@@ -126,6 +128,15 @@ export async function resetE2eAccounts(
       throw new Error('先に npm run db:seed で初期 ADMIN を登録してください。');
     }
 
+    // E2E アカウントの所属は seed の開発部とする
+    const department = await tx.department.findUnique({
+      where: { code: E2E_DEPARTMENT_CODE },
+      select: { id: true },
+    });
+    if (!department) {
+      throw new Error('先に npm run db:seed で初期データを登録してください。');
+    }
+
     const results: E2eResetResult['accounts'] = [];
     const userIds: string[] = [];
     for (const { account, passwordHash } of hashedAccounts) {
@@ -136,7 +147,7 @@ export async function resetE2eAccounts(
         approvalRequired: false,
         isActive: true,
         mustChangePassword: account.mustChangePassword,
-        departmentId: null,
+        departmentId: department.id,
       };
       const user = await tx.user.upsert({
         where: { empId: account.empId },

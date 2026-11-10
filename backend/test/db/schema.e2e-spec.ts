@@ -177,11 +177,45 @@ describe('基本 CRUD', () => {
   });
 });
 
+describe('部署コードと所属の必須化', () => {
+  it('users.department_id は NULL を拒否する', async () => {
+    // Prisma のクライアントは department を必須として検証するため、DB の NOT NULL を直接確かめる(生 SQL)
+    await expect(
+      prisma.$executeRaw`
+        INSERT INTO users (id, name, emp_id, password_hash, role)
+        VALUES (gen_random_uuid(), ${'テスト太郎'}, ${`T${uniqueSuffix()}`}, 'dummy-hash', 'EMPLOYEE')`,
+    ).rejects.toThrow(/department_id/);
+  });
+
+  it('マイグレーション後、所属なしの社員がおらず、未所属部署が 1 件ある', async () => {
+    const [nullable] = await prisma.$queryRaw<{ is_nullable: string }[]>`
+      SELECT is_nullable FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'department_id'`;
+    expect(nullable?.is_nullable).toBe('NO');
+    const [orphans] = await prisma.$queryRaw<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM users WHERE department_id IS NULL`;
+    expect(orphans?.n).toBe(0);
+    expect(await prisma.department.count({ where: { code: 'UNASSIGNED' } })).toBe(1);
+  });
+});
+
 describe('UNIQUE 制約', () => {
+  it('departments.code の重複を拒否する(大文字に正規化された値で比較)', async () => {
+    const department = await tracker.createDepartment();
+    await expectUnique(
+      () =>
+        prisma.department.create({
+          data: { code: department.code, name: `別名${uniqueSuffix()}` },
+        }),
+      'departments_code_key',
+    );
+  });
+
   it('departments.name の重複を拒否する', async () => {
     const department = await tracker.createDepartment();
     await expectUnique(
-      () => prisma.department.create({ data: { name: department.name } }),
+      () =>
+        prisma.department.create({ data: { code: `T${uniqueSuffix()}`, name: department.name } }),
       'departments_name_key',
     );
   });

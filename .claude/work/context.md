@@ -42,14 +42,14 @@
 - Role Guard: `@AdminOnly()`(`modules/auth/decorators/admin-only.decorator.ts`) + `AdminGuard`. JwtAuthGuard가 인증 → PasswordChange → Admin 순으로 호출
 - `frontend/src/components/layout/AppShell.tsx`(`app/(app)/layout.tsx`에서 사용, 라우트 가드: 비로그인 → `/login?redirect=`, mustChangePassword → `/password`, 비관리자 `/admin`·`/admin/*` → 토스트 1회 + `/dashboard` replace), Card·Skeleton·SectionError·Badge·StatCard, `components/leave/LeaveDetailModal.tsx`, `lib/api/useApiQuery.ts`, `lib/api/types.ts`, `lib/format.ts`, `lib/auth/redirect.ts`(`safeRedirect`) — 상세는 09 §6
 - `frontend/src/components/` Pagination, Tooltip, `table.ts`(thClass/tdClass), `form.tsx` selectClass, `attendance/`(ATTENDANCE_STATUS_BADGE, MISSING_ROW_CLASS, DateRangeFields) / `lib/date-range.ts`(기간 기본값·검증·URL Query 파싱), `lib/useSyncedState.ts` — 상세는 09 §6
-- `backend/src/modules/attendance/attendance-rules.ts`(`resolveDateRange`, `assertValidTimeRange`, `MAX_RANGE_DAYS`) / `modules/departments/`(GET /departments)
+- `backend/src/modules/attendance/attendance-rules.ts`(`resolveDateRange`, `assertValidTimeRange`, `MAX_RANGE_DAYS`) / `modules/departments/`(GET /departments, `admin-departments.controller.ts` 부서 CRUD, `department.constants.ts` `SYSTEM_DEPARTMENT_CODE='UNASSIGNED'`) / `TestDataTracker.createDepartment(overrides?)`는 고유 code 자동 부여, `createUser`는 departmentId 미지정 시 tracker 전용 부서 사용
 - `backend/test/e2e-helpers.ts` FixedClock, 토큰 서명, leaves·attendance·leave_grants INSERT 헬퍼
 - `frontend/src/components/Tabs.tsx` `Tabs({label,items,value,onChange})`(horizontal, roving tabIndex) / `components/layout/PendingApprovalCount.tsx` `PendingApprovalCountProvider`(AppShell이 감쌈)·`usePendingApprovalCount()`→`{count,refresh}`(승인·반려 후 `refresh()` 호출) / `LeaveDetailModal`의 `initialStep`(detail/approve/reject) — 상세는 09 §6
 - `frontend/src/lib/leave-days.ts`(`countLeaveDays`, `parseLeavesQuery`→`{year,statuses,leaveTypes,page}`, `yearOptions`, `LEAVE_STATUSES`, `LEAVE_TYPES`, `isHalfDay`. `LeavesTab`·`tab` 해석은 삭제됨) — 상세는 09 §6
 - `frontend/src/components/leave/LeaveApplyModal.tsx`(공통 휴가 신청 모달, SCR-002·004 공용, 열 때마다 `key` 변경) / `components/leave/LeaveFilterButtons.tsx`(제네릭 토글 복수 선택, 상태·휴가 종류 필터) — 상세는 09 §6
 
 ## 명령어
-- DB: 루트 `npm run db:up` / backend `npm run db:migrate`, `npm run db:migrate:test`(e2e 전 필요), `npm run db:seed`, `npm run db:e2e-accounts`(개발 DB 전용, seed 후 실행. E2E 계정 900001/900002 생성·초기화, localhost DB만 허용), `npm run db:sample-attendance`(개발 DB 전용, 사원번호 00001의 2026년 10월 평일 22건 근태 샘플 INSERT. 페이지네이션·상태 검색 확인용. 이미 있는 날은 변경하지 않아 재실행해도 중복 없음, localhost만·production 거부), `npm run db:e2e-attendance-fixture`(개발 DB 전용, 900001의 attendance를 삭제 후 상태 확인용 6건으로 입력: 오늘 근무 중·1/3일 전 퇴근 누락·2/4일 전 퇴근 완료·40일 전 퇴근 완료. `frontend/e2e/attendance-status.spec.ts`가 실행), `npm run db:e2e-attendance-reset`(개발 DB 전용, E2E 관리자 900001의 attendance만 삭제, localhost만·production 거부. `frontend/e2e/attendance.spec.ts` beforeAll이 실행)
+- DB: 루트 `npm run db:up` / backend `npm run db:migrate`, `npm run db:migrate:test`(e2e 전 필요), `npm run db:seed`, `npm run db:e2e-accounts`(개발 DB 전용, seed 후 실행. E2E 계정 900001/900002 생성·초기화, DEV 부서 필요, localhost DB만 허용), `npm run db:sample-attendance`(개발 DB 전용, 사원번호 00001의 2026년 10월 평일 22건 근태 샘플 INSERT. 페이지네이션·상태 검색 확인용. 이미 있는 날은 변경하지 않아 재실행해도 중복 없음, localhost만·production 거부), `npm run db:e2e-attendance-fixture`(개발 DB 전용, 900001의 attendance를 삭제 후 상태 확인용 6건으로 입력: 오늘 근무 중·1/3일 전 퇴근 누락·2/4일 전 퇴근 완료·40일 전 퇴근 완료. `frontend/e2e/attendance-status.spec.ts`가 실행), `npm run db:e2e-attendance-reset`(개발 DB 전용, E2E 관리자 900001의 attendance만 삭제, localhost만·production 거부. `frontend/e2e/attendance.spec.ts` beforeAll이 실행)
 - Backend(`backend/`): `npm run build`, `npm run lint`, 타입체크 `npx tsc --noEmit`, `npm test`(unit), `npm run test:e2e`
 - Backend 단일 파일: `npx vitest run src/modules/auth/auth.service.spec.ts`, e2e `npx vitest run --config ./vitest.config.e2e.ts test/auth.e2e-spec.ts`
 - Frontend(`frontend/`): `npm run build`, `npm run lint`, 타입체크 `npx tsc --noEmit`, `npm test`, 단일 `npx vitest run src/app/login/LoginForm.test.tsx`, `npm run test:e2e`(globalSetup이 개발 DB의 E2E 계정 900001/900002를 자동 초기화. `E2E_ADMIN_PASSWORD`·`E2E_INITIAL_PASSWORD` 필요, 둘 다 없으면 초기화 skip·로그인 테스트 skip, `PLAYWRIGHT_BASE_URL` 지정 시 초기화 안 함)
@@ -61,7 +61,7 @@
 - `docs/01_PRD.md` — 제품 개요·범위·성공 기준 — reviewer
 - `docs/02_REQUIREMENTS.md` — 업무 규칙 단일 기준(FR/NFR) — backend, tester, reviewer, security
 - `docs/03_SCREEN_LIST.md` — 화면 목록, 접근 규칙, 공통 UI 규칙(상태 처리·전역 내비게이션) — frontend, tester, reviewer
-- `docs/04_SCREEN_SPECIFICATIONS/SCR-00N_*.md` — 화면별 명세(구성·동작·문구·API) — frontend, tester
+- `docs/04_SCREEN_SPECIFICATIONS/SCR-0NN_*.md`(SCR-001~010) — 화면별 명세(구성·동작·문구·API) — frontend, tester
 - `docs/05_DATABASE_DESIGN.md` — 테이블·제약·잠금·날짜 처리(§9) — backend, reviewer
 - `docs/06_API_SPECIFICATION.md` — API 계약(경로·권한·입출력·에러 코드) — backend, frontend, tester, reviewer, security
 - `docs/07_ARCHITECTURE.md` — 계층 구조, 인증·Guard 구성 — backend, reviewer, security

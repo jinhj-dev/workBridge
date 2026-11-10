@@ -20,7 +20,8 @@
 //                 status = REJECTED なら approver_id NOT NULL
 //
 // PK の UUID はアプリ側(Prisma)で生成し、DB の既定値は持たない。seed や raw SQL では id を明示する。
-// ユーザー・部署は物理削除しない運用(無効化のみ)のため、外部キーはすべて ON DELETE RESTRICT とする。
+// ユーザーは物理削除しない運用(無効化のみ)。部署は有効な社員がいなければ管理者が物理削除できる(無効な社員は未所属部署へ移す)。
+// 外部キーはすべて ON DELETE RESTRICT とし、移動などはアプリが明示的に行う。
 
 generator client {
   provider            = "prisma-client"
@@ -62,9 +63,10 @@ enum LeaveStatus {
   @@map("leave_status")
 }
 
-// 部署(seed で登録する)
+// 部署(管理者が登録・編集・削除する。code が UNASSIGNED の「未所属」はシステム部署で変更・削除できない)
 model Department {
   id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique @db.VarChar(20)
   name      String   @unique @db.VarChar(100)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
@@ -84,11 +86,11 @@ model User {
   approvalRequired   Boolean  @default(true) @map("approval_required")
   isActive           Boolean  @default(true) @map("is_active")
   mustChangePassword Boolean  @default(true) @map("must_change_password")
-  departmentId       String?  @map("department_id") @db.Uuid
+  departmentId       String   @map("department_id") @db.Uuid
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
-  department Department? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
 
   refreshTokens       RefreshToken[]
   attendances         Attendance[]   @relation("AttendanceUser")

@@ -128,7 +128,7 @@ Designed Pages 프레임 (이커머스 어드민 템플릿):
 | Empty State | products·categories·customers empty 프레임 |
 | File Upload | 점선 박스 + 파일 추가 버튼 (settings) |
 
-## 4. workBridge 화면과의 대응 (SCR-001~009)
+## 4. workBridge 화면과의 대응 (SCR-001~010)
 
 범례: ◎ 거의 그대로 사용, ○ 변형해서 사용, △ 부분 참고, ✕ 대응 프레임 없음
 
@@ -143,6 +143,7 @@ Designed Pages 프레임 (이커머스 어드민 템플릿):
 | SCR-007 사원 상세 | settings, customer info `0:5736` | ○ | 읽기 전용 필드, Switch 2개, 부여 연차 표, [저장][취소][목록으로] 배치 |
 | SCR-008 전체 근태 | orders | ○ | SCR-003과 같은 표에 사원명 링크·[수정] 버튼과 수정 모달 추가 |
 | SCR-009 비밀번호 변경 | password reset `0:5877` | ○ | 입력 3개 + [변경][취소]. 최초 로그인 강제 시 취소 버튼과 메뉴 숨김 |
+| SCR-010 부서 관리 | customers `0:4061`, add customer `0:4192` | ○ | SCR-006과 같은 구성(검색 조건 + 표 + 등록·수정 모달)에 삭제 확인 모달 추가. 검색 조건 2개라 `sm` 이상 한 줄. `md` 미만은 카드형 목록 |
 
 공통 UI 규칙(03_SCREEN_LIST)과의 대응:
 

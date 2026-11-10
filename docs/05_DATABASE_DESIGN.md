@@ -13,7 +13,8 @@
 ### 외래 키
 
 - 모든 FK는 `ON DELETE RESTRICT`, `ON UPDATE CASCADE`이다(UUID PK는 변경하지 않으므로 ON UPDATE는 실질적으로 동작하지 않는다).
-- users와 departments는 물리 삭제하지 않는다. 사용자는 비활성화(`is_active = false`)로만 처리한다(FR-USER-002).
+- users는 물리 삭제하지 않는다. 사용자는 비활성화(`is_active = false`)로만 처리한다(FR-USER-002).
+- departments는 소속 활성 사원이 0명일 때만 ADMIN이 물리 삭제한다. 소속 비활성 사원은 같은 트랜잭션에서 未所属 부서로 이동한 뒤 삭제한다(FR-DEPT-001, §8). 감사 컬럼(`created_by`/`updated_by`/`deleted_at`)은 두지 않는다.
 
 ### ENUM
 
@@ -35,15 +36,23 @@ PostgreSQL 네이티브 ENUM 타입으로 정의한다. 값을 추가할 때는 
 | 컬럼 | 타입 | PK | NULL | 설명 |
 |---|---|---|---|---|
 | id | UUID | O | NO | 부서 ID |
+| code | VARCHAR(20) | | NO | 부서 코드. 영숫자·하이픈 1~20자, 대문자로 정규화하여 저장(형식 검증은 애플리케이션, FR-DEPT-001) |
 | name | VARCHAR(100) | | NO | 부서명 |
 | created_at | TIMESTAMPTZ | | NO | 생성일 |
 | updated_at | TIMESTAMPTZ | | NO | 수정일 |
 
 ### Constraints
 
+- code: UNIQUE
 - name: UNIQUE
 
-부서 관리 화면은 범위 밖이며, 부서 데이터는 초기 데이터(seed)로 등록한다.
+### 시스템 부서 (未所属)
+
+- code `UNASSIGNED`, name `未所属`인 부서를 시스템 부서로 둔다. 플래그 컬럼 없이 고정 코드로 구분한다(백엔드 상수 `SYSTEM_DEPARTMENT_CODE`).
+- 마이그레이션과 seed가 항상 생성한다. 수정·삭제할 수 없다(FR-DEPT-001). 활성 사원의 배정도 허용한다.
+- 부서 삭제 시 비활성 사원의 이동 대상이며, 마이그레이션 시 부서가 없던 기존 사원의 이동 대상이었다.
+
+부서는 ADMIN이 부서 관리 화면(SCR-010)에서 등록·수정·삭제한다. 초기 데이터(seed)는 未所属(UNASSIGNED), 総務部(GA), 開発部(DEV), 営業部(SALES), 人事部(HR)이며, 초기 ADMIN은 総務部 소속이다.
 
 ## 2. Table: users
 
@@ -59,7 +68,7 @@ PostgreSQL 네이티브 ENUM 타입으로 정의한다. 값을 추가할 때는 
 | approval_required | BOOLEAN | | NO | 휴가 승인 필요 여부 (기본 true) |
 | is_active | BOOLEAN | | NO | 계정 활성 여부 (기본 true) |
 | must_change_password | BOOLEAN | | NO | 비밀번호 변경 필요 여부 (기본 true) |
-| department_id | UUID | | YES | 부서 ID |
+| department_id | UUID | | NO | 부서 ID (모든 사원은 1개 부서에 소속) |
 | created_at | TIMESTAMPTZ | | NO | 생성일 |
 | updated_at | TIMESTAMPTZ | | NO | 수정일 |
 
@@ -206,6 +215,7 @@ PostgreSQL 네이티브 ENUM 타입으로 정의한다. 값을 추가할 때는 
 
 ## 7. Index
 
+- departments(code) — UNIQUE 제약으로 생성
 - attendance(user_id, work_date) — UNIQUE 제약으로 생성
 - attendance(work_date)
 - users(emp_id) — UNIQUE 제약으로 생성
@@ -246,6 +256,19 @@ PostgreSQL 네이티브 ENUM 타입으로 정의한다. 값을 추가할 때는 
 ### 마지막 활성 ADMIN 보호 (FR-USER-002)
 
 - ADMIN의 비활성화 또는 EMPLOYEE 변경은 트랜잭션 안에서 `SELECT id FROM users WHERE role = 'ADMIN' AND is_active FOR NO KEY UPDATE`로 활성 ADMIN 행을 모두 잠근 뒤, 애플리케이션에서 건수를 세어 판단한다(FOR UPDATE 계열은 집계 함수와 함께 쓸 수 없다).
+
+### 부서 삭제 (FR-DEPT-001)
+
+한 트랜잭션(READ COMMITTED) 안에서 다음 순서로 처리한다. 잠금 순서는 부서 행 → 사원 행으로 고정한다.
+
+1. `SELECT code FROM departments WHERE id = $1 FOR UPDATE`로 부서 행을 잠근다. 없으면 404.
+2. code가 `UNASSIGNED`이면 거부한다(409 PROTECTED_DEPARTMENT).
+3. 잠금 획득 후 소속 활성 사원 수를 다시 센다. 1명 이상이면 거부한다(409 DEPARTMENT_HAS_MEMBERS).
+4. 소속 비활성 사원을 未所属 부서로 이동한다(`updated_at` 갱신).
+5. 부서를 DELETE한다. FK 위반(P2003)이면 트랜잭션 전체를 롤백하고(4의 이동도 취소) 409 DEPARTMENT_HAS_MEMBERS로 응답한다.
+
+- 사용자 단위 잠금과 달리 `FOR UPDATE`를 쓴다. 다른 트랜잭션이 사원을 이 부서로 등록·이동할 때 FK 검사가 거는 `FOR KEY SHARE`를 **막는 것이 목적**이기 때문이다. 상대가 먼저 커밋하면 3에서 그 사원이 보여 409가 되고, 이쪽이 먼저 잠그면 상대의 FK 검사가 삭제 커밋 후 실패한다.
+- 삭제 중 비활성 사원이 재활성화되면(부서 FK 변경이 없어 부서 잠금과 충돌하지 않음) 4의 UPDATE 대상에서 빠지고 5에서 FK 위반이 되어 롤백된다.
 
 ## 9. 날짜·시간과 타입 처리
 
