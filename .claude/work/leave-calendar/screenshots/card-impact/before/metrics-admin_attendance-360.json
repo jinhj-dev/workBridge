@@ -1,0 +1,40 @@
+[
+  {
+    "title": "検索条件",
+    "section": {
+      "top": 158,
+      "height": 576,
+      "width": 328
+    },
+    "header": {
+      "top": 178,
+      "height": 28,
+      "width": 288
+    },
+    "heading": {
+      "top": 180,
+      "height": 24,
+      "width": 64
+    },
+    "headerChildCount": 1
+  },
+  {
+    "title": "勤怠一覧",
+    "section": {
+      "top": 758,
+      "height": 156,
+      "width": 328
+    },
+    "header": {
+      "top": 778,
+      "height": 28,
+      "width": 288
+    },
+    "heading": {
+      "top": 780,
+      "height": 24,
+      "width": 64
+    },
+    "headerChildCount": 1
+  }
+]

@@ -7,6 +7,7 @@ import { messages } from '@/messages/ja';
 import { AdminSummarySection } from './AdminSummarySection';
 import { AttendanceSection } from './AttendanceSection';
 import { LeaveBalanceSection } from './LeaveBalanceSection';
+import { LeaveCalendarSection } from './LeaveCalendarSection';
 import { PendingApprovalsSection } from './PendingApprovalsSection';
 
 // SCR-002 ダッシュボード。各領域は自分の API を個別に取得し、1 つが失敗しても他は表示する
@@ -15,6 +16,8 @@ export function DashboardView() {
   const [today] = useState(() => formatTodayLabel(new Date()));
   // 承認・却下の後に本日の全体状況を取り直すため、key を変えて作り直す
   const [summaryKey, setSummaryKey] = useState(0);
+  // 承認・申請の直後に休暇カレンダーを取り直すための合図
+  const [calendarSignal, setCalendarSignal] = useState(0);
 
   if (!user) return null;
   const isAdmin = user.role === 'ADMIN';
@@ -36,12 +39,17 @@ export function DashboardView() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <AttendanceSection />
-        <LeaveBalanceSection />
+        <LeaveBalanceSection onApplied={() => setCalendarSignal((n) => n + 1)} />
       </div>
 
       <PendingApprovalsSection
-        onProcessed={isAdmin ? () => setSummaryKey((k) => k + 1) : undefined}
+        onProcessed={() => {
+          if (isAdmin) setSummaryKey((k) => k + 1);
+          setCalendarSignal((n) => n + 1);
+        }}
       />
+
+      <LeaveCalendarSection refreshSignal={calendarSignal} />
     </div>
   );
 }

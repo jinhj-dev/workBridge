@@ -1,0 +1,40 @@
+[
+  {
+    "title": "検索条件",
+    "section": {
+      "top": 164,
+      "height": 176,
+      "width": 950
+    },
+    "header": {
+      "top": 192,
+      "height": 28,
+      "width": 894
+    },
+    "heading": {
+      "top": 194,
+      "height": 24,
+      "width": 64
+    },
+    "headerChildCount": 1
+  },
+  {
+    "title": "部署一覧",
+    "section": {
+      "top": 364,
+      "height": 477,
+      "width": 950
+    },
+    "header": {
+      "top": 392,
+      "height": 28,
+      "width": 894
+    },
+    "heading": {
+      "top": 394,
+      "height": 24,
+      "width": 64
+    },
+    "headerChildCount": 1
+  }
+]

@@ -164,6 +164,44 @@ Response 200
 ```
 - 개인 영역은 API-ATT-003, API-LEAVE-006, API-LEAVE-007을 조합하여 표시한다.
 
+### API-DASH-002: 월간 휴가 캘린더
+- `GET /dashboard/leave-calendar` · USER · FR-DASH-001
+- Query: `month`(선택, `YYYY-MM`, 연도 2000~2100, 월 01~12. 생략 시 Asia/Tokyo 기준 이번 달)
+- 집계: 날짜별로 그 날짜가 기간에 포함된 `APPROVED` 휴가가 있는 활성 사용자 수(사용자 단위 중복 없음, 반차도 1명). 토·일은 제외하고 공휴일은 평일로 취급한다. `PENDING`·`REJECTED`·`CANCELLED`는 세지 않는다.
+
+Response 200 (인원이 1명 이상인 날짜만, 날짜 오름차순. 없는 날짜는 0명)
+```json
+{ "month": "2026-11", "days": [ { "date": "2026-11-10", "count": 3 } ] }
+```
+- 같은 날짜의 `count`는 API-DASH-003의 `items` 건수와 같다.
+
+| HTTP | Code | 설명 |
+|---|---|---|
+| 400 | VALIDATION_ERROR | `month` 형식·범위 오류(`details[].field = month`) |
+
+### API-DASH-003: 날짜별 휴가자 목록
+- `GET /dashboard/leave-calendar/day` · USER · FR-DASH-001
+- Query: `date`(필수, 실재하는 `YYYY-MM-DD`, 연도 2000~2100)
+- 대상은 API-DASH-002와 같다(`APPROVED`, 활성 사용자, 사용자 단위 1행). 토·일이면 항상 `items: []`.
+- 정렬: 사원번호 오름차순, 같으면 `userId` 오름차순(사원번호는 응답에 포함하지 않음). 페이지네이션 없음.
+
+Response 200
+```json
+{
+  "date": "2026-11-10",
+  "items": [
+    { "userId": "uuid", "name": "홍길동", "departmentName": "개발팀", "halfDay": null },
+    { "userId": "uuid", "name": "김승인", "departmentName": "영업팀", "halfDay": "AM" }
+  ]
+}
+```
+- 응답 필드는 위가 전부다. `reason`, `leaveType`, `startDate`, `endDate`, `status`, 휴가 ID, `empId`, `approver`, `processedBy`, `rejectReason`은 포함하지 않는다(타인 정보 최소 공개, FR-DASH-001·FR-LEAVE-005). ADMIN에게도 같은 응답이다.
+- `halfDay`: 그 사용자의 그날 `APPROVED` 휴가 종류로 판정한다. `HALF_AM`만 → `"AM"`, `HALF_PM`만 → `"PM"`, `HALF_AM`과 `HALF_PM`이 모두 있거나 종일 휴가(`ANNUAL`·`SPECIAL`·`OTHER`)가 하나라도 있으면 → `null`.
+
+| HTTP | Code | 설명 |
+|---|---|---|
+| 400 | VALIDATION_ERROR | `date` 누락·형식 오류·실재하지 않는 날짜(예: `2026-02-30`)·범위 오류(`details[].field = date`) |
+
 ---
 
 ## 3. 근태 (Attendance)

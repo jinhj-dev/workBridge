@@ -105,6 +105,7 @@ function mockApi(overrides: Record<string, Handler> = {}): void {
     '/leaves/balance': () => BALANCE,
     '/leaves/pending-approval': () => page([]),
     '/admin/dashboard/summary': () => SUMMARY,
+    '/dashboard/leave-calendar': () => ({ month: '2026-11', days: [] }),
     ...overrides,
   };
   apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
@@ -189,6 +190,19 @@ describe('DashboardView 権限による表示', () => {
   });
 });
 
+describe('DashboardView 休暇カレンダー', () => {
+  it.each([
+    ['EMPLOYEE', EMPLOYEE],
+    ['ADMIN', ADMIN],
+  ])('shouldShowLeaveCalendarFor%s', async (_role, user) => {
+    mockApi();
+    renderView(user);
+
+    expect(await screen.findByRole('heading', { name: t.calendar.title })).toBeInTheDocument();
+    await waitFor(() => expect(callsTo('/dashboard/leave-calendar')).toHaveLength(1));
+  });
+});
+
 describe('DashboardView 勤怠', () => {
   it('shouldShowNotClockedInWithOnlyClockInEnabledWhenTodayIsNull', async () => {
     mockApi();
@@ -256,7 +270,8 @@ describe('DashboardView 勤怠', () => {
     expect(toast()).toHaveTextContent(t.attendance.clockedIn);
     expect(clockInButton()).toBeDisabled();
     expect(clockOutButton()).toBeEnabled();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // モーダルの閉じる処理(effect)は非同期に反映されるため待つ
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     // 成功時は再取得しない(応答で置き換える)
     expect(callsTo('/attendance/today')).toHaveLength(1);
   });
@@ -444,7 +459,10 @@ describe('DashboardView 承認待ち', () => {
     mockApi({ '/leaves/pending-approval': () => page([1, 2, 3, 4, 5].map(leave)) });
     renderView();
 
-    const table = await screen.findByRole('table');
+    const section = (await screen.findByRole('heading', { name: t.pending.title })).closest(
+      'section',
+    ) as HTMLElement;
+    const table = await within(section).findByRole('table');
     expect(within(table).getAllByRole('columnheader')).toHaveLength(6);
     // ヘッダー行 + 5 行
     expect(within(table).getAllByRole('row')).toHaveLength(6);
@@ -509,6 +527,35 @@ describe('DashboardView 承認待ち', () => {
       expect(callsTo('/leaves/pending-approval?scope=mine&limit=1')).toHaveLength(2),
     );
     expect(callsTo('/leaves/leave-1/approve')).toHaveLength(1);
+  });
+
+  it('shouldReloadLeaveCalendarAfterApproveFromDashboard', async () => {
+    mockApi({
+      '/leaves/pending-approval': () => page([leave(1)]),
+      '/leaves/leave-1': (init) =>
+        init?.method === 'PATCH' ? { ...leave(1), status: 'APPROVED' } : leave(1),
+    });
+    auth.user = EMPLOYEE;
+    const ui = userEvent.setup();
+    render(
+      <ToastProvider>
+        <PendingApprovalCountProvider>
+          <DashboardView />
+        </PendingApprovalCountProvider>
+      </ToastProvider>,
+    );
+
+    await ui.click(await screen.findByRole('button', { name: t.pending.openDetail('申請者1') }));
+    const dialog = await screen.findByRole('dialog', { name: messages.leave.detail.title });
+    await ui.click(
+      await within(dialog).findByRole('button', { name: messages.leave.detail.approve }),
+    );
+    await ui.click(
+      await within(dialog).findByRole('button', { name: messages.leave.approve.submit }),
+    );
+
+    // 承認後に休暇カレンダーの月も取り直される(初回 1 回 + 承認後 1 回)
+    await waitFor(() => expect(callsTo('/dashboard/leave-calendar')).toHaveLength(2));
   });
 });
 

@@ -137,9 +137,11 @@
 
 백엔드
 - [x] 관리자 오늘 현황 API-DASH-001 (FR-DASH-001: 출근·미출근·휴가 인원, 전체 승인 대기)
+- [x] 월간 휴가 캘린더 API-DASH-002(월 집계)·API-DASH-003(날짜별 휴가자) (FR-DASH-001: APPROVED만, 토·일 제외, 활성 사용자, 사용자 단위 중복 없음, 이름·부서·반차 구분만 공개) — unit(`leave-calendar-rules`)·e2e 40건 임시 DB 통과, DB 세션 TZ 3종 동일 결과
 
 프론트엔드
 - [x] 대시보드 화면 SCR-002 (출퇴근 버튼, 개인 휴가 현황, 승인 대기 5건, ADMIN 전체 현황) — 공통 셸(사이드바·상단바·드로어) 포함
+- [x] 대시보드 휴가 캘린더 SCR-002 §3-6 (월 이동, 날짜별 인원 배지, 날짜 상세 모달, ADMIN·EMPLOYEE 동일) — 공용 컴포넌트 `MonthCalendar`·`lib/calendar.ts`, Card 헤더 `flex-wrap`(09 §6). Vitest 통과, Playwright `e2e/dashboard-leave-calendar.spec.ts` 3건 임시 DB 통과(360px 제목 1줄 확인 포함)
 
 ### 10. 테스트·품질 — 진행 중
 
@@ -148,7 +150,7 @@
 - [ ] API 통합 테스트 (08 §5) — 각 도메인 구현과 함께
 - [ ] 권한 매트릭스 테스트 (08 §6)
 - [ ] 동시성 테스트: 휴가 신청 잠금, 조건부 UPDATE (NFR-004)
-- [ ] 화면 테스트 (08 §7) — SCR-001 완료(Vitest 51건 — 화면 25·redirect 검증 26, Playwright 7건), SCR-009 완료(Vitest 17건, Playwright 3건), SCR-002 완료(Vitest 51건 — 화면 19·휴가 상세 모달 19·공통 셸 13, Playwright 5건), SCR-003·SCR-008 완료(Vitest — 화면 10·전체 근태 8·수정 모달 9·Tooltip 7·관리자 가드 3 외, Playwright 3건), SCR-005·승인 대기 배지 완료(Vitest — 화면 19·Tabs 3·휴가 상세 모달·공통 셸 추가분 외, Playwright 5건), SCR-004 진행 중(Vitest — 화면·신청 모달·LeaveFilterButtons·ApproverSelect·휴가 상세 모달 취소·`leave-days` 외 통과, Playwright 8건 미실행), SCR-010 완료(Vitest 25건, Playwright 4건)
+- [ ] 화면 테스트 (08 §7) — SCR-001 완료(Vitest 51건 — 화면 25·redirect 검증 26, Playwright 7건), SCR-009 완료(Vitest 17건, Playwright 3건), SCR-002 완료(Vitest 51건 — 화면 19·휴가 상세 모달 19·공통 셸 13, Playwright 5건. 休暇カレンダー 추가분 — `lib/calendar`·`MonthCalendar`·`LeaveCalendarSection`·DashboardView FD-01~03 Vitest, Playwright 3건), SCR-003·SCR-008 완료(Vitest — 화면 10·전체 근태 8·수정 모달 9·Tooltip 7·관리자 가드 3 외, Playwright 3건), SCR-005·승인 대기 배지 완료(Vitest — 화면 19·Tabs 3·휴가 상세 모달·공통 셸 추가분 외, Playwright 5건), SCR-004 진행 중(Vitest — 화면·신청 모달·LeaveFilterButtons·ApproverSelect·휴가 상세 모달 취소·`leave-days` 외 통과, Playwright 8건 미실행), SCR-010 완료(Vitest 25건, Playwright 4건)
 - [ ] E2E 하네스 정비(`PLAYWRIGHT_BASE_URL` 지정·임시 DB 실행): `e2e/attendance-status.spec.ts` 6건은 fixture 투입을 건너뛰어 실패(fixture 수동 투입 시 6건 통과), `e2e/leaves.spec.ts` `shouldShowSummaryAndHistoryWithoutLoadError`는 이전 실행 이력에 의존해 실패. `backend/package.json`에 `db:e2e-leaves-reset` 스크립트가 없어 `leaves.spec.ts`의 `beforeAll`은 기본 실행에서도 실패
 - [ ] E2E 핵심 여정 E2E-01~05 (08 §8, Playwright)
 - [ ] CI(GitHub Actions): lint, 타입 검사, unit, e2e(postgres 서비스 컨테이너), build
@@ -179,3 +181,4 @@
 | 2026-11-10 | 사원 입사일: `users.hire_date`(DATE, NOT NULL, 기본값 없음)와 마이그레이션 `add_users_hire_date` 추가(기존 행·seed 초기 ADMIN·E2E 계정은 2026-01-01). 02·05·06·SCR-006·SCR-007·08에 입사일 계약 반영. API-USER-001~004·SCR-006/007 구현은 기능 8에서 진행(backend unit 185건, e2e 238건 통과) |
 | 2026-11-10 | 부서 관리 백엔드 완료: API-DEPT-002~006(FR-DEPT-001 신설), departments.code·시스템 부서 未所属·users.department_id NOT NULL 마이그레이션, seed·E2E 계정 부서 지정. 부서 관리 화면 SCR-010·사이드바 部署管理 구현. 사원 쪽 부서 필수화는 문서(02·06·SCR-006·007)만 반영(backend unit 222건, e2e 313건, frontend 391건 통과 — 임시 테스트 DB. Playwright `e2e/departments.spec.ts`는 개발 DB 미마이그레이션으로 미실행 — SCR-010은 진행 중 유지) |
 | 2026-11-10 | 부서 관리 화면 SCR-010 완료: Playwright `e2e/departments.spec.ts` 4건 임시 DB에서 통과. 부서 API `:id` 형식 오류 400 VALIDATION_ERROR, 검색어 `%`·`_`·`\` 문자 그대로 일치, 未所属 부재 시 500(06·08 반영)(backend unit 222건, e2e 317건, frontend 391건 통과). 범위 밖 기존 Playwright 실패 7건(attendance-status 6, leaves 1)은 §2 #10 "E2E 하네스 정비"로 분리 |
+| 2026-11-10 | 대시보드 월간 휴가 캘린더 완료: API-DASH-002·003(신규, USER), SCR-002 §3-6 休暇カレンダー. 공개 범위는 이름·부서·반차 구분만(신청 사유·상태 미표시, 02 FR-DASH-001·FR-LEAVE-005 보충). 공용 컴포넌트 `MonthCalendar`·`lib/calendar.ts` 추가, Card 헤더 좁은 폭 줄바꿈(09 §6), 공용 `common/validation/date-schema.ts`. DB 변경 없음(backend unit 242건, e2e 361건, frontend 412건 통과 — 임시 테스트 DB. Playwright `e2e/dashboard-leave-calendar.spec.ts` 3건 임시 DB 통과, Card 변경 전후 6화면×2폭 스크린샷 비교에서 의도 외 변화 없음. 범위 밖 기존 Playwright 스펙은 미재측정) |

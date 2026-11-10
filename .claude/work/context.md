@@ -46,6 +46,8 @@
 - `backend/test/e2e-helpers.ts` FixedClock, 토큰 서명, leaves·attendance·leave_grants INSERT 헬퍼
 - `frontend/src/components/Tabs.tsx` `Tabs({label,items,value,onChange})`(horizontal, roving tabIndex) / `components/layout/PendingApprovalCount.tsx` `PendingApprovalCountProvider`(AppShell이 감쌈)·`usePendingApprovalCount()`→`{count,refresh}`(승인·반려 후 `refresh()` 호출) / `LeaveDetailModal`의 `initialStep`(detail/approve/reject) — 상세는 09 §6
 - `frontend/src/lib/leave-days.ts`(`countLeaveDays`, `parseLeavesQuery`→`{year,statuses,leaveTypes,page}`, `yearOptions`, `LEAVE_STATUSES`, `LEAVE_TYPES`, `isHalfDay`. `LeavesTab`·`tab` 해석은 삭제됨) — 상세는 09 §6
+- `frontend/src/components/calendar/MonthCalendar.tsx`(`MonthCalendar({month,today,onSelectDate,renderDay?,getDayDescription?})`, 일요일 시작, 월 이동 UI는 사용처 책임) / `frontend/src/lib/calendar.ts`(`shiftMonth`, `buildMonthWeeks`, `formatMonthLabel`, UTC 연산만) / `Card` 헤더는 `flex-wrap`(action이 넘치면 다음 줄) — 상세는 09 §6
+- `backend/src/common/validation/date-schema.ts` `dateSchema`(실재하는 `YYYY-MM-DD`만 허용, create-leave·leave-calendar DTO 공용) / `modules/dashboard/dashboard.controller.ts`(USER용 `/dashboard/*`, 휴가 캘린더 API-DASH-002·003), `leave-calendar-rules.ts`(`monthRange`, `isWeekend`, `resolveHalfDay`)
 - `frontend/src/components/leave/LeaveApplyModal.tsx`(공통 휴가 신청 모달, SCR-002·004 공용, 열 때마다 `key` 변경) / `components/leave/LeaveFilterButtons.tsx`(제네릭 토글 복수 선택, 상태·휴가 종류 필터) — 상세는 09 §6
 
 ## 명령어

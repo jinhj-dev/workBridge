@@ -1,0 +1,32 @@
+[
+  {
+    "title": "",
+    "section": {
+      "top": 218,
+      "height": 200,
+      "width": 328
+    },
+    "header": null,
+    "heading": null,
+    "headerChildCount": 0
+  },
+  {
+    "title": "申請履歴",
+    "section": {
+      "top": 442,
+      "height": 508,
+      "width": 328
+    },
+    "header": {
+      "top": 462,
+      "height": 28,
+      "width": 288
+    },
+    "heading": {
+      "top": 464,
+      "height": 24,
+      "width": 64
+    },
+    "headerChildCount": 1
+  }
+]
