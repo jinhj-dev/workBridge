@@ -95,6 +95,7 @@ export type HalfDay = 'AM' | 'PM';
 // API-DASH-003(1 日分の休暇取得者。種別・理由は含まない)
 export interface LeaveCalendarMember {
   userId: string;
+  empId: string;
   name: string;
   departmentName: string;
   halfDay: HalfDay | null;

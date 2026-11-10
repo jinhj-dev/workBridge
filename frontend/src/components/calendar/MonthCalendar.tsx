@@ -24,6 +24,7 @@ function weekdayColor(col: number): string {
 
 // 09 §6 月カレンダー(日曜始まり)。月の移動 UI は持たず、使う側が month を渡す。
 // 過去日も操作できる(見た目だけ弱める)。
+// 狭い幅ではセルの左右余白をなくし、renderDay の内容をセル幅いっぱいに広げられるようにする
 export function MonthCalendar({
   month,
   today,
@@ -69,13 +70,13 @@ export function MonthCalendar({
                       description ? `${formatDate(date)} ${description}` : formatDate(date)
                     }
                     aria-current={isToday ? 'date' : undefined}
-                    className={`flex h-full min-h-14 w-full cursor-pointer flex-col items-start gap-1 p-1 text-left hover:bg-primary-30 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-100 md:min-h-24 md:p-2 ${
+                    className={`flex h-full min-h-14 w-full cursor-pointer flex-col items-start gap-1 px-0 py-1 text-left hover:bg-primary-30 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-100 md:min-h-24 md:p-2 ${
                       isPast ? 'bg-general-30' : 'bg-white'
                     } ${isToday ? 'ring-2 ring-primary-100 ring-inset' : ''}`}
                   >
                     <span
                       aria-hidden="true"
-                      className={`inline-flex size-6 items-center justify-center rounded-full text-sm/5 tabular-nums ${
+                      className={`ml-1 inline-flex size-5 items-center justify-center rounded-full text-xs/4 tabular-nums md:ml-0 md:size-6 md:text-sm/5 ${
                         isToday
                           ? 'bg-primary-100 font-bold text-white'
                           : `font-medium ${isPast ? 'text-general-60' : weekdayColor(col)}`
@@ -84,7 +85,9 @@ export function MonthCalendar({
                       {Number(date.slice(8))}
                     </span>
                     {renderDay && (
-                      <span className={`max-w-full ${isPast ? 'opacity-60' : ''}`}>
+                      <span
+                        className={`w-full md:w-auto md:max-w-full ${isPast ? 'opacity-60' : ''}`}
+                      >
                         {renderDay(date)}
                       </span>
                     )}

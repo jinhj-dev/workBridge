@@ -183,19 +183,19 @@ Response 200 (인원이 1명 이상인 날짜만, 날짜 오름차순. 없는 �
 - `GET /dashboard/leave-calendar/day` · USER · FR-DASH-001
 - Query: `date`(필수, 실재하는 `YYYY-MM-DD`, 연도 2000~2100)
 - 대상은 API-DASH-002와 같다(`APPROVED`, 활성 사용자, 사용자 단위 1행). 토·일이면 항상 `items: []`.
-- 정렬: 사원번호 오름차순, 같으면 `userId` 오름차순(사원번호는 응답에 포함하지 않음). 페이지네이션 없음.
+- 정렬: 사원번호 오름차순, 같으면 `userId` 오름차순. 페이지네이션 없음.
 
 Response 200
 ```json
 {
   "date": "2026-11-10",
   "items": [
-    { "userId": "uuid", "name": "홍길동", "departmentName": "개발팀", "halfDay": null },
-    { "userId": "uuid", "name": "김승인", "departmentName": "영업팀", "halfDay": "AM" }
+    { "userId": "uuid", "empId": "100001", "name": "홍길동", "departmentName": "개발팀", "halfDay": null },
+    { "userId": "uuid", "empId": "100002", "name": "김승인", "departmentName": "영업팀", "halfDay": "AM" }
   ]
 }
 ```
-- 응답 필드는 위가 전부다. `reason`, `leaveType`, `startDate`, `endDate`, `status`, 휴가 ID, `empId`, `approver`, `processedBy`, `rejectReason`은 포함하지 않는다(타인 정보 최소 공개, FR-DASH-001·FR-LEAVE-005). ADMIN에게도 같은 응답이다.
+- 응답 필드는 위가 전부다. `reason`, `leaveType`, `startDate`, `endDate`, `status`, 휴가 ID, `approver`, `processedBy`, `rejectReason`은 포함하지 않는다(타인 정보 최소 공개, FR-DASH-001·FR-LEAVE-005). ADMIN에게도 같은 응답이다.
 - `halfDay`: 그 사용자의 그날 `APPROVED` 휴가 종류로 판정한다. `HALF_AM`만 → `"AM"`, `HALF_PM`만 → `"PM"`, `HALF_AM`과 `HALF_PM`이 모두 있거나 종일 휴가(`ANNUAL`·`SPECIAL`·`OTHER`)가 하나라도 있으면 → `null`.
 
 | HTTP | Code | 설명 |

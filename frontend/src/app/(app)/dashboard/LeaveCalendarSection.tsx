@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Badge } from '@/components/Badge';
+import { BADGE_VARIANT_CLASS } from '@/components/Badge';
 import { MonthCalendar } from '@/components/calendar/MonthCalendar';
 import { Card } from '@/components/Card';
 import { secondaryButtonClass } from '@/components/form';
@@ -73,7 +73,14 @@ export function LeaveCalendarSection({ refreshSignal }: LeaveCalendarSectionProp
         onSelectDate={setSelectedDate}
         renderDay={(date) => {
           const count = counts.get(date);
-          return count ? <Badge variant="dark">{t.people(count)}</Badge> : null;
+          // 狭い幅ではセル幅いっぱいの帯、md 以上は通常のバッジ
+          return count ? (
+            <span
+              className={`flex h-5 w-full items-center justify-center text-xs/4 font-medium whitespace-nowrap md:inline-flex md:h-6 md:w-auto md:rounded md:px-2 md:text-sm/5 ${BADGE_VARIANT_CLASS.dark}`}
+            >
+              {t.people(count)}
+            </span>
+          ) : null;
         }}
         getDayDescription={(date) => {
           const count = counts.get(date);

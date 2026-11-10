@@ -95,19 +95,36 @@ describe('LeaveCalendarSection', () => {
     mockApi(() => ({
       date: '2026-11-10',
       items: [
-        { userId: 'u1', name: '山田太郎', departmentName: '開発部', halfDay: 'AM' },
-        { userId: 'u2', name: '佐藤花子', departmentName: '営業部', halfDay: null },
+        {
+          userId: 'u1',
+          empId: '100001',
+          name: '山田太郎',
+          departmentName: '開発部',
+          halfDay: 'AM',
+        },
+        {
+          userId: 'u2',
+          empId: '100002',
+          name: '佐藤花子',
+          departmentName: '営業部',
+          halfDay: null,
+        },
       ],
     }));
     const ui = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<LeaveCalendarSection refreshSignal={0} />);
 
     await ui.click(await screen.findByRole('button', { name: /2026\/11\/10/ }));
-    const dialog = await screen.findByRole('dialog', { name: t.dayTitle('2026/11/10') });
+    const dialog = await screen.findByRole('dialog', { name: t.dayTitle('2026年11月10日') });
     expect(await within(dialog).findByText('山田太郎')).toBeInTheDocument();
     expect(within(dialog).getByText('開発部')).toBeInTheDocument();
     expect(within(dialog).getByText(messages.leave.types.HALF_AM)).toBeInTheDocument();
     expect(within(dialog).queryByText(messages.leave.types.HALF_PM)).not.toBeInTheDocument();
+    expect(within(dialog).getByText('100001')).toBeInTheDocument();
+    for (const header of [t.empId, t.employeeName, t.department]) {
+      expect(within(dialog).getByRole('columnheader', { name: header })).toBeInTheDocument();
+    }
+    expect(within(dialog).getByText(t.total(2))).toBeInTheDocument();
     expect(callsTo('/dashboard/leave-calendar/day?date=2026-11-10')).toHaveLength(1);
   });
 
@@ -123,18 +140,31 @@ describe('LeaveCalendarSection', () => {
     mockApi(() => ({
       date: '2026-11-10',
       items: [
-        { userId: 'u1', name: '山田太郎', departmentName: '開発部', halfDay: 'PM' },
-        { userId: 'u2', name: '佐藤花子', departmentName: '営業部', halfDay: null },
+        {
+          userId: 'u1',
+          empId: '100001',
+          name: '山田太郎',
+          departmentName: '開発部',
+          halfDay: 'PM',
+        },
+        {
+          userId: 'u2',
+          empId: '100002',
+          name: '佐藤花子',
+          departmentName: '営業部',
+          halfDay: null,
+        },
       ],
     }));
     const ui = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<LeaveCalendarSection refreshSignal={0} />);
 
     await ui.click(await screen.findByRole('button', { name: /2026\/11\/10/ }));
-    const dialog = await screen.findByRole('dialog', { name: t.dayTitle('2026/11/10') });
+    const dialog = await screen.findByRole('dialog', { name: t.dayTitle('2026年11月10日') });
     expect(await within(dialog).findByText(messages.leave.types.HALF_PM)).toBeInTheDocument();
     expect(within(dialog).queryByText(messages.leave.types.HALF_AM)).not.toBeInTheDocument();
-    expect(within(dialog).getAllByRole('listitem')).toHaveLength(2);
+    // 見出し行 + 2 名
+    expect(within(dialog).getAllByRole('row')).toHaveLength(3);
   });
 
   it('shouldShowErrorInModalAndRetryDayDetail', async () => {
@@ -148,7 +178,7 @@ describe('LeaveCalendarSection', () => {
     render(<LeaveCalendarSection refreshSignal={0} />);
 
     await ui.click(await screen.findByRole('button', { name: /2026\/11\/10/ }));
-    const dialog = await screen.findByRole('dialog', { name: t.dayTitle('2026/11/10') });
+    const dialog = await screen.findByRole('dialog', { name: t.dayTitle('2026年11月10日') });
     await ui.click(await within(dialog).findByRole('button', { name: messages.common.retry }));
 
     expect(await within(dialog).findByText(t.empty)).toBeInTheDocument();
