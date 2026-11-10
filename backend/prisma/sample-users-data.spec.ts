@@ -1,8 +1,14 @@
 // 社員サンプルデータの生成(buildSampleUsers)と登録(insertSampleUsers)の単体テスト。DB は使わない。
+import bcrypt from 'bcrypt';
 import { describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '../src/generated/prisma/client.js';
 import { SYSTEM_DEPARTMENT_CODE } from '../src/modules/departments/department.constants.js';
-import { buildSampleUsers, insertSampleUsers, SAMPLE_USER_COUNT } from './sample-users-data.js';
+import {
+  buildSampleUsers,
+  insertSampleUsers,
+  parseSampleUserPassword,
+  SAMPLE_USER_COUNT,
+} from './sample-users-data.js';
 
 describe('buildSampleUsers', () => {
   const users = buildSampleUsers();
@@ -53,27 +59,57 @@ describe('buildSampleUsers', () => {
   });
 });
 
+describe('parseSampleUserPassword', () => {
+  it('shouldReturnValidPassword', () => {
+    expect(parseSampleUserPassword({ SEED_USER_PASSWORD: 'Sample1234' })).toBe('Sample1234');
+  });
+
+  it('shouldThrowWhenUnsetOrRuleViolation', () => {
+    expect(() => parseSampleUserPassword({})).toThrow('SEED_USER_PASSWORD が設定されていません');
+    expect(() => parseSampleUserPassword({ SEED_USER_PASSWORD: 'Ab1' })).toThrow('8 文字以上');
+    expect(() => parseSampleUserPassword({ SEED_USER_PASSWORD: 'abcdefgh' })).toThrow('英字と数字');
+    expect(() => parseSampleUserPassword({ SEED_USER_PASSWORD: '12345678' })).toThrow('英字と数字');
+    expect(() => parseSampleUserPassword({ SEED_USER_PASSWORD: `a1${'x'.repeat(71)}` })).toThrow(
+      '72 バイト以下',
+    );
+  });
+});
+
 describe('insertSampleUsers', () => {
   const departments = [SYSTEM_DEPARTMENT_CODE, 'GA', 'DEV', 'SALES', 'HR'].map((code) => ({
     id: `id-${code}`,
     code,
   }));
+  const PASSWORD = 'Sample1234';
 
-  function createPrismaStub(rows = departments, count = 100) {
-    const findMany = vi.fn().mockResolvedValue(rows);
-    const createMany = vi.fn().mockResolvedValue({ count });
+  function createPrismaStub(existingEmpIds: string[] = [], rows = departments) {
+    const findDepartments = vi.fn().mockResolvedValue(rows);
+    const findUsers = vi.fn().mockResolvedValue(existingEmpIds.map((empId) => ({ empId })));
+    const createMany = vi
+      .fn()
+      .mockImplementation(({ data }: { data: unknown[] }) =>
+        Promise.resolve({ count: data.length }),
+      );
+    const updateMany = vi.fn().mockResolvedValue({ count: existingEmpIds.length });
+    const tx = { user: { findMany: findUsers, createMany, updateMany } };
+    const transaction = vi.fn().mockImplementation((fn: (client: typeof tx) => unknown) => fn(tx));
     const prisma = {
-      department: { findMany },
-      user: { createMany },
+      department: { findMany: findDepartments },
+      $transaction: transaction,
     } as unknown as PrismaClient;
-    return { prisma, createMany };
+    return { prisma, createMany, updateMany, transaction };
   }
 
-  it('shouldCreateManySkippingDuplicatesWithUnguessablePasswordHash', async () => {
-    const { prisma, createMany } = createPrismaStub(departments, 7);
+  it('shouldCreateAllWithBcryptHashOfPasswordWhenNoneExist', async () => {
+    const { prisma, createMany, updateMany, transaction } = createPrismaStub();
 
-    await expect(insertSampleUsers(prisma)).resolves.toBe(7);
+    await expect(insertSampleUsers(prisma, PASSWORD)).resolves.toEqual({
+      createdCount: 100,
+      updatedCount: 0,
+    });
 
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(updateMany).not.toHaveBeenCalled();
     const args = createMany.mock.calls[0]?.[0] as {
       data: {
         passwordHash: string;
@@ -81,19 +117,42 @@ describe('insertSampleUsers', () => {
         mustChangePassword: boolean;
         departmentId: string;
       }[];
-      skipDuplicates: boolean;
     };
-    expect(args.skipDuplicates).toBe(true);
     expect(args.data).toHaveLength(100);
     expect(args.data.every((row) => row.role === 'EMPLOYEE')).toBe(true);
-    expect(args.data.every((row) => row.passwordHash.startsWith('$2'))).toBe(true);
+    expect(args.data.every((row) => row.mustChangePassword)).toBe(true);
     expect(args.data.every((row) => row.departmentId.startsWith('id-'))).toBe(true);
+    // ハッシュは 1 回だけ計算して共用し、入力のパスワードと一致する
+    const hashes = new Set(args.data.map((row) => row.passwordHash));
+    expect(hashes.size).toBe(1);
+    expect(await bcrypt.compare(PASSWORD, [...hashes][0])).toBe(true);
   });
 
-  it('shouldThrowWithoutInsertingWhenDepartmentIsMissing', async () => {
-    const { prisma, createMany } = createPrismaStub(departments.filter((row) => row.code !== 'HR'));
+  it('shouldUpdateOnlyPasswordHashForExistingAndCreateTheRest', async () => {
+    const { prisma, createMany, updateMany } = createPrismaStub(['10001', '10002']);
 
-    await expect(insertSampleUsers(prisma)).rejects.toThrow('HR');
-    expect(createMany).not.toHaveBeenCalled();
+    await expect(insertSampleUsers(prisma, PASSWORD)).resolves.toEqual({
+      createdCount: 98,
+      updatedCount: 2,
+    });
+
+    const created = (createMany.mock.calls[0]?.[0] as { data: { empId: string }[] }).data;
+    expect(created.map((row) => row.empId)).not.toContain('10001');
+    const update = updateMany.mock.calls[0]?.[0] as {
+      where: { empId: { in: string[] } };
+      data: Record<string, unknown>;
+    };
+    expect(update.where.empId.in).toEqual(['10001', '10002']);
+    expect(Object.keys(update.data)).toEqual(['passwordHash']);
+  });
+
+  it('shouldThrowWithoutWritingWhenDepartmentIsMissing', async () => {
+    const { prisma, transaction } = createPrismaStub(
+      [],
+      departments.filter((row) => row.code !== 'HR'),
+    );
+
+    await expect(insertSampleUsers(prisma, PASSWORD)).rejects.toThrow('HR');
+    expect(transaction).not.toHaveBeenCalled();
   });
 });
