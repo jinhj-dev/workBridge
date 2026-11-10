@@ -175,6 +175,23 @@ export async function resetE2eAdminAttendance(prisma: PrismaClient): Promise<num
   return result.count;
 }
 
+// E2E 管理者(900001)が申請者である休暇だけを削除する。他ユーザーが申請した休暇(承認者・処理者として参照されるもの)は変更しない。
+// 戻り値は削除した件数。E2E 管理者が存在しない場合は例外にする
+export async function resetE2eAdminLeaves(prisma: PrismaClient): Promise<number> {
+  const { empId, name } = E2E_ACCOUNTS.admin;
+  const admin = await prisma.user.findUnique({
+    where: { empId },
+    select: { id: true, name: true },
+  });
+  if (admin?.name !== name) {
+    throw new Error(
+      'E2E 管理者(900001)が存在しないため休暇を初期化できません。先に npm run db:e2e-accounts を実行してください。',
+    );
+  }
+  const result = await prisma.leave.deleteMany({ where: { userId: admin.id } });
+  return result.count;
+}
+
 // 状態の絞り込みを E2E で確かめるための勤怠。daysAgo は東京の今日から何日前か。
 // frontend/e2e/attendance-status.spec.ts も同じ並びを前提にする(パッケージが分かれているため import では共有しない)。
 //   今日: 勤務中 / 1・3 日前: 退勤漏れ / 2・4 日前: 退勤済み / 40 日前: 退勤済み(照会期間の外)

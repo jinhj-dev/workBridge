@@ -9,6 +9,7 @@ import {
   labelClass,
   primaryButtonClass,
   secondaryButtonClass,
+  textareaClass,
 } from '@/components/form';
 import { Modal } from '@/components/Modal';
 import { SectionError } from '@/components/SectionError';
@@ -19,6 +20,7 @@ import { ApiError, NetworkError, apiFetch } from '@/lib/api/client';
 import type { Leave, LeaveStatus } from '@/lib/api/types';
 import { useApiQuery } from '@/lib/api/useApiQuery';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { tokyoToday } from '@/lib/date-range';
 import { formatDays, formatPeriod, formatTokyoDateTime } from '@/lib/format';
 import { messages } from '@/messages/ja';
 
@@ -32,8 +34,10 @@ export const LEAVE_STATUS_BADGE: Record<LeaveStatus, BadgeVariant> = {
   CANCELLED: 'dark',
 };
 
-// detail: 詳細表示 / approve: 承認の確認 / reject: 却下理由の入力
-type Step = 'detail' | 'approve' | 'reject';
+// detail: 詳細表示 / approve: 承認の確認 / reject: 却下理由の入力 / cancel: 取消の確認(本人のみ)
+type Step = 'detail' | 'approve' | 'reject' | 'cancel';
+// 呼び出し側が最初の段階として指定できるもの(取消は詳細の [取消] からだけ開く)
+type InitialStep = Exclude<Step, 'cancel'>;
 
 interface LeaveDetailModalProps {
   leaveId: string | null; // null のときは閉じている
@@ -41,7 +45,7 @@ interface LeaveDetailModalProps {
   // 承認・却下が終わった、または対象が処理できなくなったとき(一覧の再取得用)
   onProcessed: () => void;
   // 開いたときの段階(一覧の [承認] [却下] から直接確認段階を開く)。呼び出し側で key を変えてリセットする
-  initialStep?: Step;
+  initialStep?: InitialStep;
 }
 
 // SCR-004 §4.4 休暇詳細モーダル。承認・却下(SCR-005 §6〜8)も同じモーダルの中で段階を切り替えて行う
@@ -99,7 +103,9 @@ export function LeaveDetailModal({
             ? t.forbidden
             : error.code === 'ALREADY_PROCESSED'
               ? t.alreadyProcessed
-              : error.message;
+              : error.code === 'NOT_CANCELLABLE'
+                ? t.cancel.notCancellable
+                : error.message;
         showToast(message, 'error');
         finish();
         return;
@@ -153,19 +159,55 @@ export function LeaveDetailModal({
     leave.user.id !== me.id &&
     (leave.approver?.id === me.id || me.role === 'ADMIN');
 
+  // 本人の取消(05 §6): 承認待ち、または自動承認で開始日がまだ先の申請
+  const canCancel =
+    !!leave &&
+    !!me &&
+    leave.user.id === me.id &&
+    (leave.status === 'PENDING' ||
+      (leave.autoApproved &&
+        leave.status === 'APPROVED' &&
+        leave.startDate > tokyoToday(new Date())));
+
   // 既に処理済み・権限なしの場合は確認段階ではなく詳細を見せる
-  const shownStep: Step = canProcess ? step : 'detail';
+  const shownStep: Step =
+    step === 'cancel' ? (canCancel ? 'cancel' : 'detail') : canProcess ? step : 'detail';
   const title =
     shownStep === 'approve'
       ? t.approve.title
       : shownStep === 'reject'
         ? t.reject.title
-        : t.detail.title;
+        : shownStep === 'cancel'
+          ? t.cancel.title
+          : t.detail.title;
 
   const submitButtonClass = `${primaryButtonClass} flex h-10 items-center justify-center gap-2 px-4 text-sm/5 disabled:cursor-not-allowed disabled:bg-primary-60`;
   const subButtonClass = `${secondaryButtonClass} h-10 px-4 text-sm/5`;
 
   function renderFooter(): ReactNode {
+    if (shownStep === 'cancel') {
+      return (
+        <>
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => setStep('detail')}
+            className={subButtonClass}
+          >
+            {t.cancel.back}
+          </button>
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => void submit(`/leaves/${leaveId}/cancel`, undefined, t.cancel.success)}
+            className={submitButtonClass}
+          >
+            {submitting && <Spinner />}
+            {t.cancel.submit}
+          </button>
+        </>
+      );
+    }
     if (shownStep === 'approve' || shownStep === 'reject') {
       return (
         <>
@@ -205,6 +247,11 @@ export function LeaveDetailModal({
         <button type="button" onClick={handleClose} className={subButtonClass}>
           {messages.common.close}
         </button>
+        {canCancel && (
+          <button type="button" onClick={() => setStep('cancel')} className={subButtonClass}>
+            {t.detail.cancel}
+          </button>
+        )}
         {canProcess && (
           <>
             <button type="button" onClick={() => setStep('reject')} className={subButtonClass}>
@@ -227,6 +274,10 @@ export function LeaveDetailModal({
       return <p className="text-general-100">{t.approve.confirm(leave.user.name)}</p>;
     }
 
+    if (shownStep === 'cancel') {
+      return <p className="text-general-100">{t.cancel.confirm}</p>;
+    }
+
     if (shownStep === 'reject') {
       const length = [...rejectReason].length;
       return (
@@ -244,7 +295,7 @@ export function LeaveDetailModal({
             onChange={(e) => setRejectReason(e.target.value)}
             aria-invalid={reasonError ? true : undefined}
             aria-describedby={`rejectReason-count${reasonError ? ' rejectReason-error' : ''}`}
-            className="w-full resize-y rounded border border-input-border bg-white px-4 py-3 text-base/6 text-general-100 outline-none focus-visible:border-primary-100 focus-visible:ring-2 focus-visible:ring-primary-100 focus-visible:ring-inset aria-invalid:border-danger-100 aria-invalid:focus-visible:ring-danger-100"
+            className={textareaClass}
           />
           <div className="flex items-start justify-between gap-3">
             <div>{reasonError && <FieldError id="rejectReason-error" message={reasonError} />}</div>

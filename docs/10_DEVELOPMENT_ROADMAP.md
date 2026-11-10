@@ -25,7 +25,7 @@
 | 3 | 인증 | FR-AUTH-001~003, NFR-001 | 완료 | 완료 | 완료 |
 | 4 | 권한·접근 제어 | NFR-001, 03 Screen Access Rules | 진행 중 | 완료 | 진행 중 |
 | 5 | 근태 | FR-ATT-001~005 | 완료 | 완료 | 완료 |
-| 6 | 휴가 신청·조회·취소 | FR-LEAVE-001, 004, 005, 006 | 진행 중 | 진행 중 | 진행 중 |
+| 6 | 휴가 신청·조회·취소 | FR-LEAVE-001, 004, 005, 006 | 완료 | 진행 중 | 진행 중 |
 | 7 | 휴가 승인 | FR-LEAVE-002, 003 | 완료 | 완료 | 완료 |
 | 8 | 사원 관리 | FR-USER-001, 002, FR-LEAVE-006 | 진행 중 | 대기 | 진행 중 |
 | 9 | 대시보드 | FR-DASH-001 | 완료 | 완료 | 완료 |
@@ -96,15 +96,15 @@
 ### 6. 휴가 신청·조회·취소 — 진행 중
 
 백엔드
-- [ ] 휴가 신청 API-LEAVE-001 (일수 계산, 날짜 중복, 잔여 연차, 즉시 승인, 사용자 단위 잠금 — FR-LEAVE-001, NFR-004, 05 §8)
-- [ ] 승인자 후보 목록 API-LEAVE-002
-- [ ] 내 휴가 이력 API-LEAVE-003 (FR-LEAVE-005)
+- [x] 휴가 신청 API-LEAVE-001 (일수 계산, 날짜 중복, 잔여 연차, 즉시 승인, 사용자 단위 잠금 — FR-LEAVE-001, NFR-004, 05 §8)
+- [x] 승인자 후보 목록 API-LEAVE-002
+- [x] 내 휴가 이력 API-LEAVE-003 (FR-LEAVE-005)
 - [x] 휴가 상세 API-LEAVE-004 (조회 권한 — FR-LEAVE-005)
-- [ ] 휴가 취소 API-LEAVE-005 (FR-LEAVE-004, 조건부 UPDATE)
+- [x] 휴가 취소 API-LEAVE-005 (FR-LEAVE-004, 조건부 UPDATE)
 - [x] 내 휴가 현황(잔여 연차) API-LEAVE-006 (FR-LEAVE-001, 006)
 
 프론트엔드
-- [ ] 휴가 관리 화면 SCR-004 (신청 탭, 이력, 공통 휴가 상세 모달) — 공통 휴가 상세 모달(`LeaveDetailModal`, 승인·반려 포함)은 대시보드 작업에서 완료
+- [ ] 휴가 관리 화면 SCR-004 (신청 탭, 이력, 공통 휴가 상세 모달) — 공통 휴가 상세 모달(`LeaveDetailModal`, 승인·반려 포함)은 대시보드 작업에서 완료. 화면·[취소] 단계 구현과 Vitest는 완료, Playwright `e2e/leaves.spec.ts` 7건은 미실행(E2E 환경변수 미설정)
 
 ### 7. 휴가 승인 — 완료
 
@@ -146,7 +146,7 @@
 - [ ] API 통합 테스트 (08 §5) — 각 도메인 구현과 함께
 - [ ] 권한 매트릭스 테스트 (08 §6)
 - [ ] 동시성 테스트: 휴가 신청 잠금, 조건부 UPDATE (NFR-004)
-- [ ] 화면 테스트 (08 §7) — SCR-001 완료(Vitest 51건 — 화면 25·redirect 검증 26, Playwright 7건), SCR-009 완료(Vitest 17건, Playwright 3건), SCR-002 완료(Vitest 51건 — 화면 19·휴가 상세 모달 19·공통 셸 13, Playwright 5건), SCR-003·SCR-008 완료(Vitest — 화면 10·전체 근태 8·수정 모달 9·Tooltip 7·관리자 가드 3 외, Playwright 3건), SCR-005·승인 대기 배지 완료(Vitest — 화면 19·Tabs 3·휴가 상세 모달·공통 셸 추가분 외, Playwright 5건)
+- [ ] 화면 테스트 (08 §7) — SCR-001 완료(Vitest 51건 — 화면 25·redirect 검증 26, Playwright 7건), SCR-009 완료(Vitest 17건, Playwright 3건), SCR-002 완료(Vitest 51건 — 화면 19·휴가 상세 모달 19·공통 셸 13, Playwright 5건), SCR-003·SCR-008 완료(Vitest — 화면 10·전체 근태 8·수정 모달 9·Tooltip 7·관리자 가드 3 외, Playwright 3건), SCR-005·승인 대기 배지 완료(Vitest — 화면 19·Tabs 3·휴가 상세 모달·공통 셸 추가분 외, Playwright 5건), SCR-004 진행 중(Vitest — 화면 13·신청 폼 15·ApproverSelect 8·휴가 상세 모달 취소 16·`leave-days` 외 통과, Playwright 7건 미실행)
 - [ ] E2E 핵심 여정 E2E-01~05 (08 §8, Playwright)
 - [ ] CI(GitHub Actions): lint, 타입 검사, unit, e2e(postgres 서비스 컨테이너), build
 
@@ -171,3 +171,4 @@
 | 2026-11-09 | E2E 전용 계정 900001(ADMIN)/900002(최초 로그인 EMPLOYEE) 도입, `npm run db:e2e-accounts`를 Playwright globalSetup이 자동 실행해 매 실행 초기화(Playwright 15건 연속 2회 통과). 기존 "개발 DB 관리자 비밀번호 불일치"(14건 중 Run 2 미통과) 환경 문제 해소 |
 | 2026-11-09 | 근태 완료: API-ATT-004~006, 근태 관리 SCR-003, 전체 근태 관리 SCR-008(수정 모달). 부서 목록 API-DEPT-001, 비관리자 `/admin/*` 라우트 가드 완료. `Attendance.modifiedAt` 추가(06 §0). 공용 컴포넌트 Pagination·Tooltip·table·DateRangeFields·attendanceStatus·selectClass(09 §6)(backend unit 173건, e2e 229건, frontend 202건 통과, Playwright 18건 통과) |
 | 2026-11-10 | 휴가 승인 완료: 휴가 승인 화면 SCR-005, 사이드바 승인 대기 배지. 공용 컴포넌트 Tabs·PendingApprovalCount, LeaveDetailModal `initialStep`(09 §6). E2E 관리자 근태 초기화 스크립트 `db:e2e-attendance-reset` 추가(backend unit 176건, e2e 229건, frontend 245건 통과, Playwright 23건 통과) |
+| 2026-11-10 | 휴가 신청·조회·취소 백엔드 완료: API-LEAVE-001·002·003·005. 휴가 관리 화면 SCR-004와 LeaveDetailModal [취소] 단계 구현, 공용 컴포넌트 ApproverSelect·`textareaClass`·`lib/leave-days.ts`(09 §6). E2E 관리자 휴가 초기화 스크립트 `db:e2e-leaves-reset` 추가(backend unit 199건, e2e 274건, frontend 334건 통과. Playwright `e2e/leaves.spec.ts` 7건은 E2E 환경변수 미설정으로 미실행 — SCR-004는 진행 중 유지) |

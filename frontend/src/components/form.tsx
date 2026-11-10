@@ -6,6 +6,10 @@ export const inputClass =
 // 09 §3 Dropdown(Regular)。Input と同じ高さ・枠線
 export const selectClass = `${inputClass} cursor-pointer`;
 
+// 複数行入力(理由など)。Input と同じ枠線・フォーカス表示
+export const textareaClass =
+  'w-full resize-y rounded border border-input-border bg-white px-4 py-3 text-base/6 text-general-100 outline-none focus-visible:border-primary-100 focus-visible:ring-2 focus-visible:ring-primary-100 focus-visible:ring-inset aria-invalid:border-danger-100 aria-invalid:focus-visible:ring-danger-100';
+
 export const labelClass = 'mb-1 block text-sm/5 font-medium text-general-80';
 
 export const primaryButtonClass =
