@@ -40,10 +40,17 @@ interface LeaveDetailModalProps {
   onClose: () => void;
   // 承認・却下が終わった、または対象が処理できなくなったとき(一覧の再取得用)
   onProcessed: () => void;
+  // 開いたときの段階(一覧の [承認] [却下] から直接確認段階を開く)。呼び出し側で key を変えてリセットする
+  initialStep?: Step;
 }
 
 // SCR-004 §4.4 休暇詳細モーダル。承認・却下(SCR-005 §6〜8)も同じモーダルの中で段階を切り替えて行う
-export function LeaveDetailModal({ leaveId, onClose, onProcessed }: LeaveDetailModalProps) {
+export function LeaveDetailModal({
+  leaveId,
+  onClose,
+  onProcessed,
+  initialStep = 'detail',
+}: LeaveDetailModalProps) {
   const { user: me } = useAuth();
   const { showToast } = useToast();
   // 詳細の取得で 403・404 なら、モーダルを閉じて一覧を再取得する(03 共通規則)
@@ -55,7 +62,7 @@ export function LeaveDetailModal({ leaveId, onClose, onProcessed }: LeaveDetailM
       }
     },
   });
-  const [step, setStep] = useState<Step>('detail');
+  const [step, setStep] = useState<Step>(initialStep);
   const [rejectReason, setRejectReason] = useState('');
   const [reasonError, setReasonError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -66,7 +73,7 @@ export function LeaveDetailModal({ leaveId, onClose, onProcessed }: LeaveDetailM
   const leave = query.status === 'success' ? query.data : undefined;
 
   function handleClose() {
-    setStep('detail');
+    setStep(initialStep);
     setRejectReason('');
     setReasonError(null);
     onClose();
@@ -87,7 +94,13 @@ export function LeaveDetailModal({ leaveId, onClose, onProcessed }: LeaveDetailM
       }
       // 403・404・409 はもう処理できないので、閉じて一覧を再取得する
       if ([403, 404, 409].includes(error.statusCode)) {
-        showToast(error.code === 'FORBIDDEN' ? t.forbidden : error.message, 'error');
+        const message =
+          error.code === 'FORBIDDEN'
+            ? t.forbidden
+            : error.code === 'ALREADY_PROCESSED'
+              ? t.alreadyProcessed
+              : error.message;
+        showToast(message, 'error');
         finish();
         return;
       }
@@ -140,22 +153,32 @@ export function LeaveDetailModal({ leaveId, onClose, onProcessed }: LeaveDetailM
     leave.user.id !== me.id &&
     (leave.approver?.id === me.id || me.role === 'ADMIN');
 
+  // 既に処理済み・権限なしの場合は確認段階ではなく詳細を見せる
+  const shownStep: Step = canProcess ? step : 'detail';
   const title =
-    step === 'approve' ? t.approve.title : step === 'reject' ? t.reject.title : t.detail.title;
+    shownStep === 'approve'
+      ? t.approve.title
+      : shownStep === 'reject'
+        ? t.reject.title
+        : t.detail.title;
 
   const submitButtonClass = `${primaryButtonClass} flex h-10 items-center justify-center gap-2 px-4 text-sm/5 disabled:cursor-not-allowed disabled:bg-primary-60`;
   const subButtonClass = `${secondaryButtonClass} h-10 px-4 text-sm/5`;
 
   function renderFooter(): ReactNode {
-    if (step === 'approve' || step === 'reject') {
+    if (shownStep === 'approve' || shownStep === 'reject') {
       return (
         <>
           <button
             type="button"
             disabled={submitting}
             onClick={() => {
-              setStep('detail');
-              setReasonError(null);
+              if (initialStep === 'detail') {
+                setStep('detail');
+                setReasonError(null);
+              } else {
+                handleClose();
+              }
             }}
             className={subButtonClass}
           >
@@ -165,14 +188,14 @@ export function LeaveDetailModal({ leaveId, onClose, onProcessed }: LeaveDetailM
             type="button"
             disabled={submitting}
             onClick={
-              step === 'approve'
+              shownStep === 'approve'
                 ? () => void submit(`/leaves/${leaveId}/approve`, undefined, t.approve.success)
                 : handleReject
             }
             className={submitButtonClass}
           >
             {submitting && <Spinner />}
-            {step === 'approve' ? t.approve.submit : t.reject.submit}
+            {shownStep === 'approve' ? t.approve.submit : t.reject.submit}
           </button>
         </>
       );
@@ -200,11 +223,11 @@ export function LeaveDetailModal({ leaveId, onClose, onProcessed }: LeaveDetailM
     if (query.status === 'loading') return <SkeletonLines count={6} />;
     if (!leave) return <SectionError onRetry={query.reload} />;
 
-    if (step === 'approve') {
+    if (shownStep === 'approve') {
       return <p className="text-general-100">{t.approve.confirm(leave.user.name)}</p>;
     }
 
-    if (step === 'reject') {
+    if (shownStep === 'reject') {
       const length = [...rejectReason].length;
       return (
         <div>

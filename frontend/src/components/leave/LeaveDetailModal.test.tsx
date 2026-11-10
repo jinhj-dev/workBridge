@@ -192,6 +192,20 @@ describe('LeaveDetailModal ボタンの表示', () => {
 });
 
 describe('LeaveDetailModal 承認', () => {
+  it('shouldReturnToDetailWithoutClosingWhenCancelingConfirm', async () => {
+    const { ui, dialog } = await renderModal(APPROVER);
+
+    await ui.click(within(dialog).getByRole('button', { name: t.detail.approve }));
+    expect(dialog).toHaveTextContent(t.approve.confirm('申請者'));
+    await ui.click(within(dialog).getByRole('button', { name: messages.common.cancel }));
+
+    // 詳細に戻り、モーダルは閉じない(ダッシュボード経路の回帰確認)
+    expect(await within(dialog).findByText(t.detail.leaveType)).toBeInTheDocument();
+    expect(within(dialog).queryByText(t.approve.confirm('申請者'))).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(callsTo(`/leaves/${LEAVE_ID}/approve`)).toHaveLength(0);
+  });
+
   it('shouldApproveAfterConfirm', async () => {
     const { ui, dialog, handlers } = await renderModal(APPROVER);
     handlers[`/leaves/${LEAVE_ID}/approve`] = () => leave({ status: 'APPROVED' });
@@ -228,13 +242,15 @@ describe('LeaveDetailModal 承認', () => {
   it('shouldToastCloseAndRefreshWhenAlreadyProcessed', async () => {
     const { ui, dialog, handlers } = await renderModal(APPROVER);
     handlers[`/leaves/${LEAVE_ID}/approve`] = () => {
-      throw new ApiError(409, 'ALREADY_PROCESSED', 'すでに処理された申請です。');
+      throw new ApiError(409, 'ALREADY_PROCESSED', 'サーバーの文言');
     };
 
     await ui.click(within(dialog).getByRole('button', { name: t.detail.approve }));
     await ui.click(within(dialog).getByRole('button', { name: t.approve.submit }));
 
-    await waitFor(() => expect(toast()).toHaveTextContent('すでに処理された申請です。'));
+    // サーバーの文言ではなく、画面用の文言(t.alreadyProcessed)が出ることを確認する
+    await waitFor(() => expect(toast()).toHaveTextContent(t.alreadyProcessed));
+    expect(screen.queryByText('サーバーの文言')).not.toBeInTheDocument();
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onProcessed).toHaveBeenCalledTimes(1);
   });
@@ -328,5 +344,62 @@ describe('LeaveDetailModal 却下', () => {
     await ui.click(within(dialog).getByRole('button', { name: t.reject.submit }));
 
     await waitFor(() => expect(callsTo(`/leaves/${LEAVE_ID}/reject`)).toHaveLength(1));
+  });
+});
+
+describe('LeaveDetailModal initialStep', () => {
+  function renderWithStep(user: AuthUser, initialStep: 'approve' | 'reject', detail = leave()) {
+    auth.user = user;
+    mockApi({ [`/leaves/${LEAVE_ID}`]: () => detail });
+    const ui = userEvent.setup();
+    render(
+      <ToastProvider>
+        <LeaveDetailModal
+          leaveId={LEAVE_ID}
+          initialStep={initialStep}
+          onClose={onClose}
+          onProcessed={onProcessed}
+        />
+      </ToastProvider>,
+    );
+    return ui;
+  }
+
+  it('shouldOpenApproveConfirmDirectlyAndCloseOnCancel', async () => {
+    const ui = renderWithStep(APPROVER, 'approve');
+    const dialog = await screen.findByRole('dialog', { name: t.approve.title });
+    expect(await within(dialog).findByText(t.approve.confirm('申請者'))).toBeInTheDocument();
+
+    await ui.click(within(dialog).getByRole('button', { name: messages.common.cancel }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shouldOpenRejectReasonDirectly', async () => {
+    renderWithStep(APPROVER, 'reject');
+    const dialog = await screen.findByRole('dialog', { name: t.reject.title });
+    expect(await within(dialog).findByLabelText(t.reject.reasonLabel)).toBeInTheDocument();
+  });
+
+  it('shouldShowDetailInsteadOfConfirmWhenAlreadyProcessed', async () => {
+    renderWithStep(APPROVER, 'approve', leave({ status: 'APPROVED' }));
+    const dialog = await screen.findByRole('dialog', { name: t.detail.title });
+    expect(await within(dialog).findByText(t.detail.leaveType)).toBeInTheDocument();
+    expect(within(dialog).queryByText(t.approve.confirm('申請者'))).not.toBeInTheDocument();
+  });
+
+  it('shouldShowAlreadyProcessedMessageOn409', async () => {
+    const ui = renderWithStep(APPROVER, 'approve');
+    apiFetch.mockImplementation(async (path: string) => {
+      if (path === `/leaves/${LEAVE_ID}/approve`) {
+        throw new ApiError(409, 'ALREADY_PROCESSED', 'サーバーの文言');
+      }
+      return leave();
+    });
+    const dialog = await screen.findByRole('dialog', { name: t.approve.title });
+    await within(dialog).findByText(t.approve.confirm('申請者'));
+    await ui.click(within(dialog).getByRole('button', { name: t.approve.submit }));
+
+    await waitFor(() => expect(toast()).toHaveTextContent(t.alreadyProcessed));
+    expect(onProcessed).toHaveBeenCalledTimes(1);
   });
 });

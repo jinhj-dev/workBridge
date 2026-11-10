@@ -1,8 +1,13 @@
 // E2E アカウントの設定読み込み(parseE2eAccountConfig)の単体テスト。DB は使わない。
 // 作成・初期化処理(resetE2eAccounts)の統合テストは test/db/e2e-accounts.e2e-spec.ts。
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Role } from '../src/generated/prisma/client.js';
-import { assertLocalDatabaseUrl, parseE2eAccountConfig } from './e2e-account-data.js';
+import type { PrismaClient } from '../src/generated/prisma/client.js';
+import {
+  assertLocalDatabaseUrl,
+  parseE2eAccountConfig,
+  resetE2eAdminAttendance,
+} from './e2e-account-data.js';
 
 const ADMIN_PASSWORD = 'Admin1234pass';
 const INITIAL_PASSWORD = 'Initial5678pass';
@@ -136,5 +141,40 @@ describe('assertLocalDatabaseUrl', () => {
       message = error instanceof Error ? error.message : String(error);
     }
     expect(message).not.toContain(secret);
+  });
+});
+
+describe('resetE2eAdminAttendance', () => {
+  // 必要な prisma のメソッドだけを持つ偽物。DB には接続しない
+  function fakePrisma(admin: { id: string; name: string } | null, deletedCount = 0) {
+    const findUnique = vi.fn().mockResolvedValue(admin);
+    const deleteMany = vi.fn().mockResolvedValue({ count: deletedCount });
+    const prisma = { user: { findUnique }, attendance: { deleteMany } };
+    return { prisma: prisma as unknown as PrismaClient, findUnique, deleteMany };
+  }
+
+  it('shouldDeleteOnlyAdminAttendanceAndReturnCount', async () => {
+    const { prisma, findUnique, deleteMany } = fakePrisma({ id: 'admin-id', name: 'E2E管理者' }, 2);
+
+    await expect(resetE2eAdminAttendance(prisma)).resolves.toBe(2);
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { empId: '900001' },
+      select: { id: true, name: true },
+    });
+    expect(deleteMany).toHaveBeenCalledWith({ where: { userId: 'admin-id' } });
+  });
+
+  it('shouldThrowWithoutDeletingWhenAdminDoesNotExist', async () => {
+    const { prisma, deleteMany } = fakePrisma(null);
+
+    await expect(resetE2eAdminAttendance(prisma)).rejects.toThrow('npm run db:e2e-accounts');
+    expect(deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('shouldThrowWithoutDeletingWhenUserAtEmpIdIsNotE2eAdmin', async () => {
+    const { prisma, deleteMany } = fakePrisma({ id: 'other-id', name: '別の社員' });
+
+    await expect(resetE2eAdminAttendance(prisma)).rejects.toThrow('npm run db:e2e-accounts');
+    expect(deleteMany).not.toHaveBeenCalled();
   });
 });

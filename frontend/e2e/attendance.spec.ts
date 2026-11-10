@@ -7,8 +7,8 @@ import { messages } from '../src/messages/ja';
 import { E2E_ADMIN, E2E_INITIAL_USER } from './accounts';
 
 // 実バックエンド・開発 DB と接続した勤怠の E2E。
-// 出勤は開発 DB で 1 日 1 回しか登録できないため、出勤済みなら出勤操作を飛ばす。
-// E-02 は当日の記録に退勤を入れた後、退勤時刻を空欄に戻して次回実行の E-01 の前提(勤務中)を保つ。
+// 開始時に E2E 管理者(900001)の勤怠記録だけを backend で削除し、前回実行の記録に依存しないようにする。
+// 出勤は開発 DB で 1 日 1 回しか登録できないため、削除後は E-01 で必ず出勤操作を行う。
 // E-03 は初回ログイン用の 900002 のパスワードを変更するため、終了後に backend の E2E 初期化で元に戻す。
 const t = messages.attendance;
 const dashboard = messages.dashboard.attendance;
@@ -16,6 +16,18 @@ const adminAttendance = messages.adminAttendance;
 const ADMIN_NAME = 'E2E管理者';
 const MISSING_ENV_MESSAGE =
   'E2E_ADMIN_PASSWORD と E2E_INITIAL_PASSWORD が必要です(backend の E2E アカウントを初期化するため)';
+
+test.beforeAll(() => {
+  expect(E2E_ADMIN.password, MISSING_ENV_MESSAGE).not.toBe('');
+  // PLAYWRIGHT_BASE_URL 指定時は対象環境が別の DB のため、ローカル DB を触らない(global-setup と同じ条件)
+  if (process.env.PLAYWRIGHT_BASE_URL) return;
+  // E2E 管理者(900001)の勤怠だけを削除する(他ユーザーのデータは対象外)
+  execSync('npm run db:e2e-attendance-reset', {
+    cwd: path.resolve(__dirname, '../../backend'),
+    stdio: 'inherit',
+    env: process.env,
+  });
+});
 
 test.beforeEach(() => {
   expect(E2E_ADMIN.password, MISSING_ENV_MESSAGE).not.toBe('');
@@ -59,15 +71,14 @@ test('shouldShowTodayClockInAsWorkingOnAttendancePage', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await loginAsAdmin(page);
 
-  // 出勤済みなら出勤ボタンは disabled になる(非表示にはならない)ため、有効かどうかで登録を判断する
+  // beforeAll で今日の記録を削除済みのため、出勤は必ず有効になる。今日の状態の読込完了を待ってから操作する
   const clockIn = page.getByRole('button', { name: dashboard.clockIn, exact: true });
-  if (await clockIn.isEnabled()) {
-    await clockIn.click();
-    const dialog = page.getByRole('dialog', { name: dashboard.confirmClockInTitle });
-    await dialog.getByRole('button', { name: dashboard.confirm, exact: true }).click();
-    await expect(page.getByText(dashboard.clockedIn)).toBeVisible();
-  }
-  await expect(page.getByRole('button', { name: dashboard.clockOut, exact: true })).toBeVisible();
+  await expect(clockIn).toBeEnabled();
+  await clockIn.click();
+  const dialog = page.getByRole('dialog', { name: dashboard.confirmClockInTitle });
+  await dialog.getByRole('button', { name: dashboard.confirm, exact: true }).click();
+  await expect(page.getByText(dashboard.clockedIn)).toBeVisible();
+  await expect(page.getByRole('button', { name: dashboard.clockOut, exact: true })).toBeEnabled();
 
   await page.goto('/attendance');
   await expect(page.getByRole('heading', { level: 1, name: t.title })).toBeVisible();
@@ -78,7 +89,8 @@ test('shouldEditTodayClockOutFromAdminAttendanceAndRestoreIt', async ({ page }) 
   await page.setViewportSize({ width: 1440, height: 900 });
   await loginAsAdmin(page);
   const today = tokyoToday();
-  // 保存を試みた後は、途中で失敗しても必ず退勤時刻を空欄に戻す(次回実行の E-01 の前提を守るため)
+  // 同じファイル内で前のテストが作成した今日の記録(勤務中)を前提にする(workers: 1 で順次実行)。
+  // 保存を試みた後は、途中で失敗しても必ず退勤時刻を空欄に戻して勤務中の状態に戻す
   let clockOutSaveAttempted = false;
 
   try {
@@ -137,8 +149,8 @@ test.describe('一般社員の管理者画面アクセス', () => {
     await page.goto('/admin/attendance');
     await expect(page).toHaveURL(/\/dashboard$/);
     await expect(page.getByText(messages.common.forbidden)).toBeVisible();
-    await expect(
-      page.getByRole('heading', { level: 1, name: adminAttendance.title }),
-    ).toHaveCount(0);
+    await expect(page.getByRole('heading', { level: 1, name: adminAttendance.title })).toHaveCount(
+      0,
+    );
   });
 });
