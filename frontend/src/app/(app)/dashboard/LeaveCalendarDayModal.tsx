@@ -5,9 +5,10 @@ import { secondaryButtonClass } from '@/components/form';
 import { Modal } from '@/components/Modal';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
+import { tdClass, thClass } from '@/components/table';
 import type { HalfDay, LeaveCalendarDay } from '@/lib/api/types';
 import { useApiQuery } from '@/lib/api/useApiQuery';
-import { formatDate } from '@/lib/format';
+import { formatDateJa } from '@/lib/format';
 import { messages } from '@/messages/ja';
 
 const t = messages.dashboard.calendar;
@@ -26,22 +27,45 @@ function DayList({ date }: { date: string }) {
     return <p className="py-4 text-center text-sm/5 text-general-80">{t.empty}</p>;
   }
   return (
-    <ul className="max-h-80 divide-y divide-general-40 overflow-y-auto border-y border-general-40">
-      {query.data.items.map((member) => (
-        <li
-          key={member.userId}
-          className="flex flex-col gap-1 px-1 py-3 md:flex-row md:items-center md:gap-4"
-        >
-          <span className="text-sm/5 font-medium text-general-100">{member.name}</span>
-          <span className="text-sm/5 text-general-80">{member.departmentName}</span>
-          {member.halfDay && (
-            <span className="self-start md:ml-auto">
-              <Badge variant="neutral">{HALF_DAY_LABEL[member.halfDay]}</Badge>
-            </span>
-          )}
-        </li>
-      ))}
-    </ul>
+    <div className="flex flex-col gap-2">
+      <div className="max-h-80 overflow-y-auto">
+        <table className="w-full border-collapse">
+          <thead className="sticky top-0 bg-white">
+            <tr>
+              <th scope="col" className={thClass}>
+                {t.empId}
+              </th>
+              <th scope="col" className={thClass}>
+                {t.employeeName}
+              </th>
+              <th scope="col" className={thClass}>
+                {t.department}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {query.data.items.map((member) => (
+              <tr key={member.userId}>
+                <td className={`${tdClass} tabular-nums`}>{member.empId}</td>
+                <td className={tdClass}>
+                  {/* 半休の区分は社員名の後ろに添える */}
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="font-medium">{member.name}</span>
+                    {member.halfDay && (
+                      <Badge variant="neutral">{HALF_DAY_LABEL[member.halfDay]}</Badge>
+                    )}
+                  </span>
+                </td>
+                <td className={`${tdClass} text-general-80`}>{member.departmentName}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-right text-sm/5 font-medium text-general-100 tabular-nums">
+        {t.total(query.data.items.length)}
+      </p>
+    </div>
   );
 }
 
@@ -51,12 +75,12 @@ interface LeaveCalendarDayModalProps {
   onClose: () => void;
 }
 
-// SCR-002 §3-6 選択した日の休暇取得者(名前・所属部署・半休の区別のみ)
+// SCR-002 §3-6 選択した日の休暇取得者(社員番号・名前・所属部署・半休の区別のみ)
 export function LeaveCalendarDayModal({ date, onClose }: LeaveCalendarDayModalProps) {
   return (
     <Modal
       open={date !== null}
-      title={date ? t.dayTitle(formatDate(date)) : ''}
+      title={date ? t.dayTitle(formatDateJa(date)) : ''}
       onClose={onClose}
       footer={
         <button type="button" onClick={onClose} className={`${secondaryButtonClass} h-10 px-4`}>

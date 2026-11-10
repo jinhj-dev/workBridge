@@ -17,10 +17,16 @@ export interface LeaveCalendar {
   days: LeaveCalendarDayCount[];
 }
 
-// API-DASH-003 の応答。公開するのは氏名・部署・半休の区分のみ
+// API-DASH-003 の応答。公開するのは社員番号・氏名・部署・半休の区分のみ
 export interface LeaveCalendarDay {
   date: string;
-  items: { userId: string; name: string; departmentName: string; halfDay: HalfDay | null }[];
+  items: {
+    userId: string;
+    empId: string;
+    name: string;
+    departmentName: string;
+    halfDay: HalfDay | null;
+  }[];
 }
 
 @Injectable()
@@ -55,6 +61,7 @@ export class DashboardService {
       date,
       items: users.map((user) => ({
         userId: user.id,
+        empId: user.empId,
         name: user.name,
         departmentName: user.departmentName,
         halfDay: resolveHalfDay(user.leaveTypes),

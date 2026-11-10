@@ -38,6 +38,7 @@ interface ErrorBody {
 }
 interface Actor {
   id: string;
+  empId: string;
   token: string;
 }
 
@@ -83,7 +84,7 @@ describe('月間休暇カレンダー API(e2e)', () => {
         mustChangePassword: false,
         ...overrides,
       });
-      actors[key] = { id: user.id, token: await sign(user.id) };
+      actors[key] = { id: user.id, empId: user.empId, token: await sign(user.id) };
     };
     await emp('A', { name: '山田太郎' });
     await emp('B');
@@ -401,6 +402,7 @@ describe('月間休暇カレンダー API(e2e)', () => {
       const row = ours(body.items, ['A'])[0];
       expect(row).toEqual({
         userId: idOf('A'),
+        empId: actors.A.empId,
         name: '山田太郎',
         departmentName,
         halfDay: null,
@@ -475,7 +477,13 @@ describe('月間休暇カレンダー API(e2e)', () => {
     it('shouldReturnPastDateLeave', async () => {
       const body = await getDay('2026-10-05');
       expect(ours(body.items, ['P'])).toEqual([
-        { userId: idOf('P'), name: 'テスト太郎', departmentName, halfDay: null },
+        {
+          userId: idOf('P'),
+          empId: actors.P.empId,
+          name: 'テスト太郎',
+          departmentName,
+          halfDay: null,
+        },
       ]);
     });
 
@@ -493,7 +501,13 @@ describe('月間休暇カレンダー API(e2e)', () => {
       const body = await getDay('2098-03-04');
       expect(body.items.length).toBeGreaterThan(0);
       for (const item of body.items) {
-        expect(Object.keys(item).sort()).toEqual(['departmentName', 'halfDay', 'name', 'userId']);
+        expect(Object.keys(item).sort()).toEqual([
+          'departmentName',
+          'empId',
+          'halfDay',
+          'name',
+          'userId',
+        ]);
         expect(['AM', 'PM', null]).toContain(item.halfDay);
       }
     });

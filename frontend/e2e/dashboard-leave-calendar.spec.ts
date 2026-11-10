@@ -25,7 +25,8 @@ function dayCellName(ymd: string): RegExp {
 }
 
 function dayTitleOf(ymd: string): string {
-  return t.dayTitle(ymd.replaceAll('-', '/'));
+  const [year, month, day] = ymd.split('-');
+  return t.dayTitle(`${year}年${month}月${day}日`);
 }
 
 // 休暇カレンダーのカード(見出しを含む section)
@@ -76,11 +77,11 @@ test.describe('休暇カレンダー(管理者)', () => {
     await page.getByRole('button', { name: t.prevMonth }).click();
     await expect(page.getByRole('table', { name: monthLabelOf(today) })).toBeVisible();
 
-    // 今日を開く。休暇者の有無に関わらず、モーダルの題名と「一覧 または 空の文言」が出る
+    // 今日を開く。休暇者の有無に関わらず、モーダルの題名と「一覧表 または 空の文言」が出る
     await page.getByRole('button', { name: dayCellName(today) }).click();
     const dialog = page.getByRole('dialog', { name: dayTitleOf(today) });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole('list').or(dialog.getByText(t.empty))).toBeVisible();
+    await expect(dialog.getByRole('table').or(dialog.getByText(t.empty))).toBeVisible();
   });
 
   test('shouldCaptureCalendarScreenshotsDesktopAndNarrow', async ({ page }) => {

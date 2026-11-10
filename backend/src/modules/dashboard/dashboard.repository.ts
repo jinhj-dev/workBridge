@@ -16,6 +16,7 @@ export interface LeaveCalendarDayCount {
 
 export interface UserOnLeave {
   id: string;
+  empId: string;
   name: string;
   departmentName: string;
   leaveTypes: LeaveType[];
@@ -83,6 +84,7 @@ export class DashboardRepository {
       where: { isActive: true, leaves: { some: approvedOnDate } },
       select: {
         id: true,
+        empId: true,
         name: true,
         department: { select: { name: true } },
         leaves: { where: approvedOnDate, select: { leaveType: true } },
@@ -91,6 +93,7 @@ export class DashboardRepository {
     });
     return users.map((user) => ({
       id: user.id,
+      empId: user.empId,
       name: user.name,
       departmentName: user.department.name,
       leaveTypes: user.leaves.map((leave) => leave.leaveType),

@@ -46,6 +46,12 @@ export function formatDate(ymd: string): string {
   return ymd.replaceAll('-', '/');
 }
 
+// 日付だけの値(YYYY-MM-DD)を年月日表記にする → 2026年11月05日
+export function formatDateJa(ymd: string): string {
+  const [year, month, day] = ymd.split('-');
+  return `${year}年${month}月${day}日`;
+}
+
 const weekdayFormatter = new Intl.DateTimeFormat('ja-JP', { timeZone: 'UTC', weekday: 'short' });
 
 // 勤務日(YYYY-MM-DD)を曜日付きで → 2026/11/07(土)
