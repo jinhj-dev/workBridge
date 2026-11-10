@@ -1,8 +1,9 @@
 'use client';
 
-import Link from 'next/link';
+import { useState } from 'react';
 import { Card } from '@/components/Card';
 import { primaryButtonClass } from '@/components/form';
+import { LeaveApplyModal } from '@/components/leave/LeaveApplyModal';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
 import type { LeaveBalance } from '@/lib/api/types';
@@ -15,6 +16,9 @@ const t = messages.dashboard.leave;
 // SCR-002 §3-4 休暇状況(今年)。残日数はサーバーの計算値をそのまま表示する
 export function LeaveBalanceSection() {
   const query = useApiQuery<LeaveBalance>('/leaves/balance');
+  const [applyOpen, setApplyOpen] = useState(false);
+  // 開くたびに入力を初期状態に戻すため、モーダルの key を更新する
+  const [applyKey, setApplyKey] = useState(0);
   const balance = query.status === 'success' ? query.data : undefined;
 
   function renderContent() {
@@ -74,13 +78,27 @@ export function LeaveBalanceSection() {
     >
       <div className="flex flex-col gap-6">
         {renderContent()}
-        <Link
-          href="/leaves?tab=apply"
+        <button
+          type="button"
+          onClick={() => {
+            setApplyKey((key) => key + 1);
+            setApplyOpen(true);
+          }}
           className={`${primaryButtonClass} flex h-12 items-center justify-center px-6 text-base/6 sm:self-start`}
         >
           {t.apply}
-        </Link>
+        </button>
       </div>
+      <LeaveApplyModal
+        key={applyKey}
+        open={applyOpen}
+        onClose={() => setApplyOpen(false)}
+        onApplied={() => {
+          setApplyOpen(false);
+          query.reload();
+        }}
+        onBalanceStale={query.reload}
+      />
     </Card>
   );
 }

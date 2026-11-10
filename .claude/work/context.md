@@ -45,6 +45,8 @@
 - `backend/src/modules/attendance/attendance-rules.ts`(`resolveDateRange`, `assertValidTimeRange`, `MAX_RANGE_DAYS`) / `modules/departments/`(GET /departments)
 - `backend/test/e2e-helpers.ts` FixedClock, 토큰 서명, leaves·attendance·leave_grants INSERT 헬퍼
 - `frontend/src/components/Tabs.tsx` `Tabs({label,items,value,onChange})`(horizontal, roving tabIndex) / `components/layout/PendingApprovalCount.tsx` `PendingApprovalCountProvider`(AppShell이 감쌈)·`usePendingApprovalCount()`→`{count,refresh}`(승인·반려 후 `refresh()` 호출) / `LeaveDetailModal`의 `initialStep`(detail/approve/reject) — 상세는 09 §6
+- `frontend/src/lib/leave-days.ts`(`countLeaveDays`, `parseLeavesQuery`→`{year,statuses,leaveTypes,page}`, `yearOptions`, `LEAVE_STATUSES`, `LEAVE_TYPES`, `isHalfDay`. `LeavesTab`·`tab` 해석은 삭제됨) — 상세는 09 §6
+- `frontend/src/components/leave/LeaveApplyModal.tsx`(공통 휴가 신청 모달, SCR-002·004 공용, 열 때마다 `key` 변경) / `components/leave/LeaveFilterButtons.tsx`(제네릭 토글 복수 선택, 상태·휴가 종류 필터) — 상세는 09 §6
 
 ## 명령어
 - DB: 루트 `npm run db:up` / backend `npm run db:migrate`, `npm run db:migrate:test`(e2e 전 필요), `npm run db:seed`, `npm run db:e2e-accounts`(개발 DB 전용, seed 후 실행. E2E 계정 900001/900002 생성·초기화, localhost DB만 허용), `npm run db:sample-attendance`(개발 DB 전용, 사원번호 00001의 2026년 10월 평일 22건 근태 샘플 INSERT. 페이지네이션·상태 검색 확인용. 이미 있는 날은 변경하지 않아 재실행해도 중복 없음, localhost만·production 거부), `npm run db:e2e-attendance-fixture`(개발 DB 전용, 900001의 attendance를 삭제 후 상태 확인용 6건으로 입력: 오늘 근무 중·1/3일 전 퇴근 누락·2/4일 전 퇴근 완료·40일 전 퇴근 완료. `frontend/e2e/attendance-status.spec.ts`가 실행), `npm run db:e2e-attendance-reset`(개발 DB 전용, E2E 관리자 900001의 attendance만 삭제, localhost만·production 거부. `frontend/e2e/attendance.spec.ts` beforeAll이 실행)

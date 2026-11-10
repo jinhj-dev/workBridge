@@ -247,8 +247,8 @@ Request
 
 Validation
 - leaveType: 필수, `ANNUAL` / `HALF_AM` / `HALF_PM` / `SPECIAL` / `OTHER`
-- startDate, endDate: 필수, `endDate >= startDate`, 같은 연도, 반차는 `startDate = endDate`
-- reason: 필수, 최대 500자
+- startDate, endDate: 필수, `endDate >= startDate`, 같은 연도, 반차는 `startDate = endDate`. 시작일이 과거여도 허용한다
+- reason: 필수, 앞뒤 공백 제거 후 1~500자(공백 제거한 값을 저장)
 - approverId: 신청자의 `approvalRequired = true`이면 필수, `false`이면 입력하지 않음(보내면 무시)
 
 Response 201: `Leave`
@@ -260,19 +260,25 @@ Response 201: `Leave`
 | 400 | INVALID_DATE_RANGE | 날짜 범위 오류, 연도를 걸치는 기간, 반차 기간 오류 |
 | 400 | NO_WORKING_DAYS | 신청 기간이 모두 주말 |
 | 400 | APPROVER_REQUIRED | 승인 필요 사용자가 승인자 미지정 |
-| 400 | INVALID_APPROVER | 승인자가 본인이거나 존재하지 않거나 비활성 |
+| 400 | INVALID_APPROVER | 승인자가 UUID 형식이 아니거나, 본인이거나, 존재하지 않거나, 비활성 |
+| 401 | UNAUTHORIZED | 잠근 신청자 행이 없거나 비활성 |
 | 409 | LEAVE_CONFLICT | PENDING 또는 APPROVED 휴가와 날짜 중복 |
 | 422 | INSUFFICIENT_LEAVE_BALANCE | 잔여 연차 초과 |
 
 ### API-LEAVE-002: 승인자 후보 목록
 - `GET /leaves/approvers` · USER · FR-LEAVE-001
-- Query: `keyword`(이름 또는 사원번호, 선택)
-- Response 200: `UserSummary[]` (본인과 비활성 사용자 제외)
+- Query: `keyword`(선택, 앞뒤 공백 제거 후 최대 100자. 이름은 대소문자 무시 부분 일치, 사원번호는 부분 일치. 빈 값이면 조건 없음)
+- Response 200: `UserSummary[]` (본인과 비활성 사용자 제외), 사원번호 오름차순
+- 400 VALIDATION_ERROR: `keyword`가 100자 초과
 
 ### API-LEAVE-003: 내 휴가 이력
 - `GET /leaves/me` · USER · FR-LEAVE-005
-- Query: `year`(선택, 휴가 시작일의 연도), `status`(선택), `page`, `limit`
+- Query: `year`(선택, 휴가 시작일의 연도, 2000~2100 정수. 생략하면 전체 연도), `status`, `leaveType`, `page`, `limit`
+- `status`: `PENDING` / `APPROVED` / `REJECTED` / `CANCELLED`를 쉼표로 구분해 여러 개 지정할 수 있다. 지정한 상태 중 하나라도 일치하는 휴가를 반환하고, 생략하면 전체 상태를 반환한다. 중복 값은 하나로 본다
+- `leaveType`: `ANNUAL` / `HALF_AM` / `HALF_PM` / `SPECIAL` / `OTHER`를 쉼표로 구분해 여러 개 지정할 수 있다. 규칙은 `status`와 같다
+- 조건 결합: `year` AND `status`(그룹 내 OR) AND `leaveType`(그룹 내 OR). 예: `?year=2026&status=PENDING,APPROVED&leaveType=HALF_AM,HALF_PM`
 - Response 200: 페이지네이션(`Leave[]`), 신청일 내림차순(동순위는 id 내림차순)
+- 400 VALIDATION_ERROR: `year`·`page`·`limit` 값 오류, `status`·`leaveType` 값 오류(허용 값이 아니거나 빈 값. 예: `status=`, `status=PENDING,`). `status`·`leaveType` 오류의 `details[].field`는 배열 요소 위치가 붙은 `status.N`·`leaveType.N` 형식(예: `PENDING,X` → `status.1`, 빈 값 → `status.0`)
 
 ### API-LEAVE-004: 휴가 상세
 - `GET /leaves/:id` · USER(신청자, 할당된 승인자, ADMIN만) · FR-LEAVE-005
@@ -285,7 +291,8 @@ Response 201: `Leave`
 
 | HTTP | Code | 설명 |
 |---|---|---|
-| 403 | FORBIDDEN | 신청자가 아님 |
+| 403 | FORBIDDEN | 신청자가 아님(ADMIN 포함) |
+| 404 | NOT_FOUND | 휴가 없음(`:id`가 UUID 형식이 아닌 경우 포함) |
 | 409 | NOT_CANCELLABLE | PENDING이 아니고, 시작일이 오늘보다 뒤인 즉시 승인 건도 아님 |
 
 ### API-LEAVE-006: 내 휴가 현황(잔여 연차)

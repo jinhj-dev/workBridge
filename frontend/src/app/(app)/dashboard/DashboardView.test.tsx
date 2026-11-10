@@ -351,7 +351,7 @@ describe('DashboardView 勤怠', () => {
 });
 
 describe('DashboardView 休暇状況', () => {
-  it('shouldShowBalanceValuesAndApplyLink', async () => {
+  it('shouldShowBalanceValuesAndApplyButton', async () => {
     mockApi();
     renderView();
 
@@ -364,10 +364,63 @@ describe('DashboardView 休暇状況', () => {
     expect(within(card).getByText('11.5日')).toBeInTheDocument();
     expect(within(card).getByText(t.leave.year(2026))).toBeInTheDocument();
     expect(within(card).queryByText(t.leave.notGranted)).not.toBeInTheDocument();
-    expect(within(card).getByRole('link', { name: t.leave.apply })).toHaveAttribute(
-      'href',
-      '/leaves?tab=apply',
+    expect(within(card).queryByRole('link', { name: t.leave.apply })).not.toBeInTheDocument();
+  });
+
+  it('shouldOpenApplyModalFromLeaveCardButtonWithoutNavigation', async () => {
+    mockApi();
+    const ui = userEvent.setup();
+    renderView();
+
+    const card = (await screen.findByRole('heading', { name: t.leave.title })).closest(
+      'section',
+    ) as HTMLElement;
+    await within(card).findByText('15日');
+    await ui.click(within(card).getByRole('button', { name: t.leave.apply }));
+
+    expect(
+      await screen.findByRole('dialog', { name: messages.leaves.apply.title }),
+    ).toBeInTheDocument();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('shouldCloseModalReloadBalanceAndStayOnDashboardAfterApplied', async () => {
+    const approver = {
+      id: 'u-approver',
+      name: '佐藤花子',
+      empId: '10002',
+      departmentName: '開発部',
+    };
+    mockApi({
+      '/leaves/approvers': () => [approver],
+      '/leaves': () => leave(1),
+    });
+    const ui = userEvent.setup();
+    renderView();
+
+    const card = (await screen.findByRole('heading', { name: t.leave.title })).closest(
+      'section',
+    ) as HTMLElement;
+    await within(card).findByText('15日');
+    await ui.click(within(card).getByRole('button', { name: t.leave.apply }));
+    const dialog = await screen.findByRole('dialog', { name: messages.leaves.apply.title });
+    const balanceCallsBefore = callsTo('/leaves/balance').length;
+
+    await ui.click(within(dialog).getByRole('radio', { name: messages.leave.types.ANNUAL }));
+    await ui.type(within(dialog).getByLabelText(messages.leaves.apply.startDate), '2026-11-16');
+    await ui.type(within(dialog).getByLabelText(messages.leaves.apply.endDate), '2026-11-18');
+    await ui.type(within(dialog).getByLabelText(messages.leaves.apply.reason), '私用');
+    await ui.click(await within(dialog).findByLabelText(messages.leaves.apply.approver));
+    await ui.click(await screen.findByRole('option', { name: /佐藤花子/ }));
+    await ui.click(within(dialog).getByRole('button', { name: messages.leaves.apply.submit }));
+
+    await waitFor(() => expect(dialog).not.toHaveAttribute('open'));
+    await waitFor(() =>
+      expect(callsTo('/leaves/balance').length).toBeGreaterThan(balanceCallsBefore),
     );
+    expect(apiFetch.mock.calls.filter(([p]) => p === '/leaves')).toHaveLength(1);
+    expect(router.push).not.toHaveBeenCalled();
+    expect(within(card).getByRole('button', { name: t.leave.apply })).toBeInTheDocument();
   });
 
   it('shouldShowNotGrantedNoticeWhenGrantedDaysIsZero', async () => {
@@ -444,7 +497,9 @@ describe('DashboardView 承認待ち', () => {
 
     await ui.click(await screen.findByRole('button', { name: t.pending.openDetail('申請者1') }));
     const dialog = await screen.findByRole('dialog', { name: messages.leave.detail.title });
-    await ui.click(await within(dialog).findByRole('button', { name: messages.leave.detail.approve }));
+    await ui.click(
+      await within(dialog).findByRole('button', { name: messages.leave.detail.approve }),
+    );
     await ui.click(
       await within(dialog).findByRole('button', { name: messages.leave.approve.submit }),
     );

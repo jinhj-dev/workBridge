@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/Toast';
 import { ApiError } from '@/lib/api/client';
 import type { Leave } from '@/lib/api/types';
@@ -401,5 +401,157 @@ describe('LeaveDetailModal initialStep', () => {
 
     await waitFor(() => expect(toast()).toHaveTextContent(t.alreadyProcessed));
     expect(onProcessed).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('LeaveDetailModal 取消', () => {
+  const cancelButtonName = t.detail.cancel;
+
+  it('shouldShowCancelButtonForOwnPendingLeave', async () => {
+    const { dialog } = await renderModal(APPLICANT_AUTH);
+    expect(within(dialog).getByRole('button', { name: cancelButtonName })).toBeInTheDocument();
+  });
+
+  it('shouldHideCancelButtonForOthersLeave', async () => {
+    const { dialog } = await renderModal(APPROVER);
+    expect(
+      within(dialog).queryByRole('button', { name: cancelButtonName }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shouldHideCancelButtonForOwnLeaveAdminCannotCancelForOthers', async () => {
+    const { dialog } = await renderModal(ADMIN);
+    expect(
+      within(dialog).queryByRole('button', { name: cancelButtonName }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shouldHideCancelButtonForApprovedLeaveApprovedByApprover', async () => {
+    const { dialog } = await renderModal(APPLICANT_AUTH, leave({ status: 'APPROVED' }));
+    expect(
+      within(dialog).queryByRole('button', { name: cancelButtonName }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shouldShowCancelButtonForAutoApprovedFutureLeave', async () => {
+    const { dialog } = await renderModal(
+      APPLICANT_AUTH,
+      leave({ status: 'APPROVED', autoApproved: true, approver: null, startDate: '2999-01-01' }),
+    );
+    expect(within(dialog).getByRole('button', { name: cancelButtonName })).toBeInTheDocument();
+  });
+
+  it('shouldHideCancelButtonForAutoApprovedPastLeave', async () => {
+    const { dialog } = await renderModal(
+      APPLICANT_AUTH,
+      leave({ status: 'APPROVED', autoApproved: true, approver: null, startDate: '2000-01-03' }),
+    );
+    expect(
+      within(dialog).queryByRole('button', { name: cancelButtonName }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shouldReturnToDetailWhenBackPressed', async () => {
+    const { ui, dialog } = await renderModal(APPLICANT_AUTH);
+    await ui.click(within(dialog).getByRole('button', { name: cancelButtonName }));
+    const confirm = await screen.findByRole('dialog', { name: t.cancel.title });
+    expect(within(confirm).getByText(t.cancel.confirm)).toBeInTheDocument();
+    await ui.click(within(confirm).getByRole('button', { name: t.cancel.back }));
+    expect(await screen.findByRole('dialog', { name: t.detail.title })).toBeInTheDocument();
+    expect(callsTo(`/leaves/${LEAVE_ID}/cancel`)).toHaveLength(0);
+  });
+
+  it('shouldCancelAndNotifyWhenConfirmed', async () => {
+    const { ui, dialog, handlers } = await renderModal(APPLICANT_AUTH);
+    handlers[`/leaves/${LEAVE_ID}/cancel`] = () => leave({ status: 'CANCELLED' });
+    await ui.click(within(dialog).getByRole('button', { name: cancelButtonName }));
+    const confirm = await screen.findByRole('dialog', { name: t.cancel.title });
+    await ui.click(within(confirm).getByRole('button', { name: t.cancel.submit }));
+
+    await waitFor(() => expect(toast()).toHaveTextContent(t.cancel.success));
+    expect(callsTo(`/leaves/${LEAVE_ID}/cancel`)[0][1]).toMatchObject({ method: 'PATCH' });
+    expect(onProcessed).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shouldCancelOnlyOnceOnDoubleClickWhileRequesting', async () => {
+    let resolveCancel: (value: Leave) => void = () => undefined;
+    const { ui, dialog, handlers } = await renderModal(APPLICANT_AUTH);
+    handlers[`/leaves/${LEAVE_ID}/cancel`] = () =>
+      new Promise<Leave>((resolve) => {
+        resolveCancel = resolve;
+      });
+    await ui.click(within(dialog).getByRole('button', { name: cancelButtonName }));
+    const confirm = await screen.findByRole('dialog', { name: t.cancel.title });
+    const submit = within(confirm).getByRole('button', { name: t.cancel.submit });
+    await ui.click(submit);
+    await ui.click(submit);
+
+    expect(submit).toBeDisabled();
+    expect(callsTo(`/leaves/${LEAVE_ID}/cancel`)).toHaveLength(1);
+    resolveCancel(leave({ status: 'CANCELLED' }));
+    await waitFor(() => expect(onProcessed).toHaveBeenCalledTimes(1));
+  });
+
+  it('shouldShowNotCancellableMessageOn409', async () => {
+    const { ui, dialog, handlers } = await renderModal(APPLICANT_AUTH);
+    handlers[`/leaves/${LEAVE_ID}/cancel`] = () => {
+      throw new ApiError(409, 'NOT_CANCELLABLE', 'サーバーの文言');
+    };
+    await ui.click(within(dialog).getByRole('button', { name: cancelButtonName }));
+    const confirm = await screen.findByRole('dialog', { name: t.cancel.title });
+    await ui.click(within(confirm).getByRole('button', { name: t.cancel.submit }));
+
+    await waitFor(() => expect(toast()).toHaveTextContent(t.cancel.notCancellable));
+    expect(onProcessed).toHaveBeenCalledTimes(1);
+  });
+
+  describe('開始日の境界(東京の今日 2026-11-09 に固定)', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-09T09:00:00+09:00'));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('shouldHideCancelButtonForAutoApprovedLeaveStartingToday', async () => {
+      const { dialog } = await renderModal(
+        APPLICANT_AUTH,
+        leave({ status: 'APPROVED', autoApproved: true, approver: null, startDate: '2026-11-09' }),
+      );
+      expect(
+        within(dialog).queryByRole('button', { name: cancelButtonName }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('shouldShowCancelButtonForAutoApprovedLeaveStartingTomorrow', async () => {
+      const { dialog } = await renderModal(
+        APPLICANT_AUTH,
+        leave({ status: 'APPROVED', autoApproved: true, approver: null, startDate: '2026-11-10' }),
+      );
+      expect(within(dialog).getByRole('button', { name: cancelButtonName })).toBeInTheDocument();
+    });
+
+    it('shouldHideCancelButtonForOwnRejectedLeave', async () => {
+      const { dialog } = await renderModal(
+        APPLICANT_AUTH,
+        leave({ status: 'REJECTED', rejectReason: '業務都合', startDate: '2026-11-20' }),
+      );
+      expect(
+        within(dialog).queryByRole('button', { name: cancelButtonName }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('shouldHideCancelButtonForOwnCancelledLeave', async () => {
+      const { dialog } = await renderModal(
+        APPLICANT_AUTH,
+        leave({ status: 'CANCELLED', startDate: '2026-11-20' }),
+      );
+      expect(
+        within(dialog).queryByRole('button', { name: cancelButtonName }),
+      ).not.toBeInTheDocument();
+    });
   });
 });
