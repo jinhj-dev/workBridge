@@ -84,7 +84,7 @@ export function toTokyoDateTimeInput(iso: string): string {
 // 休暇の期間。開始日と終了日が同じなら 1 つだけ表示する
 export function formatPeriod(startDate: string, endDate: string): string {
   if (startDate === endDate) return formatDate(startDate);
-  return `${formatDate(startDate)} ~ ${formatDate(endDate)}`;
+  return `${formatDate(startDate)} ～ ${formatDate(endDate)}`;
 }
 
 // 日数(0.5 単位あり) → 10.5日

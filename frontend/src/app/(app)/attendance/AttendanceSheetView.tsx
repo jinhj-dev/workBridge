@@ -12,7 +12,8 @@ import { WORK_PATTERN_BADGE } from '@/components/attendance/workPattern';
 import { Badge } from '@/components/Badge';
 import { Card } from '@/components/Card';
 import { secondaryButtonClass } from '@/components/form';
-import { LEAVE_STATUS_BADGE, LeaveDetailModal } from '@/components/leave/LeaveDetailModal';
+import { LeaveDetailModal } from '@/components/leave/LeaveDetailModal';
+import { LeaveStatusBadge } from '@/components/leave/LeaveStatusBadge';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
 import { compactTdBaseClass, compactTdClass, thClass } from '@/components/table';
@@ -203,9 +204,9 @@ function SheetDayRow({ day, today, selected, onSelect, onOpenLeave }: SheetDayRo
                 }}
                 className="rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100"
               >
-                <Badge variant={LEAVE_STATUS_BADGE[leave.status]}>
+                <LeaveStatusBadge status={leave.status}>
                   {s.leaveBadge(type, status)}
-                </Badge>
+                </LeaveStatusBadge>
               </button>
             );
           })}

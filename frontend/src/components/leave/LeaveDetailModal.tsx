@@ -2,8 +2,7 @@
 
 import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Badge } from '@/components/Badge';
-import type { BadgeVariant } from '@/components/Badge';
+import { DetailTable, DetailTableRow } from '@/components/DetailTable';
 import {
   FieldError,
   labelClass,
@@ -11,13 +10,14 @@ import {
   secondaryButtonClass,
   textareaClass,
 } from '@/components/form';
+import { LeaveStatusBadge } from '@/components/leave/LeaveStatusBadge';
 import { Modal } from '@/components/Modal';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
 import { Spinner } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
 import { ApiError, NetworkError, apiFetch } from '@/lib/api/client';
-import type { Leave, LeaveStatus } from '@/lib/api/types';
+import type { Leave } from '@/lib/api/types';
 import { useApiQuery } from '@/lib/api/useApiQuery';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { tokyoToday } from '@/lib/date-range';
@@ -26,13 +26,6 @@ import { messages } from '@/messages/ja';
 
 const t = messages.leave;
 const REJECT_REASON_MAX = 500;
-
-export const LEAVE_STATUS_BADGE: Record<LeaveStatus, BadgeVariant> = {
-  PENDING: 'neutral',
-  APPROVED: 'success',
-  REJECTED: 'danger',
-  CANCELLED: 'dark',
-};
 
 // detail: 詳細表示 / approve: 承認の確認 / reject: 却下理由の入力 / cancel: 取消の確認(本人のみ)
 type Step = 'detail' | 'approve' | 'reject' | 'cancel';
@@ -313,53 +306,68 @@ export function LeaveDetailModal({
     }
 
     const d = t.detail;
-    const applicant = [`${leave.user.name} (${leave.user.empId})`, leave.user.departmentName]
-      .filter(Boolean)
-      .join(' / ');
+    const department = leave.user.departmentName ?? d.unassigned;
+    const applicant = `${leave.user.name} (${leave.user.empId}) / ${department}`;
     return (
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm/5">
-        <DetailRow label={d.applicant}>{applicant}</DetailRow>
-        <DetailRow label={d.leaveType}>{t.types[leave.leaveType]}</DetailRow>
-        <DetailRow label={d.period}>{formatPeriod(leave.startDate, leave.endDate)}</DetailRow>
-        <DetailRow label={d.days}>{formatDays(leave.days)}</DetailRow>
-        <DetailRow label={d.reason}>
+      <DetailTable>
+        <DetailTableRow label={d.applicant}>{applicant}</DetailTableRow>
+        <DetailTableRow label={d.leaveType}>{t.types[leave.leaveType]}</DetailTableRow>
+        <DetailTableRow label={d.period}>
+          {formatPeriod(leave.startDate, leave.endDate)}
+        </DetailTableRow>
+        <DetailTableRow label={d.days}>{formatDays(leave.days)}</DetailTableRow>
+        <DetailTableRow label={d.reason}>
           <span className="break-words whitespace-pre-wrap">{leave.reason}</span>
-        </DetailRow>
-        <DetailRow label={d.approver}>{leave.approver?.name ?? d.autoApproved}</DetailRow>
-        <DetailRow label={d.status}>
-          <Badge variant={LEAVE_STATUS_BADGE[leave.status]}>{t.statuses[leave.status]}</Badge>
-        </DetailRow>
-        {leave.processedAt && (
-          <>
-            <DetailRow label={d.processedBy}>
-              {leave.processedBy?.name ?? messages.common.noValue}
-            </DetailRow>
-            <DetailRow label={d.processedAt}>{formatTokyoDateTime(leave.processedAt)}</DetailRow>
-          </>
-        )}
+        </DetailTableRow>
+        <DetailTableRow label={d.approver}>
+          {leave.autoApproved ? d.autoApproved : (leave.approver?.name ?? messages.common.noValue)}
+        </DetailTableRow>
+        <DetailTableRow label={d.status}>
+          <LeaveStatusBadge status={leave.status} />
+        </DetailTableRow>
+        <DetailTableRow label={d.processedBy}>
+          {leave.processedBy?.name ?? messages.common.noValue}
+        </DetailTableRow>
+        <DetailTableRow label={d.processedAt}>
+          {leave.processedAt ? formatTokyoDateTime(leave.processedAt) : messages.common.noValue}
+        </DetailTableRow>
         {leave.status === 'REJECTED' && (
-          <DetailRow label={d.rejectReason}>
+          <DetailTableRow label={d.rejectReason}>
             <span className="break-words whitespace-pre-wrap">
               {leave.rejectReason ?? messages.common.noValue}
             </span>
-          </DetailRow>
+          </DetailTableRow>
         )}
-      </dl>
+      </DetailTable>
     );
   }
 
   return (
-    <Modal open={leaveId !== null} title={title} onClose={handleClose} footer={renderFooter()}>
+    <Modal
+      open={leaveId !== null}
+      title={title}
+      onClose={handleClose}
+      footer={renderFooter()}
+      icon={<CalendarIcon />}
+      size="lg"
+    >
       {renderBody()}
     </Modal>
   );
 }
 
-function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+function CalendarIcon() {
   return (
-    <>
-      <dt className="text-general-80">{label}</dt>
-      <dd className="min-w-0 text-general-100">{children}</dd>
-    </>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+      <path d="M8 3v4M16 3v4M3.5 10h17" />
+    </svg>
   );
 }

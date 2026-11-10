@@ -37,7 +37,7 @@ describe('format(東京基準)', () => {
   it('shouldFormatDateOnlyValuesAndPeriod', () => {
     expect(formatDate('2026-11-10')).toBe('2026/11/10');
     expect(formatPeriod('2026-11-10', '2026-11-10')).toBe('2026/11/10');
-    expect(formatPeriod('2026-11-10', '2026-11-12')).toBe('2026/11/10 ~ 2026/11/12');
+    expect(formatPeriod('2026-11-10', '2026-11-12')).toBe('2026/11/10 ～ 2026/11/12');
   });
 
   it('shouldFormatDaysWithHalfDays', () => {

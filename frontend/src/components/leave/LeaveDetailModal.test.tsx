@@ -111,13 +111,27 @@ describe('LeaveDetailModal 表示', () => {
 
     expect(dialog).toHaveTextContent('申請者 (10001) / 営業部');
     expect(dialog).toHaveTextContent(t.types.ANNUAL);
-    expect(dialog).toHaveTextContent('2026/11/20 ~ 2026/11/21');
+    expect(dialog).toHaveTextContent('2026/11/20 ～ 2026/11/21');
     expect(dialog).toHaveTextContent('2日');
     expect(dialog).toHaveTextContent('家族の用事');
     expect(dialog).toHaveTextContent('承認者');
     expect(dialog).toHaveTextContent(t.statuses.PENDING);
     expect(within(dialog).queryByText(t.detail.rejectReason)).not.toBeInTheDocument();
-    expect(within(dialog).queryByText(t.detail.processedAt)).not.toBeInTheDocument();
+    // 未処理でも処理者・処理日時の行は表示し、値は「—」になる(D4)
+    expect(within(dialog).getByText(t.detail.processedBy)).toBeInTheDocument();
+    expect(within(dialog).getByText(t.detail.processedAt).nextElementSibling).toHaveTextContent(
+      messages.common.noValue,
+    );
+  });
+
+  it('shouldShowUnassignedWhenDepartmentNameIsNull', async () => {
+    const base = leave();
+    const { dialog } = await renderModal(
+      APPROVER,
+      leave({ user: { ...base.user, departmentName: null } }),
+    );
+
+    expect(dialog).toHaveTextContent(`申請者 (10001) / ${t.detail.unassigned}`);
   });
 
   it('shouldShowAutoApprovedWhenApproverIsNull', async () => {
@@ -553,5 +567,114 @@ describe('LeaveDetailModal 取消', () => {
         within(dialog).queryByRole('button', { name: cancelButtonName }),
       ).not.toBeInTheDocument();
     });
+  });
+});
+
+// 項目名(dt)に対応する値(dd)を取得する
+function valueOf(dialog: HTMLElement, label: string): HTMLElement {
+  const dt = Array.from(dialog.querySelectorAll('dt')).find((el) => el.textContent === label);
+  if (!dt?.nextElementSibling) throw new Error(`項目が見つかりません: ${label}`);
+  return dt.nextElementSibling as HTMLElement;
+}
+
+describe('LeaveDetailModal 追加表示(詳細モーダル仕様)', () => {
+  it('shouldShowRowsInSpecOrder', async () => {
+    const { dialog } = await renderModal(
+      APPLICANT_AUTH,
+      leave({
+        status: 'REJECTED',
+        processedBy: leave().approver,
+        processedAt: '2026-11-09T11:00:00+09:00',
+        rejectReason: '繁忙期のため',
+      }),
+    );
+    const labels = Array.from(dialog.querySelectorAll('dt')).map((el) => el.textContent);
+    expect(labels).toEqual([
+      t.detail.applicant,
+      t.detail.leaveType,
+      t.detail.period,
+      t.detail.days,
+      t.detail.reason,
+      t.detail.approver,
+      t.detail.status,
+      t.detail.processedBy,
+      t.detail.processedAt,
+      t.detail.rejectReason,
+    ]);
+  });
+
+  it('shouldShowApproverNameWhenNotAutoApprovedEvenIfApproverPresent', async () => {
+    const { dialog } = await renderModal(APPROVER, leave({ autoApproved: false }));
+    expect(valueOf(dialog, t.detail.approver)).toHaveTextContent('承認者');
+    expect(dialog).not.toHaveTextContent(t.detail.autoApproved);
+  });
+
+  it('shouldShowSingleDayPeriodWithoutRange', async () => {
+    const { dialog } = await renderModal(
+      APPROVER,
+      leave({ startDate: '2026-11-10', endDate: '2026-11-10', days: 1 }),
+    );
+    expect(within(dialog).getByText(t.detail.period).nextElementSibling).toHaveTextContent(
+      /^2026\/11\/10$/,
+    );
+    expect(within(dialog).getByText(t.detail.days).nextElementSibling).toHaveTextContent(/^1日$/);
+  });
+
+  it('shouldShowHalfDay', async () => {
+    const { dialog } = await renderModal(
+      APPROVER,
+      leave({ startDate: '2026-11-10', endDate: '2026-11-10', days: 0.5 }),
+    );
+    expect(within(dialog).getByText(t.detail.days).nextElementSibling).toHaveTextContent(
+      /^0\.5日$/,
+    );
+  });
+
+  it.each([
+    ['PENDING', t.statuses.PENDING, 'bg-warning-40'],
+    ['APPROVED', t.statuses.APPROVED, 'bg-success-40'],
+    ['REJECTED', t.statuses.REJECTED, 'bg-danger-30'],
+    ['CANCELLED', t.statuses.CANCELLED, 'bg-general-40'],
+  ] as const)('shouldShowStatusBadge%s', async (status, label, bg) => {
+    const { dialog } = await renderModal(
+      APPLICANT_AUTH,
+      leave({ status, processedAt: status === 'PENDING' ? null : '2026-11-09T11:00:00+09:00' }),
+    );
+    const badge = within(dialog).getByText(label);
+    expect(badge).toHaveClass(bg);
+    expect(badge).toHaveClass('rounded-full');
+  });
+
+  it('shouldShowNoValueForProcessorWhenPending', async () => {
+    const { dialog } = await renderModal(APPROVER);
+    expect(within(dialog).getByText(t.detail.processedBy).nextElementSibling).toHaveTextContent(
+      messages.common.noValue,
+    );
+  });
+
+  it('shouldWrapLongNameAndReason', async () => {
+    const longName = 'あ'.repeat(80);
+    const longReason = 'い'.repeat(300);
+    const base = leave();
+    const { dialog } = await renderModal(
+      APPROVER,
+      leave({ user: { ...base.user, name: longName }, reason: longReason }),
+    );
+    const value = within(dialog).getByText(t.detail.applicant).nextElementSibling;
+    expect(value).toHaveClass('break-words');
+    expect(within(dialog).getByText(longReason)).toHaveClass('whitespace-pre-wrap');
+  });
+
+  it('shouldCloseOnceFromEachCloseControl', async () => {
+    const { ui, dialog } = await renderModal(APPROVER);
+    // 閉じるボタンはヘッダーの X と下部の [閉じる] の 2 つ。どちらも 1 回だけ onClose
+    const [closeX, closeFooter] = within(dialog).getAllByRole('button', {
+      name: messages.common.close,
+    });
+    await ui.click(closeX);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    onClose.mockClear();
+    await ui.click(closeFooter);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
