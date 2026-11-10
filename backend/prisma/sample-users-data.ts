@@ -1,10 +1,10 @@
 // 画面確認用の社員サンプルデータ(社員番号 10001〜10100 の 100 名)。実行の入口は sample-users.ts。
-import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcrypt';
 import { BCRYPT_COST } from '../src/common/security/credentials.js';
 import { toDbDate } from '../src/common/time/tokyo-date.js';
 import { Role, type PrismaClient } from '../src/generated/prisma/client.js';
 import { SYSTEM_DEPARTMENT_CODE } from '../src/modules/departments/department.constants.js';
+import { assertValidPassword } from './initial-data.js';
 
 export const SAMPLE_USER_COUNT = 100;
 const FIRST_EMP_NUMBER = 10001;
@@ -99,14 +99,30 @@ export function buildSampleUsers(): SampleUser[] {
   });
 }
 
-// サンプル社員を登録し、新規に登録した件数を返す。登録済みの社員番号は変更しない(再実行しても重複しない)。
-// パスワードは誰にも分からない乱数のハッシュにするため、このユーザーではログインできない
-export async function insertSampleUsers(prisma: PrismaClient): Promise<number> {
+export interface InsertSampleUsersResult {
+  createdCount: number; // 新規に登録した件数
+  updatedCount: number; // 登録済みでパスワードを更新した件数
+}
+
+// 環境変数 SEED_USER_PASSWORD を検証して返す(規則は SEED_ADMIN_PASSWORD と同じ)。不正な値は例外にする
+export function parseSampleUserPassword(env: NodeJS.ProcessEnv): string {
+  const password = env.SEED_USER_PASSWORD ?? '';
+  assertValidPassword('SEED_USER_PASSWORD', password);
+  return password;
+}
+
+// サンプル社員を 1 トランザクションで登録する。
+// 未登録の社員番号は新規登録、登録済みの社員番号はパスワードのハッシュだけを更新する(他の列は変更しない)。
+// ハッシュは 1 回だけ計算して全員で共用する。平文は保存・出力しない
+export async function insertSampleUsers(
+  prisma: PrismaClient,
+  password: string,
+): Promise<InsertSampleUsersResult> {
   const departments = await prisma.department.findMany({ select: { id: true, code: true } });
   const departmentIdByCode = new Map(departments.map((row) => [row.code, row.id]));
-  const passwordHash = await bcrypt.hash(randomBytes(32).toString('hex'), BCRYPT_COST);
+  const passwordHash = await bcrypt.hash(password, BCRYPT_COST);
 
-  const data = buildSampleUsers().map((user) => {
+  const samples = buildSampleUsers().map((user) => {
     const departmentId = departmentIdByCode.get(user.departmentCode);
     if (!departmentId) {
       throw new Error(`部署 ${user.departmentCode} が存在しないため、登録できません。`);
@@ -123,6 +139,23 @@ export async function insertSampleUsers(prisma: PrismaClient): Promise<number> {
       hireDate: toDbDate(user.hireDate),
     };
   });
-  const result = await prisma.user.createMany({ data, skipDuplicates: true });
-  return result.count;
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.user.findMany({
+      where: { empId: { in: samples.map((row) => row.empId) } },
+      select: { empId: true },
+    });
+    const existingEmpIds = new Set(existing.map((row) => row.empId));
+    const toCreate = samples.filter((row) => !existingEmpIds.has(row.empId));
+
+    const created = await tx.user.createMany({ data: toCreate });
+    const updated =
+      existingEmpIds.size > 0
+        ? await tx.user.updateMany({
+            where: { empId: { in: [...existingEmpIds] } },
+            data: { passwordHash },
+          })
+        : { count: 0 };
+    return { createdCount: created.count, updatedCount: updated.count };
+  });
 }
