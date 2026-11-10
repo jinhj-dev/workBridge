@@ -56,7 +56,8 @@ test('shouldShowSummaryAndHistoryWithoutLoadError', async ({ page }) => {
   await expect(page.getByRole('heading', { name: t.title })).toBeVisible();
   await expect(page.getByText(t.remaining)).toBeVisible();
   await expect(page.getByRole('button', { name: t.applyButton })).toBeVisible();
-  await expect(page.getByRole('table')).toBeVisible();
+  // 開始時に 900001 の休暇を削除するため 0 件の場合がある。履歴の表か空表示のどちらかが出ることを確認する
+  await expect(page.getByRole('table').or(page.getByText(t.history.empty))).toBeVisible();
   await expect(page.getByText(messages.common.loadError)).toHaveCount(0);
 });
 
@@ -68,7 +69,7 @@ test('shouldApplyLeaveAutoApprovedThenCancelFromDetail', async ({ page }) => {
 
   const { year, ymd } = nextYearMonday();
   await expect(page.getByText(t.apply.autoApprove)).toBeVisible();
-  await page.getByRole('radio', { name: messages.leave.types.SPECIAL }).check();
+  await page.getByRole('combobox', { name: t.apply.leaveType }).selectOption('SPECIAL');
   await page.getByLabel(t.apply.startDate).fill(ymd);
   await page.getByLabel(t.apply.endDate).fill(ymd);
   await page.getByLabel(t.apply.reason).fill('E2E 休暇申請');
@@ -99,7 +100,7 @@ test('shouldApplyFromDashboardModalAndStayOnDashboard', async ({ page }) => {
   await page.getByRole('button', { name: messages.dashboard.leave.apply }).click();
   const dialog = page.getByRole('dialog', { name: t.apply.title });
   await expect(dialog).toBeVisible();
-  await expect(page.getByRole('radio', { name: messages.leave.types.ANNUAL })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: t.apply.leaveType })).toBeVisible();
 
   // 他のテストと重ならないよう、来年 3 月の 2 週目の月曜を使う(申請は即時承認)
   const { ymd } = nextYearMonday();
@@ -107,7 +108,7 @@ test('shouldApplyFromDashboardModalAndStayOnDashboard', async ({ page }) => {
   secondWeekMonday.setUTCDate(secondWeekMonday.getUTCDate() + 7);
   const day = secondWeekMonday.toISOString().slice(0, 10);
 
-  await page.getByRole('radio', { name: messages.leave.types.SPECIAL }).check();
+  await page.getByRole('combobox', { name: t.apply.leaveType }).selectOption('SPECIAL');
   await page.getByLabel(t.apply.startDate).fill(day);
   await page.getByLabel(t.apply.endDate).fill(day);
   await page.getByLabel(t.apply.reason).fill('E2E ダッシュボード申請');
@@ -160,7 +161,7 @@ test('shouldShowLeaveConflictToastWhenSameDateAppliedAgain', async ({ page }) =>
   const apply = async (): Promise<void> => {
     await page.goto('/leaves');
     await page.getByRole('button', { name: t.applyButton }).click();
-    await page.getByRole('radio', { name: messages.leave.types.SPECIAL }).check();
+    await page.getByRole('combobox', { name: t.apply.leaveType }).selectOption('SPECIAL');
     await page.getByLabel(t.apply.startDate).fill(day);
     await page.getByLabel(t.apply.endDate).fill(day);
     await page.getByLabel(t.apply.reason).fill('E2E 重複申請');

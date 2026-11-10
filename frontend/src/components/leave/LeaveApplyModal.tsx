@@ -2,16 +2,18 @@
 
 import { useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
+import { CalendarIcon } from '@/components/CalendarIcon';
+import { FormTable, FormTableRow } from '@/components/FormTable';
 import { Modal } from '@/components/Modal';
 import {
   FieldError,
   inputClass,
-  labelClass,
-  primaryButtonClass,
+  modalPrimaryButtonClass,
+  modalSecondaryButtonClass,
   textareaClass,
-  textButtonClass,
 } from '@/components/form';
 import { ApproverSelect } from '@/components/leave/ApproverSelect';
+import { Select } from '@/components/Select';
 import { Spinner } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
 import { ApiError, NetworkError, apiFetch } from '@/lib/api/client';
@@ -98,7 +100,7 @@ export function LeaveApplyModal({
     const trimmed = reason.trim();
     if (trimmed === '') found.reason = t.validation.reasonRequired;
     else if ([...trimmed].length > REASON_MAX) found.reason = t.validation.reasonTooLong;
-    if (approvalRequired && !approver) found.approver = t.validation.approver;
+    if (approverRequired && !approver) found.approver = t.validation.approver;
     return found;
   }
 
@@ -181,6 +183,8 @@ export function LeaveApplyModal({
     }
   }
 
+  // 承認者欄の * は、入力を検証する条件(validate)と同じ変数で決める
+  const approverRequired = approvalRequired;
   const periodDescribedBy = errors.period ? `${ids.startDate}-error` : undefined;
 
   return (
@@ -188,16 +192,18 @@ export function LeaveApplyModal({
       open={open}
       title={t.title}
       onClose={onClose}
+      icon={<CalendarIcon />}
+      size="lg"
       footer={
         <>
-          <button type="button" onClick={onClose} className={`${textButtonClass} h-12 px-4`}>
+          <button type="button" onClick={onClose} className={modalSecondaryButtonClass}>
             {messages.common.cancel}
           </button>
           <button
             type="submit"
             form={formId}
             disabled={submitting}
-            className={`${primaryButtonClass} flex h-12 items-center justify-center gap-2 px-6 text-base/6 disabled:cursor-not-allowed disabled:bg-primary-60`}
+            className={modalPrimaryButtonClass}
           >
             {submitting && <Spinner />}
             {t.submit}
@@ -205,132 +211,107 @@ export function LeaveApplyModal({
         </>
       }
     >
-      <form
-        id={formId}
-        onSubmit={handleSubmit}
-        noValidate
-        className="grid gap-x-6 gap-y-5 sm:grid-cols-2"
-      >
-        <fieldset
-          className="sm:col-span-2"
-          aria-invalid={errors.leaveType ? true : undefined}
-          aria-describedby={errors.leaveType ? `${ids.leaveType}-error` : undefined}
-        >
-          <legend className={labelClass}>{t.leaveType}</legend>
-          <div className="flex flex-wrap gap-x-5 gap-y-2">
-            {LEAVE_TYPES.map((type, index) => (
-              <label
-                key={type}
-                className="flex cursor-pointer items-center gap-2 text-sm/5 text-general-100"
-              >
-                <input
-                  id={index === 0 ? ids.leaveType : undefined}
-                  type="radio"
-                  name={`${baseId}-leaveType`}
-                  value={type}
-                  checked={leaveType === type}
-                  onChange={() => {
-                    setLeaveType(type);
-                    clearError('leaveType');
-                    clearError('period');
-                  }}
-                  className="size-5 cursor-pointer accent-primary-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100"
-                />
-                {messages.leave.types[type]}
-              </label>
-            ))}
-          </div>
-          {errors.leaveType && (
-            <FieldError id={`${ids.leaveType}-error`} message={errors.leaveType} />
-          )}
-        </fieldset>
+      <form id={formId} onSubmit={handleSubmit} noValidate>
+        <FormTable>
+          <FormTableRow label={t.leaveType} htmlFor={ids.leaveType} required>
+            <Select<LeaveType>
+              id={ids.leaveType}
+              value={leaveType}
+              onChange={(next) => {
+                setLeaveType(next);
+                clearError('leaveType');
+                clearError('period');
+              }}
+              options={LEAVE_TYPES.map((type) => ({
+                value: type,
+                label: messages.leave.types[type],
+              }))}
+              placeholder={messages.common.selectPlaceholder}
+              invalid={!!errors.leaveType}
+              describedBy={errors.leaveType ? `${ids.leaveType}-error` : undefined}
+              required
+            />
+            {errors.leaveType && (
+              <FieldError id={`${ids.leaveType}-error`} message={errors.leaveType} />
+            )}
+          </FormTableRow>
 
-        <div>
-          <label htmlFor={ids.startDate} className={labelClass}>
-            {t.startDate}
-          </label>
-          <input
-            id={ids.startDate}
-            type="date"
-            value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value);
-              clearError('period');
-            }}
-            aria-invalid={errors.period ? true : undefined}
-            aria-describedby={periodDescribedBy}
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label htmlFor={ids.endDate} className={labelClass}>
-            {t.endDate}
-          </label>
-          <input
-            id={ids.endDate}
-            type="date"
-            value={effectiveEnd}
-            disabled={half}
-            onChange={(e) => {
-              setEndDate(e.target.value);
-              clearError('period');
-            }}
-            aria-invalid={errors.period ? true : undefined}
-            aria-describedby={periodDescribedBy}
-            className={`${inputClass} disabled:cursor-not-allowed disabled:bg-general-30 disabled:text-general-80`}
-          />
-        </div>
-        {errors.period && (
-          <div className="-mt-3 sm:col-span-2">
-            <FieldError id={`${ids.startDate}-error`} message={errors.period} />
-          </div>
-        )}
+          <FormTableRow label={t.startDate} htmlFor={ids.startDate} required>
+            <input
+              id={ids.startDate}
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                clearError('period');
+              }}
+              aria-invalid={errors.period ? true : undefined}
+              aria-required="true"
+              aria-describedby={periodDescribedBy}
+              className={inputClass}
+            />
+          </FormTableRow>
 
-        <p className="text-sm/5 text-general-80 sm:col-span-2" aria-live="polite">
-          {t.days}:{' '}
-          <span className="font-bold text-general-100 tabular-nums">
-            {days === null ? messages.common.noValue : formatDays(days)}
-          </span>
-          <span className="block text-xs/4">{t.daysHint}</span>
-        </p>
+          <FormTableRow label={t.endDate} htmlFor={ids.endDate} required>
+            <input
+              id={ids.endDate}
+              type="date"
+              value={effectiveEnd}
+              disabled={half}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                clearError('period');
+              }}
+              aria-invalid={errors.period ? true : undefined}
+              aria-required="true"
+              aria-describedby={periodDescribedBy}
+              className={`${inputClass} disabled:cursor-not-allowed disabled:bg-general-30 disabled:text-general-80`}
+            />
+            {errors.period && <FieldError id={`${ids.startDate}-error`} message={errors.period} />}
+          </FormTableRow>
 
-        <div className="sm:col-span-2">
-          <label htmlFor={ids.reason} className={labelClass}>
-            {t.reason}
-          </label>
-          <textarea
-            id={ids.reason}
-            rows={4}
-            value={reason}
-            onChange={(e) => {
-              setReason(e.target.value);
-              clearError('reason');
-            }}
-            aria-invalid={errors.reason ? true : undefined}
-            aria-describedby={`${ids.reason}-count${errors.reason ? ` ${ids.reason}-error` : ''}`}
-            className={textareaClass}
-          />
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              {errors.reason && <FieldError id={`${ids.reason}-error`} message={errors.reason} />}
-            </div>
-            <p
-              id={`${ids.reason}-count`}
-              className={`mt-1 shrink-0 text-sm/5 tabular-nums ${
-                reasonLength > REASON_MAX ? 'font-medium text-danger-100' : 'text-general-80'
-              }`}
+          <FormTableRow label={t.days} labelId={`${baseId}-days-label`}>
+            <div
+              aria-live="polite"
+              aria-labelledby={`${baseId}-days-label`}
+              className="rounded bg-general-30 px-4 py-3 text-base/6 font-bold text-general-100 tabular-nums"
             >
-              {t.count(reasonLength, REASON_MAX)}
-            </p>
-          </div>
-        </div>
+              {days === null ? messages.common.noValue : formatDays(days)}
+            </div>
+            <p className="mt-1 text-xs/4 text-general-80">{t.daysHint}</p>
+          </FormTableRow>
 
-        <div className="sm:col-span-2">
-          {approvalRequired ? (
-            <>
-              <label htmlFor={ids.approver} className={labelClass}>
-                {t.approver}
-              </label>
+          <FormTableRow label={t.reason} htmlFor={ids.reason} required>
+            <textarea
+              id={ids.reason}
+              rows={4}
+              value={reason}
+              onChange={(e) => {
+                setReason(e.target.value);
+                clearError('reason');
+              }}
+              aria-invalid={errors.reason ? true : undefined}
+              aria-required="true"
+              aria-describedby={`${ids.reason}-count${errors.reason ? ` ${ids.reason}-error` : ''}`}
+              className={textareaClass}
+            />
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                {errors.reason && <FieldError id={`${ids.reason}-error`} message={errors.reason} />}
+              </div>
+              <p
+                id={`${ids.reason}-count`}
+                className={`mt-1 shrink-0 text-sm/5 tabular-nums ${
+                  reasonLength > REASON_MAX ? 'font-medium text-danger-100' : 'text-general-80'
+                }`}
+              >
+                {t.count(reasonLength, REASON_MAX)}
+              </p>
+            </div>
+          </FormTableRow>
+
+          {approverRequired ? (
+            <FormTableRow label={t.approver} htmlFor={ids.approver} required>
               <ApproverSelect
                 id={ids.approver}
                 value={approver}
@@ -339,15 +320,18 @@ export function LeaveApplyModal({
                   clearError('approver');
                 }}
                 error={errors.approver}
+                required
                 candidates={approvers.data ?? []}
                 status={approvers.status}
                 onRetry={approvers.reload}
               />
-            </>
+            </FormTableRow>
           ) : (
-            <p className="text-sm/5 text-general-80">{t.autoApprove}</p>
+            <FormTableRow label={t.approver} labelId={`${baseId}-approver-label`}>
+              <p className="flex min-h-12 items-center text-sm/5 text-general-80">{t.autoApprove}</p>
+            </FormTableRow>
           )}
-        </div>
+        </FormTable>
       </form>
     </Modal>
   );
