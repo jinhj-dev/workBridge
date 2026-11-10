@@ -63,7 +63,14 @@ async function saveClockOut(page: Page, clockOut: string): Promise<void> {
   const modal = page.getByRole('dialog', { name: adminAttendance.modal.title });
   await modal.locator('#attendance-edit-clock-out').fill(clockOut);
   await modal.getByRole('button', { name: adminAttendance.modal.save, exact: true }).click();
+  // 保存 API の応答を待ってから成功文言を確かめる(応答前の判定による間欠失敗を避ける)
+  const saved = page.waitForResponse(
+    (res) =>
+      res.request().method() === 'PATCH' &&
+      /\/api\/v1\/admin\/attendance\/[^/]+$/.test(new URL(res.url()).pathname),
+  );
   await modal.getByRole('button', { name: adminAttendance.modal.submit, exact: true }).click();
+  expect((await saved).ok(), '勤怠修正 API が成功すること').toBe(true);
   await expect(page.getByText(adminAttendance.modal.success)).toBeVisible();
 }
 
@@ -83,6 +90,30 @@ test('shouldShowTodayClockInAsWorkingOnAttendancePage', async ({ page }) => {
   await page.goto('/attendance');
   await expect(page.getByRole('heading', { level: 1, name: t.title })).toBeVisible();
   await expect(page.getByRole('row').filter({ hasText: t.statuses.WORKING })).toHaveCount(1);
+});
+
+// 直前のテストが作成した今日の記録(勤務中)を前提にする。幅の変化で出勤簿から旧来の一覧へ切り替わることを確かめる
+test('shouldSwitchFromSheetToHistoryLayoutWhenWidthBecomesMobile', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await loginAsAdmin(page);
+  await page.goto('/attendance');
+  await expect(page.getByRole('heading', { level: 1, name: t.title })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: t.sheet.workPattern })).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByText(t.searchTitle, { exact: true })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: t.sheet.workPattern })).toHaveCount(0);
+  // 今日の記録がカード一覧に出る
+  await expect(
+    page.locator('ul.md\\:hidden > li').filter({ hasText: t.statuses.WORKING }),
+  ).toHaveCount(1);
+
+  // 最小幅 360px でも横スクロールが出ない
+  await page.setViewportSize({ width: 360, height: 800 });
+  const hasHorizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  );
+  expect(hasHorizontalOverflow).toBe(false);
 });
 
 test('shouldEditTodayClockOutFromAdminAttendanceAndRestoreIt', async ({ page }) => {

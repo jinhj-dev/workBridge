@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # next.config が必須とする API の転送先(CI ではビルド検証用のダミー値)
-      BACKEND_URL: http://127.0.0.1:4000
+      BACKEND_URL: http://127.0.0.1:6000
 
     steps:
       - name: Checkout

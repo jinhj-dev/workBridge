@@ -105,6 +105,37 @@ export class AttendanceRepository {
     );
   }
 
+  // 本人の月間出勤簿用。期間内の勤怠(必要な列のみ、勤務日の昇順)
+  findByUserInRange(userId: string, start: Date, end: Date): Promise<SheetAttendanceRow[]> {
+    return this.prisma.attendance.findMany({
+      where: { userId, workDate: { gte: start, lte: end } },
+      select: { id: true, workDate: true, clockIn: true, clockOut: true, modifiedAt: true },
+      orderBy: { workDate: 'asc' },
+    });
+  }
+
+  // 期間と重なる本人の申請中・承認済みの休暇
+  findActiveLeavesInRange(userId: string, start: Date, end: Date): Promise<SheetLeaveRow[]> {
+    return this.prisma.leave.findMany({
+      where: {
+        userId,
+        status: { in: ['PENDING', 'APPROVED'] },
+        startDate: { lte: end },
+        endDate: { gte: start },
+      },
+      select: { id: true, leaveType: true, status: true, startDate: true, endDate: true },
+      orderBy: [{ startDate: 'asc' }, { id: 'asc' }],
+    });
+  }
+
+  async findHireDate(userId: string): Promise<Date> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { hireDate: true },
+    });
+    return user.hireDate;
+  }
+
   findById(id: string): Promise<AttendanceRow | null> {
     return this.prisma.attendance.findUnique({ where: { id }, select: ATTENDANCE_SELECT });
   }
@@ -137,6 +168,14 @@ export class AttendanceRepository {
     return { items, totalCount };
   }
 }
+
+export type SheetAttendanceRow = Prisma.AttendanceGetPayload<{
+  select: { id: true; workDate: true; clockIn: true; clockOut: true; modifiedAt: true };
+}>;
+
+export type SheetLeaveRow = Prisma.LeaveGetPayload<{
+  select: { id: true; leaveType: true; status: true; startDate: true; endDate: true };
+}>;
 
 interface DateRange {
   startDate: string;

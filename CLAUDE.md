@@ -66,6 +66,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 - 注釈も日本語にすること。
 - ドキュメントは対象外
+- GitのCommitコメント、PR文言も日本語にすること。
 
 ---
 

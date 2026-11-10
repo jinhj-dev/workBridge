@@ -20,7 +20,7 @@ const buttonClass =
 const selectedClass = 'border-general-100 font-bold';
 const unselectedClass = 'border-transparent font-medium hover:border-general-50';
 
-// 休暇履歴(SCR-004)の複数選択トグル。StatusFilterButtons と同じ操作・見た目で、状態・休暇種別の両方に使う。
+// 休暇履歴(SCR-004)の複数選択トグル。状態・休暇種別の両方に使う。
 // 選択なしは「すべて」。押した時点で反映する(反映は呼び出し側)
 export function LeaveFilterButtons<T extends string>({
   idPrefix,
