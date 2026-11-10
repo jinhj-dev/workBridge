@@ -15,7 +15,7 @@
 | 단위 테스트 | 업무 규칙 함수(일수 계산, 잔여 연차, 상태 전이, 시간 검증) | Vitest | 업무 규칙 전체 |
 | 통합 테스트 | Controller + Service + Prisma + PostgreSQL 실제 DB | Vitest + Supertest, 테스트용 DB | 모든 API 엔드포인트 |
 | 권한 테스트 | 역할·승인자·신청자별 접근 매트릭스 | 통합 테스트에 포함 | §5 매트릭스 전체 |
-| 컴포넌트·흐름 테스트 | 주요 화면의 폼 검증, 상태(Loading/Empty/Error), 라우트 가드 | Testing Library (React) | SCR-001~009 주요 흐름 |
+| 컴포넌트·흐름 테스트 | 주요 화면의 폼 검증, 상태(Loading/Empty/Error), 라우트 가드 | Testing Library (React) | SCR-001~010 주요 흐름 |
 | E2E 테스트 | 핵심 사용자 여정 5개(§6) | Playwright | 여정 5개 |
 
 테스트 DB는 PostgreSQL을 사용한다(Docker Compose). SQLite 등 다른 DB로 대체하지 않는다. 동시성 규칙(NFR-004)은 실제 PostgreSQL에서만 검증할 수 있다.
@@ -163,6 +163,33 @@
 | IT-DASH-02 | ADMIN의 오늘 현황 집계 | 출근·미출근·휴가 인원, 전체 PENDING 수가 시드 데이터와 일치 |
 | IT-DASH-03 | 미출근 집계에서 휴가 중인 사용자 제외 | 제외됨 |
 
+### 5.6 부서 관리 (FR-DEPT-001)
+
+| TC ID | 시나리오 | 기대 결과 |
+|---|---|---|
+| IT-DEPT-01 | ADMIN이 `{code:" dev9 ", name:"開発9部"}` 등록 | 201, code `DEV9`(대문자 정규화), memberCount 0, inactiveMemberCount 0, isSystem false |
+| IT-DEPT-02 | 기존 code(대소문자만 다름) 또는 `unassigned`로 등록 | 409 DUPLICATE_DEPARTMENT_CODE |
+| IT-DEPT-03 | 기존 name으로 등록 | 409 DUPLICATE_DEPARTMENT_NAME |
+| IT-DEPT-04 | 필수 누락·형식 오류 | 400 VALIDATION_ERROR, `details`에 field |
+| IT-DEPT-05 | 목록: code·name 대소문자 무시 부분 일치, code 오름차순, 페이지네이션 | 200 |
+| IT-DEPT-05b | 목록: name에 `_`·`%`·`\`, code에 `%`를 포함한 검색어(와일드카드로 해석되면 함께 걸리는 부서도 등록) | 200, 문자 그대로 일치하는 부서만 반환(code `%` 검색은 0건) |
+| IT-DEPT-06 | 활성 2명·비활성 1명 소속 부서의 목록·상세 | memberCount 2, inactiveMemberCount 1 |
+| IT-DEPT-07 | 상세: 존재하지 않는 id(정상 UUID) | 404 NOT_FOUND 「部署が見つかりません。」 |
+| IT-DEPT-07b | 상세·수정·삭제: UUID 형식이 아닌 id | 400 VALIDATION_ERROR, `details[0].field` = `id` |
+| IT-DEPT-08 | name만 / code만 수정 | 200, 지정한 필드만 변경, updatedAt 갱신 |
+| IT-DEPT-09 | 다른 부서의 code·name으로 수정 | 409 DUPLICATE_DEPARTMENT_CODE / NAME |
+| IT-DEPT-10 | 빈 객체로 수정 | 400 VALIDATION_ERROR |
+| IT-DEPT-11 | 소속 사원 0명 부서 삭제 | 204, 이후 상세 404 |
+| IT-DEPT-12 | 활성 1명 + 비활성 1명 소속 부서 삭제 | 409 DEPARTMENT_HAS_MEMBERS, 부서 유지, 비활성 사원 부서 변경 없음(롤백) |
+| IT-DEPT-13 | 비활성 사원만 2명 소속 부서 삭제 | 204, 두 사원은 未所属로 이동(updated_at 갱신), 다른 부서 사원은 변경 없음 |
+| IT-DEPT-14 | 삭제된 부서 재삭제 | 404 NOT_FOUND |
+| IT-DEPT-15 | 未所属 삭제 / 未所属 code·name 수정 | 409 PROTECTED_DEPARTMENT, 변경 없음 |
+| IT-DEPT-16 | 경합: 대상 부서로의 사원 INSERT가 커밋 전인 상태에서 DELETE → INSERT 커밋 | DELETE는 대기 후 409 DEPARTMENT_HAS_MEMBERS(잠금 후 재확인, 05 §8) |
+| IT-DEPT-17 | 경합: 삭제 트랜잭션이 부서 행을 잠근 상태에서 대상 부서로 사원 INSERT | INSERT는 대기 후 FK 위반, 부서는 삭제됨 |
+| IT-DEPT-18 | 경합: 삭제 트랜잭션 진행 중 소속 비활성 사원 재활성화 | 409 DEPARTMENT_HAS_MEMBERS, 비활성 사원 이동 롤백 |
+| IT-DEPT-19 | 권한: EMPLOYEE의 `/admin/departments` 조회·수정 / 비밀번호 변경 필요 사용자 / 비로그인 | 403 FORBIDDEN / 403 PASSWORD_CHANGE_REQUIRED / 401 |
+| IT-DEPT-20 | 기존 `GET /departments`(회귀) | 200, id·name만 |
+
 ## 6. 권한 매트릭스 테스트
 
 화면 접근(03_SCREEN_LIST)과 API 권한(06)을 함께 검증한다. 각 셀은 HTTP 상태로 확인한다.
@@ -178,6 +205,7 @@
 | 승인 대기 scope=all | 401 | 403 | 403 | 허용 |
 | 승인·반려 (할당 건) | 401 | 403 | 허용 | 허용 |
 | 사원 관리 `/admin/users` API | 401 | 403 | 403 | 허용 |
+| 부서 관리 `/admin/departments` API | 401 | 403 | 403 | 허용 |
 | 전체 근태 조회·수정 | 401 | 403 | 403 | 허용 |
 | 오늘 전체 현황 | 401 | 403 | 403 | 허용 |
 
@@ -195,10 +223,11 @@
 | SCR-003 | 시작일 > 종료일 검증, 기본 기간(이번 달), 퇴근 누락 행 강조 |
 | SCR-004 | [休暇申請] 버튼으로 공통 휴가 신청 모달 열기(SCR-002에서도 같은 모달), 휴가 종류 Radio 미선택 검증, 이력 상태·휴가 종류 토글 복수 선택 필터와 URL Query(쉼표 구분) 반영, 신청 성공 후 모달 닫기·요약·이력 재조회, 반차 선택 시 종료일 자동 고정, 주말 제외 일수 미리보기, 즉시 승인 사용자는 승인자 필드 미표시, 잔여 초과 422 메시지, 중복 클릭 방지(요청 중 버튼 비활성), 취소 버튼 노출 조건 |
 | SCR-005 | 반려 사유 필수, scope 전환(ADMIN만 노출), 본인 신청 건 버튼 비활성, 409 시 목록 재조회 |
-| SCR-006 | 초기 비밀번호 규칙 검증, 중복 사원번호 메시지, 등록 후 목록 갱신 |
-| SCR-007 | 활성→비활성 전환 시 확인 모달과 대기 건수 경고, 저장하지 않은 변경 있을 때 목록 이동 확인, 404 안내 |
+| SCR-006 | 초기 비밀번호 규칙 검증, 입사일 필수 검증, 부서 필수 검증(미선택 시 「部署を選択してください。」), 중복 사원번호 메시지, 등록 후 목록 갱신 |
+| SCR-007 | 입사일 필수 검증, 부서 필수 검증(미선택 시 「部署を選択してください。」), 활성→비활성 전환 시 확인 모달과 대기 건수 경고, 저장하지 않은 변경 있을 때 목록 이동 확인, 404 안내 |
 | SCR-008 | 수정 모달 시간 검증, 기본 정렬(근무일 내림차순, 사원명 오름차순), 페이지 이동 시 검색 조건 유지 |
 | SCR-009 | 확인 비밀번호 불일치, 최초 로그인 시 취소 버튼 미표시, 변경 후 대시보드 이동 |
+| SCR-010 | 등록·수정 모달의 필수·형식·길이 검증과 중복 code·name 서버 메시지 필드 표시, 未所属 행 [編集][削除] 미표시·「システム」 배지, 활성 사원이 있는 부서 삭제 시 API 호출 없이 오류 토스트, 삭제 확인 모달의 비활성 사원 이동 안내(`inactiveMemberCount > 0`일 때만), 409·404 시 모달 닫기·목록 재조회, 검색 조건·페이지 URL 반영·복원, 사이드바 「部署管理」에서 진입 |
 | 공통 | Loading 스켈레톤, Error의 [다시 시도], 401 시 Refresh 1회 재시도, 네트워크 오류 토스트 |
 
 ## 8. E2E 핵심 여정

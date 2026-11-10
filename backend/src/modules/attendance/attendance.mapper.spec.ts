@@ -74,12 +74,10 @@ describe('toAttendanceResponse', () => {
   });
 
   it('shouldMapWorkingRowWithNullWorkMinutes', () => {
-    const row = makeRow();
-    const res = toAttendanceResponse({ ...row, user: { ...row.user, department: null } }, TODAY);
+    const res = toAttendanceResponse(makeRow(), TODAY);
     expect(res.status).toBe('WORKING');
     expect(res.clockOut).toBeNull();
     expect(res.workMinutes).toBeNull();
-    expect(res.user.departmentName).toBeNull();
   });
 
   it('shouldMapPastRowWithoutClockOutAsMissingClockOut', () => {

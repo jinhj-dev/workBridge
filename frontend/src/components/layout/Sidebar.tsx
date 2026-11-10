@@ -19,6 +19,7 @@ const COMMON_MENU: MenuItem[] = [
 
 const ADMIN_MENU: MenuItem[] = [
   { href: '/admin/users', label: messages.nav.adminUsers },
+  { href: '/admin/departments', label: messages.nav.adminDepartments },
   { href: '/admin/attendance', label: messages.nav.adminAttendance },
 ];
 

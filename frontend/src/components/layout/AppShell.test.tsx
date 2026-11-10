@@ -251,7 +251,7 @@ describe('AppShell メニュー', () => {
     expect(within(fixedSidebar()).queryByText(nav.adminGroup)).not.toBeInTheDocument();
   });
 
-  it('shouldShowSixMenusForAdmin', () => {
+  it('shouldShowSevenMenusForAdmin', () => {
     location.pathname = '/admin/users';
     renderShell('authenticated', ADMIN);
     const links = within(fixedSidebar()).getAllByRole('link');
@@ -261,6 +261,7 @@ describe('AppShell メニュー', () => {
       '/leaves',
       '/leaves/approvals',
       '/admin/users',
+      '/admin/departments',
       '/admin/attendance',
     ]);
     expect(within(fixedSidebar()).getByRole('link', { name: nav.adminUsers })).toHaveAttribute(
@@ -344,6 +345,14 @@ describe('AppShell 管理者ガード', () => {
     expect(await screen.findByText(messages.common.forbidden)).toBeInTheDocument();
     expect(screen.getAllByText(messages.common.forbidden)).toHaveLength(1);
     expect(screen.queryByText('子コンテンツ')).not.toBeInTheDocument();
+  });
+
+  it('shouldRedirectEmployeeToDashboardOnDepartmentsPath', async () => {
+    location.pathname = '/admin/departments';
+    renderShell('authenticated', EMPLOYEE);
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/dashboard'));
+    expect(router.replace).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText(messages.common.forbidden)).toBeInTheDocument();
   });
 
   it('shouldNotRedirectEmployeeOnNonAdminPath', () => {

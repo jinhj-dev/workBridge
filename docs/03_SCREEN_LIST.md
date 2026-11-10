@@ -11,6 +11,7 @@
 | SCR-007 | 사원 상세 | /admin/users/:id | 관리자 | 사원 정보 수정, 승인 정책·계정 상태·부여 연차 관리 | FR-USER-002, FR-LEAVE-006 |
 | SCR-008 | 전체 근태 관리 | /admin/attendance | 관리자 | 전체 근태 조회·검색, 근태 수정 | FR-ATT-004, FR-ATT-005 |
 | SCR-009 | 비밀번호 변경 | /password | 공통 | 비밀번호 변경(최초 로그인 시 강제) | FR-AUTH-001, FR-AUTH-003 |
+| SCR-010 | 부서 관리 | /admin/departments | 관리자 | 부서 목록 조회·검색, 등록·수정·삭제 | FR-DEPT-001 |
 
 ## Screen Access Rules
 
@@ -53,6 +54,7 @@
 - 페이지당 20건, 이전/다음 및 페이지 번호 이동
 - 검색 조건을 바꾸면 1페이지로 이동
 - 검색 조건과 페이지는 URL Query에 유지하여 뒤로 가기·새로고침 시 복원한다.
+- 검색 버튼 문구: 기간 조회는 「照会」(SCR-003·008), 키워드 조건 검색은 「検索」(SCR-006·010)를 쓴다.
 
 ### 모달
 
@@ -71,6 +73,7 @@
 | 휴가 관리 | /leaves | 공통 |
 | 휴가 승인 | /leaves/approvals | 공통 (배지: 본인에게 할당된 승인 대기 건수, `GET /leaves/pending-approval?scope=mine&limit=1`의 `totalCount`. ADMIN도 동일 기준) |
 | 사원 관리 | /admin/users | 관리자 |
+| 부서 관리 | /admin/departments | 관리자 |
 | 전체 근태 | /admin/attendance | 관리자 |
 | 사용자 메뉴: 이름, 비밀번호 변경(/password), 로그아웃 | - | 공통 |
 

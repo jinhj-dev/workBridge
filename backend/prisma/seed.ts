@@ -3,7 +3,7 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
-import { DEPARTMENT_NAMES, parseSeedConfig, seedInitialData } from './initial-data.js';
+import { DEPARTMENTS, parseSeedConfig, seedInitialData } from './initial-data.js';
 
 async function main(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
@@ -18,7 +18,7 @@ async function main(): Promise<void> {
   try {
     const result = await seedInitialData(prisma, config);
     console.log(
-      `部署: ${DEPARTMENT_NAMES.length} 件中 ${result.createdDepartmentCount} 件を新規登録しました。`,
+      `部署: ${DEPARTMENTS.length} 件中 ${result.createdDepartmentCount} 件を新規登録しました。`,
     );
     if (result.admin === 'created') {
       console.log(

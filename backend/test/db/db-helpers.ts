@@ -77,31 +77,45 @@ export async function captureDbError(run: () => Promise<unknown>): Promise<DbErr
 export class TestDataTracker {
   readonly userIds: string[] = [];
   readonly departmentIds: string[] = [];
+  // 部署を指定しない社員の所属先(必要になったとき 1 回だけ作る)
+  private defaultDepartmentId: string | undefined;
 
   constructor(private readonly prisma: PrismaClient) {}
 
   async createUser(
     overrides: Partial<Prisma.UserUncheckedCreateInput> = {},
   ): Promise<Prisma.UserGetPayload<object>> {
+    const departmentId = overrides.departmentId ?? (await this.getDefaultDepartmentId());
     const user = await this.prisma.user.create({
       data: {
         name: 'テスト太郎',
         empId: `T${uniqueSuffix()}`,
         passwordHash: 'dummy-hash',
         role: 'EMPLOYEE',
+        hireDate: toDbDate('2026-01-01'),
         ...overrides,
+        departmentId,
       },
     });
     this.userIds.push(user.id);
     return user;
   }
 
-  async createDepartment(): Promise<Prisma.DepartmentGetPayload<object>> {
+  // code は 20 文字以内の大文字(T + 12 文字)
+  async createDepartment(
+    overrides: Partial<Prisma.DepartmentUncheckedCreateInput> = {},
+  ): Promise<Prisma.DepartmentGetPayload<object>> {
+    const suffix = uniqueSuffix();
     const department = await this.prisma.department.create({
-      data: { name: `テスト部署${uniqueSuffix()}` },
+      data: { code: `T${suffix}`, name: `テスト部署${suffix}`, ...overrides },
     });
     this.departmentIds.push(department.id);
     return department;
+  }
+
+  private async getDefaultDepartmentId(): Promise<string> {
+    this.defaultDepartmentId ??= (await this.createDepartment()).id;
+    return this.defaultDepartmentId;
   }
 
   // 自分が作った行だけを、FK の依存順に 1 トランザクションで削除する(途中で止まって残骸が残らないように)

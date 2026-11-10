@@ -32,6 +32,9 @@ export const E2E_ACCOUNTS = {
   },
 } as const satisfies Record<string, E2eAccountDefinition>;
 
+// E2E アカウントの入社日(再初期化のたびにこの日に戻す)
+export const E2E_HIRE_DATE = '2026-01-01';
+
 export interface E2eAccountSpec {
   empId: string;
   name: string;
@@ -48,6 +51,8 @@ export interface E2eResetResult {
   // created: 新規作成した / updated: 既存の E2E アカウントを初期化した
   accounts: { empId: string; status: 'created' | 'updated' }[];
 }
+
+const E2E_DEPARTMENT_CODE = 'DEV';
 
 const LOCAL_DATABASE_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
 
@@ -126,6 +131,15 @@ export async function resetE2eAccounts(
       throw new Error('先に npm run db:seed で初期 ADMIN を登録してください。');
     }
 
+    // E2E アカウントの所属は seed の開発部とする
+    const department = await tx.department.findUnique({
+      where: { code: E2E_DEPARTMENT_CODE },
+      select: { id: true },
+    });
+    if (!department) {
+      throw new Error('先に npm run db:seed で初期データを登録してください。');
+    }
+
     const results: E2eResetResult['accounts'] = [];
     const userIds: string[] = [];
     for (const { account, passwordHash } of hashedAccounts) {
@@ -136,7 +150,8 @@ export async function resetE2eAccounts(
         approvalRequired: false,
         isActive: true,
         mustChangePassword: account.mustChangePassword,
-        departmentId: null,
+        departmentId: department.id,
+        hireDate: toDbDate(E2E_HIRE_DATE),
       };
       const user = await tx.user.upsert({
         where: { empId: account.empId },
