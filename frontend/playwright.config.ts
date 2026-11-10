@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-// 実バックエンド(npm run start)と接続した E2E。バックエンド(4000)と開発 DB が起動済みであること。
+// 実バックエンド(npm run start)と接続した E2E。バックエンド(6000)と開発 DB が起動済みであること。
 // PLAYWRIGHT_BASE_URL を指定しない場合は next dev(3000)を自動で起動する。
 // 実行前に globalSetup で開発 DB の E2E アカウントを初期化する(backend の npm run db:e2e-accounts)。
 // 必要な環境変数: E2E_ADMIN_PASSWORD(900001)、E2E_INITIAL_PASSWORD(900002)。どちらも未設定なら初期化しない。

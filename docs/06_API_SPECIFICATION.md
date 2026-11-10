@@ -268,6 +268,65 @@ Response 200: `Attendance`
 | 400 | INVALID_TIME_RANGE | 퇴근 시간이 출근 시간보다 이르거나, 출근 시간이 근무일(Asia/Tokyo)을 벗어나거나, 퇴근 시간이 출근 후 24시간을 넘음 |
 | 404 | NOT_FOUND | 근태 기록 없음 |
 
+### API-ATT-007: 출근부 월간 조회
+- `GET /attendance/monthly` · USER · FR-ATT-006
+- Query: `month`(선택, `YYYY-MM`, 연도 2000~2100, 월 01~12. 생략 시 Asia/Tokyo 기준 이번 달). 규칙은 API-DASH-002의 `month`와 같다.
+- 대상은 항상 토큰의 본인이다(사용자 지정 파라미터 없음, API-ATT-004와 같음). 조회 전용이다.
+
+Response 200 (그 달 1일~말일 전 일자, 날짜 오름차순)
+```json
+{
+  "month": "2026-11",
+  "days": [
+    {
+      "date": "2026-11-02",
+      "dayType": "WEEKDAY",
+      "holidayName": null,
+      "attendance": { "id": "uuid", "clockIn": "2026-11-02T09:00:00+09:00", "clockOut": "2026-11-02T18:30:00+09:00", "status": "DONE", "modifiedAt": null },
+      "breakTime": { "minutes": 60, "source": "LEGAL_MINIMUM", "start": "2026-11-02T13:15:00+09:00", "end": "2026-11-02T14:15:00+09:00" },
+      "actualWorkMinutes": 510,
+      "overtimeMinutes": 30,
+      "nightMinutes": 0,
+      "leaves": [ { "id": "uuid", "leaveType": "HALF_PM", "status": "PENDING" } ]
+    },
+    { "date": "2026-11-03", "dayType": "HOLIDAY", "holidayName": "文化の日", "attendance": null, "breakTime": null, "actualWorkMinutes": null, "overtimeMinutes": 0, "nightMinutes": 0, "leaves": [] },
+    { "date": "2026-11-07", "dayType": "WEEKEND", "holidayName": null, "attendance": null, "breakTime": null, "actualWorkMinutes": null, "overtimeMinutes": 0, "nightMinutes": 0, "leaves": [] }
+  ],
+  "summary": {
+    "scheduledWorkDays": 19,
+    "actualWorkDays": 18,
+    "actualWorkMinutes": 8640,
+    "overtimeMinutes": 120,
+    "nightMinutes": 0,
+    "holidayWorkMinutes": 0,
+    "paidLeaveDays": 1.5
+  }
+}
+```
+- `dayType`: 일본 공휴일이면 `HOLIDAY`(토·일과 겹쳐도 `HOLIDAY`) > 토·일이면 `WEEKEND` > 그 외 `WEEKDAY`. 공휴일 판정은 이 API에서만 하며 클라이언트는 이 값을 그대로 쓴다.
+- `holidayName`: `HOLIDAY`일 때 일본어 공휴일명, 그 외 `null`. 振替休日은 `こどもの日 振替休日`처럼 원래 공휴일명과 합쳐진 문자열일 수 있고, 国民の休日은 `休日`이다.
+- 공휴일 데이터: npm 패키지 `@holiday-jp/holiday_jp`(backend 의존성)의 수록 데이터를 사용한다. 수록 범위는 1970~2050년(최종 2050-11-23)이며 범위 밖 날짜는 공휴일 없음으로 계산한다(에러 아님). 데이터 갱신은 라이브러리 버전 업데이트로만 하므로 정부 발표 반영이 지연될 수 있다.
+- `attendance`: `Attendance`에서 `user`·`workDate`·`workMinutes`를 뺀 구조. 근태 기록이 없으면 `null`. `status`는 `Attendance`와 같은 규칙이다.
+- `breakTime`: `status = DONE`일 때만 값이 있고 그 외 `null`. 실제 휴게 기록이 없으므로 법정 최저 휴게(労基法 제34조)를 계산한 값이며 `source`는 항상 `"LEGAL_MINIMUM"`이다. 휴게가 0분이면 `start`·`end`는 `null`.
+  - 拘束 D분(= API-ATT-004의 `workMinutes`, 분 내림) → 휴게: D ≤ 360 → 0 / 360 < D ≤ 405 → D − 360 / 405 < D ≤ 525 → 45 / 525 < D ≤ 540 → D − 480 / D > 540 → 60
+  - 위치는 근무 구간의 정중앙: `start = clockIn + floor((D − 휴게) / 2)분`, `end = start + 휴게`
+- `actualWorkMinutes`(実働): 拘束 − 휴게. `DONE`이 아니면 `null`. API-ATT-001~006의 `workMinutes`(拘束)는 바뀌지 않는다.
+- `overtimeMinutes`: `WEEKDAY` 행만 `max(0, actualWorkMinutes − 480)`. `WEEKEND`·`HOLIDAY` 행은 0.
+- `nightMinutes`: 근무 구간과 22:00~05:00(Asia/Tokyo)의 겹침 − 휴게 구간과의 겹침. 자정을 넘긴 근무도 전체를 계산한다.
+- 행은 `work_date` 기준이다. 전월 말일에 출근해 당월에 퇴근한 기록은 전월 응답에만 들어간다.
+- `leaves`: 그 날짜를 포함하는 본인 휴가 중 `PENDING`·`APPROVED`(`id`·`leaveType`·`status`만). 토·일(요일 기준) 행에는 넣지 않고, 평일 공휴일 행에는 넣는다(FR-LEAVE-001이 공휴일을 평일로 세므로). `REJECTED`·`CANCELLED`는 제외. 상세는 API-LEAVE-004로 조회한다.
+- `summary`(그 달의 `days` 기준):
+  - `scheduledWorkDays`: `WEEKDAY` 행 중 입사일(`users.hire_date`) 이후인 날 수(공휴일 제외)
+  - `actualWorkDays`: `attendance.status = DONE`인 날 수(`dayType` 무관)
+  - `actualWorkMinutes` / `overtimeMinutes` / `nightMinutes`: `days` 합
+  - `holidayWorkMinutes`: `WEEKEND`·`HOLIDAY` 행의 `actualWorkMinutes` 합(`overtimeMinutes`와 중복 계상하지 않음)
+  - `paidLeaveDays`: `leaves`의 `APPROVED` 휴가 중 `ANNUAL` = 1, `HALF_AM`·`HALF_PM` = 0.5의 합. `SPECIAL`·`OTHER`는 제외
+  - 所定労働時間·欠勤日数·잔여 연차는 포함하지 않는다(잔여는 API-LEAVE-006).
+
+| HTTP | Code | 설명 |
+|---|---|---|
+| 400 | VALIDATION_ERROR | `month` 형식·범위 오류(`details[].field = month`) |
+
 ---
 
 ## 4. 휴가 (Leaves)

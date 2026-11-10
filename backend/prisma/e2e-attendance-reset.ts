@@ -28,9 +28,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error(
-    'E2E 勤怠の初期化に失敗しました:',
-    error instanceof Error ? error.message : error,
-  );
+  console.error('E2E 勤怠の初期化に失敗しました:', error instanceof Error ? error.message : error);
   process.exitCode = 1;
 });

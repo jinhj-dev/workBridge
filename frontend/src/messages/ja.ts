@@ -1,3 +1,5 @@
+import type { SheetRequestKind } from '@/lib/attendance-sheet';
+
 // 画面に表示する日本語の文言をまとめる
 export const messages = {
   app: {
@@ -26,8 +28,8 @@ export const messages = {
     openMenu: 'メニューを開く',
     closeMenu: 'メニューを閉じる',
     dashboard: 'ダッシュボード',
-    attendance: '勤怠管理',
-    leaves: '自分の休暇',
+    attendance: '出勤簿',
+    leaves: '休暇管理',
     approvals: '休暇承認',
     adminUsers: '社員管理',
     adminDepartments: '部署管理',
@@ -162,7 +164,7 @@ export const messages = {
     alreadyProcessed: 'すでに処理された申請です。一覧を更新します。',
   },
   leaves: {
-    title: '自分の休暇',
+    title: '休暇管理',
     summaryTitle: '休暇の状況',
     applyButton: '休暇申請',
     granted: '付与日数',
@@ -297,7 +299,7 @@ export const messages = {
     tooLong: '照会期間は最大1年です。',
   },
   attendance: {
-    title: '勤怠管理',
+    title: '出勤簿',
     searchTitle: '検索条件',
     listTitle: '勤怠一覧',
     workDate: '勤務日',
@@ -315,6 +317,49 @@ export const messages = {
       WORKING: '勤務中',
       DONE: '退勤済み',
       MISSING_CLOCK_OUT: '退勤漏れ',
+    },
+    sheet: {
+      prevMonth: '前月',
+      nextMonth: '翌月',
+      thisMonth: '今月',
+      year: (year: string) => `${year}年`,
+      monthDay: (month: number, day: number, weekday: string) => `${month}月${day}日(${weekday})`,
+      tableTitle: '出勤簿',
+      date: '日付',
+      workPattern: '勤務パターン',
+      clockInTime: '出勤時刻',
+      clockOutTime: '退勤時刻',
+      breakTime: '休憩時間',
+      actualWork: '実働時間',
+      leaveRequest: '申請',
+      timeline: '時間帯',
+      normalDay: '通常',
+      holiday: '祝日',
+      dayOff: '休日',
+      computed: '計算値',
+      breakHint: '実際の休憩記録はありません。労働基準法の最低休憩時間から計算した値です。',
+      legendWork: '勤務',
+      legendBreak: '休憩(計算値)',
+      separator: '・',
+      requestKinds: { LEAVE: '休暇' } satisfies Record<SheetRequestKind, string>,
+      timelineDayLabel: (date: string, label: string) => `${date} ${label}`,
+      leaveBadge: (type: string, status: string) => `${type} ${status}`,
+      leaveBadgeLabel: (type: string, status: string) => `${type} ${status} の詳細を開く`,
+      timelineLabel: (clockIn: string, clockOut: string, breakRange: string | null) =>
+        breakRange
+          ? `${clockIn}〜${clockOut} 勤務、${breakRange} 休憩`
+          : `${clockIn}〜${clockOut} 勤務`,
+      timelineStartedLabel: (clockIn: string) => `${clockIn} 出勤`,
+      timelineNone: '勤務記録なし',
+      summaryTitle: '月間集計',
+      scheduledWorkDays: '所定労働日数',
+      actualWorkDays: '実労働日数',
+      actualWorkTime: '実労働時間',
+      overtime: '時間外労働時間',
+      night: '深夜労働時間',
+      holidayWork: '休日労働時間(土日・祝日)',
+      paidLeaveDays: '有給休暇取得日数',
+      leaveRemaining: (year: number) => `${year}年 有給残日数`,
     },
   },
   adminAttendance: {

@@ -14,7 +14,13 @@ const t = messages.attendance;
 const MISSING_ENV_MESSAGE = 'E2E_ADMIN_PASSWORD が必要です(E2E 管理者でログインするため)';
 const PERIOD_DAYS = 10;
 
+// md(768px)未満では旧来の勤怠一覧(状態ボタン付き)が表示される。出勤簿(md 以上)ではなくその画面を対象にするためモバイル幅にする
+test.use({ viewport: { width: 390, height: 844 } });
+
 type Status = keyof typeof t.statuses;
+
+// md 未満の旧来の勤怠一覧(カード)。1 件 = li、勤務日と状態バッジを含む(md 以上の表は hidden で、この幅では見えない)
+const cardList = (page: Page) => page.locator('ul.md\\:hidden');
 
 // 一覧に出るはずの記録(新しい順)。daysAgo は東京の今日から何日前か
 const WORKING_ROWS: Row[] = [{ daysAgo: 0, status: 'WORKING' }];
@@ -75,7 +81,6 @@ async function loginAsAdmin(page: Page): Promise<void> {
 
 // 照会期間(10 日前〜今日)で勤怠管理を開く。40 日前の記録は期間の外
 async function openAttendance(page: Page): Promise<void> {
-  await page.setViewportSize({ width: 1440, height: 900 });
   await loginAsAdmin(page);
   const params = new URLSearchParams({
     startDate: tokyoDate(PERIOD_DAYS),
@@ -108,14 +113,14 @@ async function pressStatus(page: Page, status: Status, expectedQuery: string): P
   expect((await response).ok()).toBe(true);
 }
 
-// 一覧(表)の行が、期待した勤務日・状態の並びと完全に一致することを確かめる
+// 一覧(カード)の行が、期待した勤務日・状態の並びと完全に一致することを確かめる
 async function expectRows(page: Page, expected: Row[]): Promise<void> {
-  const rows = page.getByRole('table').locator('tbody tr');
+  const rows = cardList(page).locator('> li');
   await expect(rows).toHaveCount(expected.length);
   for (const [index, { daysAgo, status }] of expected.entries()) {
     const row = rows.nth(index);
-    await expect(row.locator('td').nth(0)).toContainText(tokyoDate(daysAgo).replaceAll('-', '/'));
-    await expect(row.locator('td').nth(4)).toHaveText(t.statuses[status]);
+    await expect(row).toContainText(tokyoDate(daysAgo).replaceAll('-', '/'));
+    await expect(row.getByText(t.statuses[status], { exact: true })).toBeVisible();
   }
 }
 
@@ -127,8 +132,10 @@ test('shouldShowOnlyWorkingRecordsWhenWorkingButtonPressed', async ({ page }) =>
   await expect(statusButton(page, 'WORKING')).toHaveAttribute('aria-pressed', 'true');
   await expectRows(page, WORKING_ROWS);
   // 退勤済み・退勤漏れの行は 1 件も出ない
-  await expect(page.getByRole('table').getByText(t.statuses.DONE)).toHaveCount(0);
-  await expect(page.getByRole('table').getByText(t.statuses.MISSING_CLOCK_OUT)).toHaveCount(0);
+  await expect(cardList(page).getByText(t.statuses.DONE, { exact: true })).toHaveCount(0);
+  await expect(cardList(page).getByText(t.statuses.MISSING_CLOCK_OUT, { exact: true })).toHaveCount(
+    0,
+  );
 });
 
 test('shouldShowOnlyDoneRecordsWhenDoneButtonPressed', async ({ page }) => {
@@ -139,8 +146,10 @@ test('shouldShowOnlyDoneRecordsWhenDoneButtonPressed', async ({ page }) => {
   await expect(statusButton(page, 'DONE')).toHaveAttribute('aria-pressed', 'true');
   // 期間の外にある 40 日前の退勤済みは出ない(2 件のみ)
   await expectRows(page, DONE_ROWS);
-  await expect(page.getByRole('table').getByText(t.statuses.WORKING)).toHaveCount(0);
-  await expect(page.getByRole('table').getByText(t.statuses.MISSING_CLOCK_OUT)).toHaveCount(0);
+  await expect(cardList(page).getByText(t.statuses.WORKING, { exact: true })).toHaveCount(0);
+  await expect(cardList(page).getByText(t.statuses.MISSING_CLOCK_OUT, { exact: true })).toHaveCount(
+    0,
+  );
 });
 
 test('shouldShowOnlyMissingClockOutRecordsWhenMissingButtonPressed', async ({ page }) => {
@@ -150,8 +159,8 @@ test('shouldShowOnlyMissingClockOutRecordsWhenMissingButtonPressed', async ({ pa
 
   await expect(statusButton(page, 'MISSING_CLOCK_OUT')).toHaveAttribute('aria-pressed', 'true');
   await expectRows(page, MISSING_ROWS);
-  await expect(page.getByRole('table').getByText(t.statuses.WORKING)).toHaveCount(0);
-  await expect(page.getByRole('table').getByText(t.statuses.DONE)).toHaveCount(0);
+  await expect(cardList(page).getByText(t.statuses.WORKING, { exact: true })).toHaveCount(0);
+  await expect(cardList(page).getByText(t.statuses.DONE, { exact: true })).toHaveCount(0);
 });
 
 test('shouldShowRecordsOfAnySelectedStatusWhenMultipleButtonsPressed', async ({ page }) => {
@@ -163,7 +172,7 @@ test('shouldShowRecordsOfAnySelectedStatusWhenMultipleButtonsPressed', async ({ 
     page,
     [...MISSING_ROWS, ...DONE_ROWS].sort((a, b) => a.daysAgo - b.daysAgo),
   );
-  await expect(page.getByRole('table').getByText(t.statuses.WORKING)).toHaveCount(0);
+  await expect(cardList(page).getByText(t.statuses.WORKING, { exact: true })).toHaveCount(0);
 
   await pressStatus(page, 'WORKING', 'WORKING,DONE,MISSING_CLOCK_OUT');
   await expectRows(page, ALL_ROWS);

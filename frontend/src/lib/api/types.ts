@@ -104,3 +104,52 @@ export interface LeaveCalendarDay {
   date: string;
   items: LeaveCalendarMember[];
 }
+
+// API-ATT-007(出勤簿の月間表)
+export type SheetDayType = 'WEEKDAY' | 'WEEKEND' | 'HOLIDAY';
+
+export interface SheetLeave {
+  id: string;
+  leaveType: LeaveType;
+  status: LeaveStatus;
+}
+
+export interface SheetDay {
+  date: string; // YYYY-MM-DD
+  dayType: SheetDayType; // 祝日の判定はサーバー側の値だけを使う
+  holidayName: string | null;
+  attendance: {
+    id: string;
+    clockIn: string;
+    clockOut: string | null;
+    status: AttendanceStatus;
+    modifiedAt: string | null;
+  } | null;
+  // 法定最低休憩からの計算値(実際の記録ではない)。退勤済みの日だけ
+  breakTime: {
+    minutes: number;
+    source: 'LEGAL_MINIMUM';
+    start: string | null;
+    end: string | null;
+  } | null;
+  actualWorkMinutes: number | null;
+  overtimeMinutes: number;
+  nightMinutes: number;
+  leaves: SheetLeave[];
+}
+
+export interface SheetSummary {
+  scheduledWorkDays: number;
+  actualWorkDays: number;
+  actualWorkMinutes: number;
+  overtimeMinutes: number;
+  nightMinutes: number;
+  holidayWorkMinutes: number;
+  paidLeaveDays: number;
+}
+
+export interface AttendanceSheet {
+  month: string; // YYYY-MM
+  days: SheetDay[];
+  summary: SheetSummary;
+}
