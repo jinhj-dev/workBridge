@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Card } from '@/components/Card';
 import { textButtonClass } from '@/components/form';
+import { usePendingApprovalCount } from '@/components/layout/PendingApprovalCount';
 import { LeaveDetailModal } from '@/components/leave/LeaveDetailModal';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
@@ -29,9 +30,11 @@ interface PendingApprovalsSectionProps {
 export function PendingApprovalsSection({ onProcessed }: PendingApprovalsSectionProps) {
   const query = useApiQuery<Paginated<Leave>>(`/leaves/pending-approval?scope=mine&limit=${LIMIT}`);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { refresh: refreshBadge } = usePendingApprovalCount();
 
   function handleProcessed() {
     query.reload();
+    refreshBadge();
     onProcessed?.();
   }
 

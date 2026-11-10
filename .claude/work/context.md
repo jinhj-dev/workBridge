@@ -44,10 +44,10 @@
 - `frontend/src/components/` Pagination, Tooltip, `table.ts`(thClass/tdClass), `form.tsx` selectClass, `attendance/`(ATTENDANCE_STATUS_BADGE, MISSING_ROW_CLASS, DateRangeFields) / `lib/date-range.ts`(기간 기본값·검증·URL Query 파싱), `lib/useSyncedState.ts` — 상세는 09 §6
 - `backend/src/modules/attendance/attendance-rules.ts`(`resolveDateRange`, `assertValidTimeRange`, `MAX_RANGE_DAYS`) / `modules/departments/`(GET /departments)
 - `backend/test/e2e-helpers.ts` FixedClock, 토큰 서명, leaves·attendance·leave_grants INSERT 헬퍼
-- 아직 없음: 사이드바 승인 대기 배지
+- `frontend/src/components/Tabs.tsx` `Tabs({label,items,value,onChange})`(horizontal, roving tabIndex) / `components/layout/PendingApprovalCount.tsx` `PendingApprovalCountProvider`(AppShell이 감쌈)·`usePendingApprovalCount()`→`{count,refresh}`(승인·반려 후 `refresh()` 호출) / `LeaveDetailModal`의 `initialStep`(detail/approve/reject) — 상세는 09 §6
 
 ## 명령어
-- DB: 루트 `npm run db:up` / backend `npm run db:migrate`, `npm run db:migrate:test`(e2e 전 필요), `npm run db:seed`, `npm run db:e2e-accounts`(개발 DB 전용, seed 후 실행. E2E 계정 900001/900002 생성·초기화, localhost DB만 허용)
+- DB: 루트 `npm run db:up` / backend `npm run db:migrate`, `npm run db:migrate:test`(e2e 전 필요), `npm run db:seed`, `npm run db:e2e-accounts`(개발 DB 전용, seed 후 실행. E2E 계정 900001/900002 생성·초기화, localhost DB만 허용), `npm run db:e2e-attendance-reset`(개발 DB 전용, E2E 관리자 900001의 attendance만 삭제, localhost만·production 거부. `frontend/e2e/attendance.spec.ts` beforeAll이 실행)
 - Backend(`backend/`): `npm run build`, `npm run lint`, 타입체크 `npx tsc --noEmit`, `npm test`(unit), `npm run test:e2e`
 - Backend 단일 파일: `npx vitest run src/modules/auth/auth.service.spec.ts`, e2e `npx vitest run --config ./vitest.config.e2e.ts test/auth.e2e-spec.ts`
 - Frontend(`frontend/`): `npm run build`, `npm run lint`, 타입체크 `npx tsc --noEmit`, `npm test`, 단일 `npx vitest run src/app/login/LoginForm.test.tsx`, `npm run test:e2e`(globalSetup이 개발 DB의 E2E 계정 900001/900002를 자동 초기화. `E2E_ADMIN_PASSWORD`·`E2E_INITIAL_PASSWORD` 필요, 둘 다 없으면 초기화 skip·로그인 테스트 skip, `PLAYWRIGHT_BASE_URL` 지정 시 초기화 안 함)

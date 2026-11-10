@@ -114,12 +114,15 @@ describe('管理者 勤怠 API(e2e)', () => {
       const bravo1 = await createEmployee({ name: `Bravo-${suffix}`, departmentId: department.id });
       const bravo2 = await createEmployee({ name: `Bravo-${suffix}`, departmentId: department.id });
       const alpha = await createEmployee({ name: `Alpha-${suffix}`, departmentId: department.id });
+      // 同日の並びは勤怠 ID(attendance.id)の昇順で決まるため、勤怠 ID を控えて比較する
+      const attendanceIdByUserId = new Map<string, string>();
       for (const user of [charlie, bravo1, bravo2, alpha]) {
-        await insertAttendance(prisma, {
+        const record = await insertAttendance(prisma, {
           userId: user.id,
           workDate: '2026-11-09',
           clockIn: '2026-11-09T09:00:00+09:00',
         });
+        attendanceIdByUserId.set(user.id, record.id);
       }
       await insertAttendance(prisma, {
         userId: alpha.id,
@@ -130,7 +133,10 @@ describe('管理者 勤怠 API(e2e)', () => {
 
       const res = await list(adminToken, { ...RANGE, departmentId: department.id }).expect(200);
       const items = (res.body as PageBody).items;
-      const sameDayBravoIds = [bravo1.id, bravo2.id].sort();
+      const sameDayBravoIds = [
+        attendanceIdByUserId.get(bravo1.id),
+        attendanceIdByUserId.get(bravo2.id),
+      ].sort();
       expect(items.map((item) => [item.workDate, item.user.name])).toEqual([
         ['2026-11-09', `Alpha-${suffix}`],
         ['2026-11-09', `Bravo-${suffix}`],
@@ -138,7 +144,7 @@ describe('管理者 勤怠 API(e2e)', () => {
         ['2026-11-09', `Charlie-${suffix}`],
         ['2026-11-08', `Alpha-${suffix}`],
       ]);
-      expect(items.slice(1, 3).map((item) => item.user.id)).toEqual(sameDayBravoIds);
+      expect(items.slice(1, 3).map((item) => item.id)).toEqual(sameDayBravoIds);
     });
 
     it('shouldMatchNamePartiallyCaseInsensitivelyIgnoringSurroundingSpaces', async () => {

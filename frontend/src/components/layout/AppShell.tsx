@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { Dispatch, ReactNode, RefObject, SetStateAction } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Spinner } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
 import { ApiError, NetworkError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { messages } from '@/messages/ja';
+import { PendingApprovalCountProvider, usePendingApprovalCount } from './PendingApprovalCount';
 import { SidebarNav } from './Sidebar';
 import { TopBar } from './TopBar';
 
@@ -82,21 +83,57 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   }
 
-  const isAdmin = user.role === 'ADMIN';
+  return (
+    <PendingApprovalCountProvider>
+      <ShellLayout
+        userName={user.name}
+        isAdmin={user.role === 'ADMIN'}
+        onLogout={handleLogout}
+        drawerOpen={drawerOpen}
+        setDrawerOpen={setDrawerOpen}
+        drawerRef={drawerRef}
+      >
+        {children}
+      </ShellLayout>
+    </PendingApprovalCountProvider>
+  );
+}
+
+interface ShellLayoutProps {
+  children: ReactNode;
+  userName: string;
+  isAdmin: boolean;
+  onLogout: () => void;
+  drawerOpen: boolean;
+  setDrawerOpen: Dispatch<SetStateAction<boolean>>;
+  drawerRef: RefObject<HTMLDivElement | null>;
+}
+
+// 認証・ガードを通った後の画面枠。承認待ち件数は Provider の内側で読むため分けている
+function ShellLayout({
+  children,
+  userName,
+  isAdmin,
+  onLogout,
+  drawerOpen,
+  setDrawerOpen,
+  drawerRef,
+}: ShellLayoutProps) {
+  const { count } = usePendingApprovalCount();
 
   return (
     <div className="min-h-dvh">
       <TopBar
-        userName={user.name}
+        userName={userName}
         drawerOpen={drawerOpen}
         drawerId={DRAWER_ID}
         onToggleDrawer={() => setDrawerOpen((open) => !open)}
-        onLogout={handleLogout}
+        onLogout={onLogout}
       />
 
       {/* lg 以上: 常に表示する固定サイドバー */}
       <aside className="fixed top-17 bottom-0 left-0 hidden w-62.5 overflow-y-auto border-r border-general-40 bg-white lg:block">
-        <SidebarNav isAdmin={isAdmin} />
+        <SidebarNav isAdmin={isAdmin} pendingApprovalCount={count} />
       </aside>
 
       {/* lg 未満: メニューボタンで開くドロワー(背景のクリック・Esc・メニュー選択で閉じる) */}
@@ -107,7 +144,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           className="fixed inset-0 top-17 z-20 bg-general-100/50"
         />
         <aside className="fixed top-17 bottom-0 left-0 z-20 w-62.5 max-w-[80vw] overflow-y-auto bg-white shadow-card">
-          <SidebarNav isAdmin={isAdmin} onNavigate={() => setDrawerOpen(false)} />
+          <SidebarNav
+            isAdmin={isAdmin}
+            pendingApprovalCount={count}
+            onNavigate={() => setDrawerOpen(false)}
+          />
         </aside>
       </div>
 

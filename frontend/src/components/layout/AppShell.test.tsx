@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { usePendingApprovalCount } from '@/components/layout/PendingApprovalCount';
 import { ToastProvider } from '@/components/Toast';
 import { ApiError } from '@/lib/api/client';
 import type { AuthUser } from '@/lib/auth/AuthProvider';
@@ -25,6 +26,12 @@ const auth = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/auth/AuthProvider', () => ({
   useAuth: () => ({ status: auth.status, user: auth.user, login: vi.fn(), logout: auth.logout }),
+}));
+
+const apiFetch = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/api/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api/client')>()),
+  apiFetch,
 }));
 
 const EMPLOYEE: AuthUser = {
@@ -64,7 +71,125 @@ beforeEach(() => {
   vi.clearAllMocks();
   location.pathname = '/dashboard';
   window.history.replaceState(null, '', '/dashboard');
+  apiFetch.mockResolvedValue({ items: [], page: 1, limit: 1, totalCount: 0, totalPages: 0 });
 });
+
+describe('AppShell 承認待ちバッジ', () => {
+  function approvalsLink(): HTMLElement {
+    return within(fixedSidebar()).getByRole('link', { name: new RegExp(nav.approvals) });
+  }
+
+  it('shouldShowCountBadgeOnApprovalsMenu', async () => {
+    apiFetch.mockResolvedValue({ items: [], page: 1, limit: 1, totalCount: 3, totalPages: 3 });
+    renderShell('authenticated', EMPLOYEE);
+    await waitFor(() => expect(approvalsLink()).toHaveTextContent(nav.pendingCount(3)));
+    expect(apiFetch).toHaveBeenCalledWith('/leaves/pending-approval?scope=mine&limit=1');
+    expect(within(fixedSidebar()).getByRole('link', { name: nav.leaves })).not.toHaveTextContent(
+      '3',
+    );
+  });
+
+  it('shouldShow99PlusWhenCountExceeds99', async () => {
+    apiFetch.mockResolvedValue({ items: [], page: 1, limit: 1, totalCount: 120, totalPages: 120 });
+    renderShell('authenticated', EMPLOYEE);
+    await waitFor(() => expect(approvalsLink()).toHaveTextContent('99+'));
+  });
+
+  it('shouldHideBadgeWhenRefreshReturnsZero', async () => {
+    apiFetch.mockResolvedValue({ items: [], page: 1, limit: 1, totalCount: 2, totalPages: 2 });
+    auth.status = 'authenticated';
+    auth.user = EMPLOYEE;
+    renderWithToast(
+      <AppShell>
+        <RefreshProbe />
+      </AppShell>,
+    );
+    await waitFor(() => expect(approvalsLink()).toHaveTextContent(nav.pendingCount(2)));
+
+    apiFetch.mockResolvedValueOnce({ items: [], page: 1, limit: 1, totalCount: 0, totalPages: 0 });
+    await userEvent.click(screen.getByRole('button', { name: 'refresh-probe' }));
+    // 0 件になったらバッジは出さない
+    await waitFor(() => expect(approvalsLink()).toHaveTextContent(/^休暇承認$/));
+    expect(approvalsLink()).not.toHaveTextContent(nav.pendingCount(0));
+  });
+
+  it('shouldHideBadgeWithoutToastWhenRefreshFails', async () => {
+    apiFetch.mockResolvedValue({ items: [], page: 1, limit: 1, totalCount: 3, totalPages: 3 });
+    auth.status = 'authenticated';
+    auth.user = EMPLOYEE;
+    renderWithToast(
+      <AppShell>
+        <RefreshProbe />
+      </AppShell>,
+    );
+    await waitFor(() => expect(approvalsLink()).toHaveTextContent(nav.pendingCount(3)));
+
+    // 成功後に再取得が失敗したら、前回の件数を残さずバッジを隠す。サーバーの文言もトーストに出さない
+    apiFetch.mockRejectedValueOnce(new ApiError(500, 'INTERNAL_ERROR', 'エラー'));
+    await userEvent.click(screen.getByRole('button', { name: 'refresh-probe' }));
+    await waitFor(() => expect(approvalsLink()).toHaveTextContent(/^休暇承認$/));
+    expect(screen.queryByText('エラー')).not.toBeInTheDocument();
+  });
+
+  it('shouldExposeCountInAccessibleNameAndQueryMineForAdmin', async () => {
+    apiFetch.mockResolvedValue({ items: [], page: 1, limit: 1, totalCount: 3, totalPages: 3 });
+    renderShell('authenticated', ADMIN);
+    await waitFor(() =>
+      expect(
+        within(fixedSidebar()).getByRole('link', { name: new RegExp(nav.pendingCount(3)) }),
+      ).toBeInTheDocument(),
+    );
+    expect(apiFetch).toHaveBeenCalledWith('/leaves/pending-approval?scope=mine&limit=1');
+  });
+
+  it('shouldRefetchOnPathChangeAndRefreshKeepingPreviousCountWhileLoading', async () => {
+    apiFetch.mockResolvedValue({ items: [], page: 1, limit: 1, totalCount: 2, totalPages: 2 });
+    auth.status = 'authenticated';
+    auth.user = ADMIN;
+    const { rerender } = renderWithToast(
+      <AppShell>
+        <RefreshProbe />
+      </AppShell>,
+    );
+    await waitFor(() => expect(approvalsLink()).toHaveTextContent(nav.pendingCount(2)));
+    expect(badgeLoads()).toHaveLength(1);
+
+    // 画面遷移で再取得する
+    location.pathname = '/leaves/approvals';
+    rerender(
+      <ToastProvider>
+        <AppShell>
+          <RefreshProbe />
+        </AppShell>
+      </ToastProvider>,
+    );
+    await waitFor(() => expect(badgeLoads()).toHaveLength(2));
+
+    // refresh() で再取得し、応答が来るまで直前の件数を残す
+    let resolveRefresh: (value: unknown) => void = () => {};
+    apiFetch.mockImplementationOnce(() => new Promise((resolve) => (resolveRefresh = resolve)));
+    await userEvent.click(screen.getByRole('button', { name: 'refresh-probe' }));
+    await waitFor(() => expect(badgeLoads()).toHaveLength(3));
+    expect(approvalsLink()).toHaveTextContent(nav.pendingCount(2));
+
+    resolveRefresh({ items: [], page: 1, limit: 1, totalCount: 5, totalPages: 5 });
+    await waitFor(() => expect(approvalsLink()).toHaveTextContent(nav.pendingCount(5)));
+  });
+});
+
+// 承認待ち件数の refresh() を呼ぶだけのテスト用ボタン
+function RefreshProbe() {
+  const { refresh } = usePendingApprovalCount();
+  return (
+    <button type="button" onClick={refresh}>
+      refresh-probe
+    </button>
+  );
+}
+
+function badgeLoads(): unknown[][] {
+  return apiFetch.mock.calls.filter(([p]) => p === '/leaves/pending-approval?scope=mine&limit=1');
+}
 
 describe('AppShell 画面の保護', () => {
   it('shouldShowSpinnerWithoutChildrenWhileLoading', () => {

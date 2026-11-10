@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PendingApprovalCountProvider } from '@/components/layout/PendingApprovalCount';
 import { ToastProvider } from '@/components/Toast';
 import { ApiError, NetworkError } from '@/lib/api/client';
 import type { Attendance, Leave, LeaveBalance, Paginated } from '@/lib/api/types';
@@ -423,6 +424,36 @@ describe('DashboardView 承認待ち', () => {
     const dialog = await screen.findByRole('dialog', { name: messages.leave.detail.title });
     await within(dialog).findByText(/申請者1/);
     expect(callsTo('/leaves/leave-1')).toHaveLength(1);
+  });
+
+  it('shouldRefreshApprovalBadgeAfterApproveFromDashboard', async () => {
+    mockApi({
+      '/leaves/pending-approval': () => page([leave(1)]),
+      '/leaves/leave-1': (init) =>
+        init?.method === 'PATCH' ? { ...leave(1), status: 'APPROVED' } : leave(1),
+    });
+    auth.user = EMPLOYEE;
+    const ui = userEvent.setup();
+    render(
+      <ToastProvider>
+        <PendingApprovalCountProvider>
+          <DashboardView />
+        </PendingApprovalCountProvider>
+      </ToastProvider>,
+    );
+
+    await ui.click(await screen.findByRole('button', { name: t.pending.openDetail('申請者1') }));
+    const dialog = await screen.findByRole('dialog', { name: messages.leave.detail.title });
+    await ui.click(await within(dialog).findByRole('button', { name: messages.leave.detail.approve }));
+    await ui.click(
+      await within(dialog).findByRole('button', { name: messages.leave.approve.submit }),
+    );
+
+    // 初回表示の 1 回に加え、承認後に 1 回再取得される
+    await waitFor(() =>
+      expect(callsTo('/leaves/pending-approval?scope=mine&limit=1')).toHaveLength(2),
+    );
+    expect(callsTo('/leaves/leave-1/approve')).toHaveLength(1);
   });
 });
 

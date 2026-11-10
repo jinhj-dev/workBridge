@@ -156,3 +156,20 @@ export async function resetE2eAccounts(
     return { accounts: results };
   });
 }
+
+// E2E 管理者(900001)本人の勤怠記録だけを削除する。他ユーザーの記録(modifiedBy で参照されるものを含む)は変更しない。
+// 戻り値は削除した件数。E2E 管理者が存在しない場合は例外にする(先に db:e2e-accounts を実行させるため)。
+export async function resetE2eAdminAttendance(prisma: PrismaClient): Promise<number> {
+  const { empId, name } = E2E_ACCOUNTS.admin;
+  const admin = await prisma.user.findUnique({
+    where: { empId },
+    select: { id: true, name: true },
+  });
+  if (admin?.name !== name) {
+    throw new Error(
+      'E2E 管理者(900001)が存在しないため勤怠を初期化できません。先に npm run db:e2e-accounts を実行してください。',
+    );
+  }
+  const result = await prisma.attendance.deleteMany({ where: { userId: admin.id } });
+  return result.count;
+}
