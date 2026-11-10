@@ -225,6 +225,8 @@ export const messages = {
     remarks: '備考',
     modified: '管理者修正',
     empty: '照会期間に勤怠記録がありません。',
+    emptyFiltered: '条件に一致する勤怠記録がありません。',
+    statusHint: '選択しない場合はすべての状態を表示します。',
     missingHint: '管理者に退勤時刻の修正を依頼してください。',
     statuses: {
       WORKING: '勤務中',

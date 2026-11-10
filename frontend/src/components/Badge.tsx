@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 export type BadgeVariant = 'neutral' | 'success' | 'danger' | 'dark';
 
 // 09 §2.1 のバッジ配色。success・danger の文字色は WCAG AA の対比を満たすため General 100 にする
-const VARIANT_CLASS: Record<BadgeVariant, string> = {
+export const BADGE_VARIANT_CLASS: Record<BadgeVariant, string> = {
   neutral: 'bg-general-40 text-general-80',
   success: 'bg-success-40 text-general-100',
   danger: 'bg-danger-30 text-general-100',
@@ -14,7 +14,7 @@ const VARIANT_CLASS: Record<BadgeVariant, string> = {
 export function Badge({ variant, children }: { variant: BadgeVariant; children: ReactNode }) {
   return (
     <span
-      className={`inline-flex h-6 items-center rounded px-2 text-sm/5 font-medium whitespace-nowrap ${VARIANT_CLASS[variant]}`}
+      className={`inline-flex h-6 items-center rounded px-2 text-sm/5 font-medium whitespace-nowrap ${BADGE_VARIANT_CLASS[variant]}`}
     >
       {children}
     </span>

@@ -21,11 +21,16 @@ export interface ApiQuery<T> {
   reload: () => void;
   // 更新系 API の応答で手元の値を置き換える(再取得しない)
   setData: (data: T) => void;
+  // keepPreviousData 指定時に、新しい結果を待つ間 data が前のパスの結果であるとき true
+  isStale: boolean;
 }
 
 interface ApiQueryOptions {
   // 取得に失敗したときに 1 回呼ぶ(モーダルを閉じるなど、エラー表示以外の対応用)
   onError?: (error: unknown) => void;
+  // パスが変わったとき、新しい結果が届くまで前の成功結果を data に残す(一覧の絞り込みでちらつかせない)。
+  // 既定は残さない(前のパスの結果は見せない)。新しい取得が失敗したときは前の結果を捨ててエラーにする
+  keepPreviousData?: boolean;
 }
 
 // GET の API を 1 本呼び、読み込み中・失敗・成功の状態を返す。
@@ -74,7 +79,18 @@ export function useApiQuery<T>(path: string | null, options: ApiQueryOptions = {
     [path],
   );
 
+  const isStale =
+    state.path !== path && options.keepPreviousData === true && state.status === 'success';
   const current =
-    state.path === path ? state : { status: 'loading' as const, data: undefined, error: null };
-  return { status: current.status, data: current.data, error: current.error, reload, setData };
+    state.path === path || isStale
+      ? state
+      : { status: 'loading' as const, data: undefined, error: null };
+  return {
+    status: current.status,
+    data: current.data,
+    error: current.error,
+    reload,
+    setData,
+    isStale,
+  };
 }

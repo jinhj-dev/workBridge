@@ -2,6 +2,7 @@
 // E2E アカウントは専用フラグ列を持たず、社員番号と氏名の組で識別する。
 import bcrypt from 'bcrypt';
 import { BCRYPT_COST } from '../src/common/security/credentials.js';
+import { toDbDate } from '../src/common/time/tokyo-date.js';
 import { Role, type PrismaClient } from '../src/generated/prisma/client.js';
 import { assertValidPassword } from './initial-data.js';
 
@@ -171,5 +172,56 @@ export async function resetE2eAdminAttendance(prisma: PrismaClient): Promise<num
     );
   }
   const result = await prisma.attendance.deleteMany({ where: { userId: admin.id } });
+  return result.count;
+}
+
+// 状態の絞り込みを E2E で確かめるための勤怠。daysAgo は東京の今日から何日前か。
+// frontend/e2e/attendance-status.spec.ts も同じ並びを前提にする(パッケージが分かれているため import では共有しない)。
+//   今日: 勤務中 / 1・3 日前: 退勤漏れ / 2・4 日前: 退勤済み / 40 日前: 退勤済み(照会期間の外)
+export const E2E_ATTENDANCE_FIXTURE = [
+  { daysAgo: 0, clockedOut: false },
+  { daysAgo: 1, clockedOut: false },
+  { daysAgo: 2, clockedOut: true },
+  { daysAgo: 3, clockedOut: false },
+  { daysAgo: 4, clockedOut: true },
+  { daysAgo: 40, clockedOut: true },
+] as const;
+
+export interface E2eAttendanceFixtureRow {
+  workDate: string; // YYYY-MM-DD(東京)
+  clockIn: string; // +09:00 付きの ISO 8601
+  clockOut: string | null;
+}
+
+// today(東京の YYYY-MM-DD)を基準に、E2E_ATTENDANCE_FIXTURE の勤怠を作る
+export function buildE2eAttendanceFixture(today: string): E2eAttendanceFixtureRow[] {
+  const base = new Date(`${today}T00:00:00Z`);
+  return E2E_ATTENDANCE_FIXTURE.map(({ daysAgo, clockedOut }) => {
+    const workDate = new Date(base.getTime() - daysAgo * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    return {
+      workDate,
+      clockIn: `${workDate}T09:00:00+09:00`,
+      clockOut: clockedOut ? `${workDate}T18:00:00+09:00` : null,
+    };
+  });
+}
+
+// E2E 管理者(900001)の勤怠を削除してから、状態確認用の勤怠を登録する。戻り値は登録した件数
+export async function seedE2eAdminAttendance(prisma: PrismaClient, today: string): Promise<number> {
+  await resetE2eAdminAttendance(prisma);
+  const admin = await prisma.user.findUniqueOrThrow({
+    where: { empId: E2E_ACCOUNTS.admin.empId },
+    select: { id: true },
+  });
+  const result = await prisma.attendance.createMany({
+    data: buildE2eAttendanceFixture(today).map((row) => ({
+      userId: admin.id,
+      workDate: toDbDate(row.workDate),
+      clockIn: new Date(row.clockIn),
+      clockOut: row.clockOut === null ? null : new Date(row.clockOut),
+    })),
+  });
   return result.count;
 }
