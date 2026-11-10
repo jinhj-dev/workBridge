@@ -36,7 +36,7 @@ export function Tabs({ label, items, value, onChange }: TabsProps) {
       role="tablist"
       aria-label={label}
       onKeyDown={handleKeyDown}
-      className="flex gap-6 overflow-x-auto border-b border-general-40"
+      className="flex gap-6 border-b border-general-40"
     >
       {items.map((item) => {
         const selected = item.value === value;
