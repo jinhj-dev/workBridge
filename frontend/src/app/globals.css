@@ -26,6 +26,10 @@
   --color-success-100: #06a561;
   --color-success-40: #c4f8e2;
 
+  /* Yellow(警告・承認待ち。09 §2.1) */
+  --color-warning-100: #f99600;
+  --color-warning-40: #fff4c9;
+
   /* Red(エラー・削除) */
   --color-danger-100: #f0142f;
   --color-danger-30: #fde7ea;
@@ -49,6 +53,11 @@
   --text-h6--line-height: 1.75rem;
 
   --font-sans: var(--font-inter), var(--font-noto-sans-jp), sans-serif;
+}
+
+/* モーダル表示中は背景のスクロールを止める(複数のモーダルが閉じれば自動で解除される) */
+html:has(dialog:modal) {
+  overflow: hidden;
 }
 
 body {

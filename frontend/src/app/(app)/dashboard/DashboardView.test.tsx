@@ -467,7 +467,7 @@ describe('DashboardView 承認待ち', () => {
     // ヘッダー行 + 5 行
     expect(within(table).getAllByRole('row')).toHaveLength(6);
     expect(within(table).getByText('申請者1')).toBeInTheDocument();
-    expect(within(table).getAllByText('2026/11/20 ~ 2026/11/21')).toHaveLength(5);
+    expect(within(table).getAllByText('2026/11/20 ～ 2026/11/21')).toHaveLength(5);
     expect(within(table).getAllByText('2026/11/08')).toHaveLength(5);
     expect(callsTo('/leaves/pending-approval')[0][0]).toContain('scope=mine&limit=5');
   });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { FocusEvent, KeyboardEvent } from 'react';
 import { ErrorIcon, FieldError, inputClass, secondaryButtonClass } from '@/components/form';
 import { Skeleton } from '@/components/Skeleton';
@@ -38,6 +38,12 @@ export function ApproverSelect({
   const [editing, setEditing] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  // 候補一覧はフロー内に置くため、開いた直後に Modal 本文のスクロール内で見える位置へ寄せる
+  useEffect(() => {
+    if (open) listRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [open]);
 
   if (status === 'loading') {
     return <Skeleton className="h-12 w-full rounded" />;
@@ -114,7 +120,7 @@ export function ApproverSelect({
   }
 
   return (
-    <div className="relative" onBlur={handleBlur}>
+    <div onBlur={handleBlur}>
       <input
         id={id}
         type="text"
@@ -140,11 +146,12 @@ export function ApproverSelect({
         className={inputClass}
       />
       <ul
+        ref={listRef}
         id={listId}
         role="listbox"
         aria-label={t.listLabel}
         hidden={!open}
-        className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded bg-white py-1 shadow-card"
+        className="mt-1 max-h-60 w-full overflow-y-auto rounded bg-white py-1 shadow-card"
       >
         {filtered.length === 0 && (
           <li role="presentation" className="px-4 py-3 text-sm/5 text-general-80">

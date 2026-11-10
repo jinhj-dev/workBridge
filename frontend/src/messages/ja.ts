@@ -120,7 +120,7 @@ export const messages = {
       PENDING: '承認待ち',
       APPROVED: '承認済み',
       REJECTED: '却下',
-      CANCELLED: '取消',
+      CANCELLED: '取消済み',
     },
     detail: {
       title: '休暇詳細',
@@ -131,6 +131,7 @@ export const messages = {
       reason: '理由',
       approver: '承認者',
       autoApproved: '自動承認',
+      unassigned: '未所属',
       status: 'ステータス',
       processedBy: '処理者',
       processedAt: '処理日時',

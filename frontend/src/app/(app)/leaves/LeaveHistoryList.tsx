@@ -2,9 +2,8 @@
 
 import { Card } from '@/components/Card';
 import { labelClass, secondaryButtonClass, selectClass } from '@/components/form';
-import { Badge } from '@/components/Badge';
-import { LEAVE_STATUS_BADGE } from '@/components/leave/LeaveDetailModal';
 import { LeaveFilterButtons } from '@/components/leave/LeaveFilterButtons';
+import { LEAVE_STATUS_BADGE, LeaveStatusBadge } from '@/components/leave/LeaveStatusBadge';
 import { Pagination } from '@/components/Pagination';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
@@ -132,9 +131,7 @@ export function LeaveHistoryList({
                   {leave.approver?.name ?? messages.leave.detail.autoApproved}
                 </td>
                 <td className={tdClass}>
-                  <Badge variant={LEAVE_STATUS_BADGE[leave.status]}>
-                    {messages.leave.statuses[leave.status]}
-                  </Badge>
+                  <LeaveStatusBadge status={leave.status} />
                 </td>
                 <td className={`${tdClass} text-right`}>{renderDetailButton(leave)}</td>
               </tr>
@@ -150,9 +147,7 @@ export function LeaveHistoryList({
                 <span className="text-sm/5 font-medium text-general-100">
                   {leaveTypes[leave.leaveType]}
                 </span>
-                <Badge variant={LEAVE_STATUS_BADGE[leave.status]}>
-                  {messages.leave.statuses[leave.status]}
-                </Badge>
+                <LeaveStatusBadge status={leave.status} />
               </span>
               <span className="flex items-baseline justify-between gap-3 text-sm/5 text-general-100 tabular-nums">
                 <span>{formatPeriod(leave.startDate, leave.endDate)}</span>
