@@ -137,7 +137,7 @@
 
 백엔드
 - [x] 관리자 오늘 현황 API-DASH-001 (FR-DASH-001: 출근·미출근·휴가 인원, 전체 승인 대기)
-- [x] 월간 휴가 캘린더 API-DASH-002(월 집계)·API-DASH-003(날짜별 휴가자) (FR-DASH-001: APPROVED만, 토·일 제외, 활성 사용자, 사용자 단위 중복 없음, 이름·부서·반차 구분만 공개) — unit(`leave-calendar-rules`)·e2e 40건 임시 DB 통과, DB 세션 TZ 3종 동일 결과
+- [x] 월간 휴가 캘린더 API-DASH-002(월 집계)·API-DASH-003(날짜별 휴가자) (FR-DASH-001: APPROVED만, 토·일 제외, 활성 사용자, 사용자 단위 중복 없음, 사원번호·이름·부서·반차 구분만 공개) — unit(`leave-calendar-rules`)·e2e 40건 임시 DB 통과, DB 세션 TZ 3종 동일 결과
 
 프론트엔드
 - [x] 대시보드 화면 SCR-002 (출퇴근 버튼, 개인 휴가 현황, 승인 대기 5건, ADMIN 전체 현황) — 공통 셸(사이드바·상단바·드로어) 포함
@@ -182,3 +182,4 @@
 | 2026-11-10 | 부서 관리 백엔드 완료: API-DEPT-002~006(FR-DEPT-001 신설), departments.code·시스템 부서 未所属·users.department_id NOT NULL 마이그레이션, seed·E2E 계정 부서 지정. 부서 관리 화면 SCR-010·사이드바 部署管理 구현. 사원 쪽 부서 필수화는 문서(02·06·SCR-006·007)만 반영(backend unit 222건, e2e 313건, frontend 391건 통과 — 임시 테스트 DB. Playwright `e2e/departments.spec.ts`는 개발 DB 미마이그레이션으로 미실행 — SCR-010은 진행 중 유지) |
 | 2026-11-10 | 부서 관리 화면 SCR-010 완료: Playwright `e2e/departments.spec.ts` 4건 임시 DB에서 통과. 부서 API `:id` 형식 오류 400 VALIDATION_ERROR, 검색어 `%`·`_`·`\` 문자 그대로 일치, 未所属 부재 시 500(06·08 반영)(backend unit 222건, e2e 317건, frontend 391건 통과). 범위 밖 기존 Playwright 실패 7건(attendance-status 6, leaves 1)은 §2 #10 "E2E 하네스 정비"로 분리 |
 | 2026-11-10 | 대시보드 월간 휴가 캘린더 완료: API-DASH-002·003(신규, USER), SCR-002 §3-6 休暇カレンダー. 공개 범위는 이름·부서·반차 구분만(신청 사유·상태 미표시, 02 FR-DASH-001·FR-LEAVE-005 보충). 공용 컴포넌트 `MonthCalendar`·`lib/calendar.ts` 추가, Card 헤더 좁은 폭 줄바꿈(09 §6), 공용 `common/validation/date-schema.ts`. DB 변경 없음(backend unit 242건, e2e 361건, frontend 412건 통과 — 임시 테스트 DB. Playwright `e2e/dashboard-leave-calendar.spec.ts` 3건 임시 DB 통과, Card 변경 전후 6화면×2폭 스크린샷 비교에서 의도 외 변화 없음. 범위 밖 기존 Playwright 스펙은 미재측정) |
+| 2026-11-10 | 휴가 캘린더 수정(사용자 요청): API-DASH-003 응답에 `empId` 추가(02 FR-DASH-001·06 갱신). SCR-002 날짜 상세 모달을 표(社員番号·社員名·所属部署)로 바꾸고 제목 날짜를 「YYYY年MM月DD日」, 오른쪽 아래에 「合計 {n}名」 추가. `md` 미만에서 날짜 숫자 12px, 인원 표시를 칸 폭 전체 띠로 변경(`MonthCalendar` 좁은 폭 좌우 여백 제거). backend unit 242건·캘린더 e2e 40건, frontend 412건 통과. Playwright는 `E2E_ADMIN_PASSWORD` 미설정으로 미실행 |

@@ -100,6 +100,10 @@ export const messages = {
       dayDescription: (n: number) => `休暇 ${n}名`,
       dayTitle: (label: string) => `${label}の休暇`,
       empty: 'この日の休暇取得者はいません。',
+      empId: '社員番号',
+      employeeName: '社員名',
+      department: '所属部署',
+      total: (n: number) => `合計 ${n}名`,
     },
   },
   leave: {
