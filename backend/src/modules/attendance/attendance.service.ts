@@ -1,10 +1,19 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { z } from 'zod';
 import { AppException } from '../../common/exceptions/app.exception.js';
+import { toPage } from '../../common/pagination/pagination.js';
+import type { Page } from '../../common/pagination/pagination.js';
 import { Clock } from '../../common/time/clock.js';
-import { toDbDate, toTokyoDate } from '../../common/time/tokyo-date.js';
+import { fromDbDate, toDbDate, toTokyoDate } from '../../common/time/tokyo-date.js';
+import { assertValidTimeRange, resolveDateRange } from './attendance-rules.js';
 import { toAttendanceResponse } from './attendance.mapper.js';
 import type { AttendanceResponse } from './attendance.mapper.js';
 import { AttendanceRepository } from './attendance.repository.js';
+import type { AdminAttendanceQueryDto } from './dto/admin-attendance-query.dto.js';
+import type { AttendanceHistoryQueryDto } from './dto/attendance-history-query.dto.js';
+import type { UpdateAttendanceDto } from './dto/update-attendance.dto.js';
+
+const uuidSchema = z.guid();
 
 @Injectable()
 export class AttendanceService {
@@ -64,6 +73,71 @@ export class AttendanceService {
     const today = toTokyoDate(this.clock.now());
     const row = await this.attendanceRepository.findByUserAndWorkDate(userId, toDbDate(today));
     return row ? toAttendanceResponse(row, today) : null;
+  }
+
+  // 本人の勤怠履歴(FR-ATT-003)。対象は常にトークンの本人
+  async listMine(
+    userId: string,
+    query: AttendanceHistoryQueryDto,
+  ): Promise<Page<AttendanceResponse>> {
+    const today = toTokyoDate(this.clock.now());
+    const range = resolveDateRange(query, today);
+    const { items, totalCount } = await this.attendanceRepository.findPageByUser(
+      userId,
+      range,
+      query,
+    );
+    return toPage(
+      items.map((row) => toAttendanceResponse(row, today)),
+      totalCount,
+      query.page,
+      query.limit,
+    );
+  }
+
+  // 全ユーザーの勤怠検索(FR-ATT-004、管理者)
+  async listAll(query: AdminAttendanceQueryDto): Promise<Page<AttendanceResponse>> {
+    const today = toTokyoDate(this.clock.now());
+    const range = resolveDateRange(query, today);
+    const { items, totalCount } = await this.attendanceRepository.findPage(
+      {
+        ...range,
+        name: query.name,
+        departmentId: query.departmentId,
+        status: query.status,
+      },
+      today,
+      query,
+    );
+    return toPage(
+      items.map((row) => toAttendanceResponse(row, today)),
+      totalCount,
+      query.page,
+      query.limit,
+    );
+  }
+
+  // 出退勤時刻の修正(FR-ATT-005、管理者)。DB の CHECK 制約より先に検証する
+  async update(adminId: string, id: string, dto: UpdateAttendanceDto): Promise<AttendanceResponse> {
+    if (!uuidSchema.safeParse(id).success) {
+      throw new NotFoundException();
+    }
+    const existing = await this.attendanceRepository.findById(id);
+    if (!existing) {
+      throw new NotFoundException();
+    }
+    const clockIn = new Date(dto.clockIn);
+    const clockOut = dto.clockOut === null ? null : new Date(dto.clockOut);
+    assertValidTimeRange({ workDate: fromDbDate(existing.workDate), clockIn, clockOut });
+    const now = this.clock.now();
+    const updated = await this.attendanceRepository.updateTimes({
+      id,
+      clockIn,
+      clockOut,
+      modifiedBy: adminId,
+      modifiedAt: now,
+    });
+    return toAttendanceResponse(updated, toTokyoDate(now));
   }
 }
 

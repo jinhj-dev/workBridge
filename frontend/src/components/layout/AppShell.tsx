@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Spinner } from '@/components/Spinner';
+import { useToast } from '@/components/Toast';
 import { ApiError, NetworkError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { messages } from '@/messages/ja';
@@ -15,6 +16,7 @@ const DRAWER_ID = 'app-drawer';
 // ログイン後の画面の共通レイアウト(09 §3 App Shell)と画面の保護(03 認証および権限処理)
 export function AppShell({ children }: { children: ReactNode }) {
   const { status, user, logout } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -22,14 +24,31 @@ export function AppShell({ children }: { children: ReactNode }) {
   const loggingOutRef = useRef(false);
   const drawerRef = useRef<HTMLDivElement>(null);
 
+  // 管理者以外が /admin 配下を開いたとき(03 認証および権限処理)。トーストは 1 回だけ出す
+  const isForbidden =
+    status === 'authenticated' &&
+    !!user &&
+    !user.mustChangePassword &&
+    user.role !== 'ADMIN' &&
+    (pathname === '/admin' || pathname.startsWith('/admin/'));
+  const forbiddenNotifiedRef = useRef(false);
+
   useEffect(() => {
     if (status === 'unauthenticated' && !loggingOutRef.current) {
       const target = pathname + window.location.search;
       router.replace(`/login?redirect=${encodeURIComponent(target)}`);
     } else if (status === 'authenticated' && user?.mustChangePassword) {
       router.replace('/password');
+    } else if (isForbidden) {
+      if (!forbiddenNotifiedRef.current) {
+        forbiddenNotifiedRef.current = true;
+        showToast(messages.common.forbidden, 'error');
+      }
+      router.replace('/dashboard');
+    } else {
+      forbiddenNotifiedRef.current = false;
     }
-  }, [status, user, pathname, router]);
+  }, [status, user, pathname, router, isForbidden, showToast]);
 
   // ドロワーを開いたら最初のメニューへフォーカスし、Esc で閉じる
   useEffect(() => {
@@ -53,7 +72,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     router.replace('/login');
   }
 
-  if (status !== 'authenticated' || !user || user.mustChangePassword) {
+  // 移動するまで子を描画しない(管理者向け API を呼ばせない)
+  if (status !== 'authenticated' || !user || user.mustChangePassword || isForbidden) {
     return (
       <div role="status" className="flex min-h-dvh items-center justify-center text-primary-100">
         <Spinner />
