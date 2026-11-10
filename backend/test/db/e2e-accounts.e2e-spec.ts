@@ -6,12 +6,19 @@ import bcrypt from 'bcrypt';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   E2E_ACCOUNTS,
+  E2E_HIRE_DATE,
   resetE2eAccounts,
   type E2eAccountConfig,
   type E2eResetResult,
 } from '../../prisma/e2e-account-data.js';
 import { Role } from '../../src/generated/prisma/client.js';
-import { createTestPrisma, TestDataTracker, uniqueSuffix } from './db-helpers.js';
+import {
+  createTestPrisma,
+  fromDbDate,
+  TestDataTracker,
+  toDbDate,
+  uniqueSuffix,
+} from './db-helpers.js';
 
 const ADMIN_PASSWORD = 'E2eAdmin1234';
 const INITIAL_PASSWORD = 'E2eInitial5678';
@@ -115,6 +122,7 @@ describe('resetE2eAccounts', () => {
         approvalRequired: false,
         departmentId: null,
       });
+      expect(fromDbDate(admin.hireDate)).toBe(E2E_HIRE_DATE);
       expect(await bcrypt.compare(ADMIN_PASSWORD, admin.passwordHash)).toBe(true);
 
       const initial = await prisma.user.findUniqueOrThrow({ where: { empId: initialEmpId } });
@@ -126,6 +134,7 @@ describe('resetE2eAccounts', () => {
         approvalRequired: false,
         departmentId: null,
       });
+      expect(fromDbDate(initial.hireDate)).toBe(E2E_HIRE_DATE);
       expect(await bcrypt.compare(INITIAL_PASSWORD, initial.passwordHash)).toBe(true);
     },
     TIMEOUT_MS,
@@ -170,6 +179,8 @@ describe('resetE2eAccounts', () => {
           passwordHash: await bcrypt.hash('Changed9999pass', 4),
           mustChangePassword: false,
           departmentId: department.id,
+          // 別の日付に変更
+          hireDate: toDbDate('2025-04-01'),
         },
       });
       await prisma.user.update({
@@ -195,6 +206,7 @@ describe('resetE2eAccounts', () => {
         mustChangePassword: true,
         departmentId: null,
       });
+      expect(fromDbDate(initial.hireDate)).toBe(E2E_HIRE_DATE);
       expect(await bcrypt.compare(INITIAL_PASSWORD, initial.passwordHash)).toBe(true);
     },
     TIMEOUT_MS,

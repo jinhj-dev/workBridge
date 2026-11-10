@@ -89,6 +89,7 @@ export class TestDataTracker {
         empId: `T${uniqueSuffix()}`,
         passwordHash: 'dummy-hash',
         role: 'EMPLOYEE',
+        hireDate: toDbDate('2026-01-01'),
         ...overrides,
       },
     });

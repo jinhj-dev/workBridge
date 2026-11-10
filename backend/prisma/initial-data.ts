@@ -1,6 +1,7 @@
 // 初期データ(部署と初期 ADMIN)の投入処理。実行の入口は seed.ts。テストからも呼び出す。
 import bcrypt from 'bcrypt';
 import { BCRYPT_COST, EMP_ID_PATTERN } from '../src/common/security/credentials.js';
+import { toDbDate } from '../src/common/time/tokyo-date.js';
 import { Role, type PrismaClient } from '../src/generated/prisma/client.js';
 
 export const DEPARTMENT_NAMES = ['総務部', '開発部', '営業部', '人事部'];
@@ -13,6 +14,8 @@ const NAME_MAX_LENGTH = 100;
 
 const DEFAULT_ADMIN_EMP_ID = '00001';
 const DEFAULT_ADMIN_NAME = '管理者';
+// 初期 ADMIN の入社日(既存ユーザーの移行値と同じ固定日)
+const INITIAL_ADMIN_HIRE_DATE = '2026-01-01';
 
 export interface SeedConfig {
   adminEmpId: string;
@@ -100,6 +103,7 @@ export async function seedInitialData(
       approvalRequired: false,
       isActive: true,
       mustChangePassword: true,
+      hireDate: toDbDate(INITIAL_ADMIN_HIRE_DATE),
     },
   });
   return { createdDepartmentCount, admin: 'created' };

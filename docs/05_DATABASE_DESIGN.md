@@ -60,6 +60,7 @@ PostgreSQL 네이티브 ENUM 타입으로 정의한다. 값을 추가할 때는 
 | is_active | BOOLEAN | | NO | 계정 활성 여부 (기본 true) |
 | must_change_password | BOOLEAN | | NO | 비밀번호 변경 필요 여부 (기본 true) |
 | department_id | UUID | | YES | 부서 ID |
+| hire_date | DATE | | NO | 입사일 (Asia/Tokyo 기준 날짜). 기본값 없음 |
 | created_at | TIMESTAMPTZ | | NO | 생성일 |
 | updated_at | TIMESTAMPTZ | | NO | 수정일 |
 
@@ -68,6 +69,8 @@ PostgreSQL 네이티브 ENUM 타입으로 정의한다. 값을 추가할 때는 
 - emp_id: UNIQUE
 - department_id: FK → departments.id
 - 활성 ADMIN이 최소 1명 존재해야 한다(서비스 계층에서 검증, FR-USER-002). 동시성 처리는 §8을 따른다.
+
+hire_date는 마이그레이션 `add_users_hire_date`에서 기존 행을 `2026-01-01`로 채운 뒤 NOT NULL로 바꿨다. seed 초기 ADMIN과 E2E 계정도 같은 고정값 `2026-01-01`을 쓴다.
 
 ## 3. Table: refresh_tokens
 
@@ -251,7 +254,7 @@ PostgreSQL 네이티브 ENUM 타입으로 정의한다. 값을 추가할 때는 
 
 - 기준 시간대는 Asia/Tokyo이다. DB 컨테이너의 시간대는 UTC이므로 SQL에서 `CURRENT_DATE`나 `now()::date`를 쓰지 않는다.
 - "오늘"은 애플리케이션의 공통 유틸리티 하나에서 Asia/Tokyo 기준으로 계산하여 파라미터로 전달한다. SQL에서 계산해야 하는 경우에는 `(now() AT TIME ZONE 'Asia/Tokyo')::date`를 쓴다.
-- DATE 컬럼(work_date, start_date, end_date)은 Prisma에서 UTC 자정의 JS `Date`로 다뤄진다. 애플리케이션 내부에서는 `'YYYY-MM-DD'` 문자열로 다루고, DB 입출력 시에만 변환한다.
+- DATE 컬럼(work_date, start_date, end_date, hire_date)은 Prisma에서 UTC 자정의 JS `Date`로 다뤄진다. 애플리케이션 내부에서는 `'YYYY-MM-DD'` 문자열로 다루고, DB 입출력 시에만 변환한다.
   - 저장: `new Date('YYYY-MM-DD' + 'T00:00:00Z')`
   - 조회: `date.toISOString().slice(0, 10)`
 - 출근 등록 시 clock_in과 work_date는 같은 시각 값 하나에서 계산한다.
