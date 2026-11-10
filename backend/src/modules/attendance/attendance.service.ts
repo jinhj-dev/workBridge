@@ -84,7 +84,8 @@ export class AttendanceService {
     const range = resolveDateRange(query, today);
     const { items, totalCount } = await this.attendanceRepository.findPageByUser(
       userId,
-      range,
+      { ...range, statuses: query.status },
+      today,
       query,
     );
     return toPage(

@@ -5,6 +5,7 @@ import { toSkipTake } from '../../common/pagination/pagination.js';
 import type { PaginationQuery } from '../../common/pagination/pagination.js';
 import { toDbDate } from '../../common/time/tokyo-date.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import type { AttendanceStatus } from './attendance.mapper.js';
 
 const ATTENDANCE_SELECT = {
   id: true,
@@ -58,13 +59,18 @@ export class AttendanceRepository {
     return result.count;
   }
 
-  // 本人の勤怠一覧(期間は両端を含む)
+  // 本人の勤怠一覧(期間は両端を含む)。statuses は指定した状態のいずれかに一致するものだけ(未指定なら全件)
   findPageByUser(
     userId: string,
-    range: DateRange,
+    filter: DateRange & { statuses?: AttendanceStatus[] },
+    today: string,
     pagination: PaginationQuery,
   ): Promise<AttendancePageResult> {
-    const where: Prisma.AttendanceWhereInput = { userId, workDate: toRangeFilter(range) };
+    const where: Prisma.AttendanceWhereInput = { userId, workDate: toRangeFilter(filter) };
+    if (filter.statuses && filter.statuses.length > 0) {
+      const todayDate = toDbDate(today);
+      where.AND = [{ OR: filter.statuses.map((status) => toStatusWhere(status, todayDate)) }];
+    }
     return this.findPageWhere(where, [{ workDate: 'desc' }], pagination);
   }
 
@@ -73,7 +79,7 @@ export class AttendanceRepository {
     filter: DateRange & {
       name?: string;
       departmentId?: string;
-      status?: 'WORKING' | 'DONE' | 'MISSING_CLOCK_OUT';
+      status?: AttendanceStatus;
     },
     today: string,
     pagination: PaginationQuery,
@@ -89,13 +95,8 @@ export class AttendanceRepository {
     if (Object.keys(userWhere).length > 0) {
       where.user = userWhere;
     }
-    const todayDate = toDbDate(today);
-    if (filter.status === 'WORKING') {
-      where.AND = [{ workDate: todayDate, clockOut: null }];
-    } else if (filter.status === 'DONE') {
-      where.AND = [{ clockOut: { not: null } }];
-    } else if (filter.status === 'MISSING_CLOCK_OUT') {
-      where.AND = [{ workDate: { lt: todayDate }, clockOut: null }];
+    if (filter.status) {
+      where.AND = [toStatusWhere(filter.status, toDbDate(today))];
     }
     return this.findPageWhere(
       where,
@@ -149,4 +150,16 @@ interface AttendancePageResult {
 
 function toRangeFilter(range: DateRange): Prisma.DateTimeFilter {
   return { gte: toDbDate(range.startDate), lte: toDbDate(range.endDate) };
+}
+
+// 状態は保存せず計算で決まるため、東京の今日を基準に WHERE 条件へ変換する(docs/05)
+function toStatusWhere(status: AttendanceStatus, todayDate: Date): Prisma.AttendanceWhereInput {
+  switch (status) {
+    case 'WORKING':
+      return { workDate: todayDate, clockOut: null };
+    case 'DONE':
+      return { clockOut: { not: null } };
+    case 'MISSING_CLOCK_OUT':
+      return { workDate: { lt: todayDate }, clockOut: null };
+  }
 }

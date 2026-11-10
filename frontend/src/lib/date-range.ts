@@ -21,10 +21,19 @@ export interface DateRange {
   endDate: string;
 }
 
-const STATUSES: readonly string[] = ['WORKING', 'DONE', 'MISSING_CLOCK_OUT'];
+// 状態の一覧(表示順)。SCR-003 の状態ボタンと URL Query の解釈で共通に使う
+export const ATTENDANCE_STATUSES: readonly AttendanceStatus[] = [
+  'WORKING',
+  'DONE',
+  'MISSING_CLOCK_OUT',
+];
 
 export interface HistoryQuery extends DateRange {
   page: number;
+}
+
+export interface MyHistoryQuery extends HistoryQuery {
+  statuses: AttendanceStatus[]; // 空は「すべて」。複数のときはいずれかに一致
 }
 
 export interface AdminQuery extends HistoryQuery {
@@ -85,6 +94,16 @@ export function parseHistoryQuery(params: ParamsLike, now: Date): HistoryQuery {
   };
 }
 
+// status=DONE,MISSING_CLOCK_OUT のようなカンマ区切り。未知の値と重複は捨て、表示順に並べる
+function parseStatuses(value: string | null): AttendanceStatus[] {
+  const requested = (value ?? '').split(',');
+  return ATTENDANCE_STATUSES.filter((status) => requested.includes(status));
+}
+
+export function parseMyHistoryQuery(params: ParamsLike, now: Date): MyHistoryQuery {
+  return { ...parseHistoryQuery(params, now), statuses: parseStatuses(params.get('status')) };
+}
+
 export function parseAdminQuery(params: ParamsLike, now: Date): AdminQuery {
   const departmentId = params.get('departmentId') ?? '';
   const status = params.get('status') ?? '';
@@ -92,7 +111,7 @@ export function parseAdminQuery(params: ParamsLike, now: Date): AdminQuery {
     ...parseHistoryQuery(params, now),
     name: (params.get('name') ?? '').trim().slice(0, NAME_MAX_LENGTH),
     departmentId: UUID_PATTERN.test(departmentId) ? departmentId : '',
-    status: STATUSES.includes(status) ? (status as AttendanceStatus) : '',
+    status: ATTENDANCE_STATUSES.find((known) => known === status) ?? '',
   };
 }
 

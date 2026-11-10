@@ -8,6 +8,7 @@ import {
   ATTENDANCE_STATUS_BADGE,
   MISSING_ROW_CLASS,
 } from '@/components/attendance/attendanceStatus';
+import { StatusFilterButtons } from '@/components/attendance/StatusFilterButtons';
 import { Badge } from '@/components/Badge';
 import { Card } from '@/components/Card';
 import { primaryButtonClass } from '@/components/form';
@@ -17,9 +18,9 @@ import { SkeletonLines } from '@/components/Skeleton';
 import { tdClass, thClass } from '@/components/table';
 import { Tooltip } from '@/components/Tooltip';
 import { ApiError } from '@/lib/api/client';
-import type { Attendance, Paginated } from '@/lib/api/types';
+import type { Attendance, AttendanceStatus, Paginated } from '@/lib/api/types';
 import { useApiQuery } from '@/lib/api/useApiQuery';
-import { parseHistoryQuery, toQueryString, validateDateRange } from '@/lib/date-range';
+import { parseMyHistoryQuery, toQueryString, validateDateRange } from '@/lib/date-range';
 import { formatClockOut, formatTokyoTime, formatWorkDate, formatWorkMinutes } from '@/lib/format';
 import { useSyncedState } from '@/lib/useSyncedState';
 import { messages } from '@/messages/ja';
@@ -34,11 +35,12 @@ export function AttendanceHistoryView() {
   const searchParams = useSearchParams();
   const [now] = useState(() => new Date());
   const search = searchParams.toString();
-  const applied = parseHistoryQuery(searchParams, now);
+  const applied = parseMyHistoryQuery(searchParams, now);
+  const appliedStatus = applied.statuses.join(',');
 
   const [form, updateForm] = useSyncedState(
-    { startDate: applied.startDate, endDate: applied.endDate },
-    `${applied.startDate}|${applied.endDate}`,
+    { startDate: applied.startDate, endDate: applied.endDate, statuses: applied.statuses },
+    `${applied.startDate}|${applied.endDate}|${appliedStatus}`,
   );
   // [照会] での検証エラー。表示は発生時の URL に限る(戻る操作で古いエラーを残さない)
   const [formError, setFormError] = useState<{ search: string; message: string } | null>(null);
@@ -50,9 +52,12 @@ export function AttendanceHistoryView() {
       : `/attendance?${toQueryString({
           startDate: applied.startDate,
           endDate: applied.endDate,
+          status: appliedStatus,
           page: applied.page,
           limit: LIMIT,
         })}`,
+    // 状態ボタンで絞り込むとき、結果が届くまで前の一覧を残す(読み込み表示に置き換えない)
+    { keepPreviousData: true },
   );
   const serverRangeError =
     query.error instanceof ApiError && query.error.code === 'INVALID_DATE_RANGE'
@@ -62,8 +67,42 @@ export function AttendanceHistoryView() {
   const rangeError = submitError ?? urlError ?? serverRangeError;
   const listBlocked = urlError !== null || serverRangeError !== null;
 
-  function go(values: { startDate: string; endDate: string; page: number }) {
-    router.push(`${pathname}?${toQueryString(values)}`);
+  function go(
+    values: {
+      startDate: string;
+      endDate: string;
+      statuses: AttendanceStatus[];
+      page: number;
+    },
+    options?: { scroll: boolean },
+  ) {
+    const { startDate, endDate, statuses, page } = values;
+    const url = `${pathname}?${toQueryString({ startDate, endDate, status: statuses.join(','), page })}`;
+    if (options) {
+      router.push(url, options);
+    } else {
+      router.push(url);
+    }
+  }
+
+  function goToPage(page: number) {
+    go({
+      startDate: applied.startDate,
+      endDate: applied.endDate,
+      statuses: applied.statuses,
+      page,
+    });
+  }
+
+  // 状態は押した時点で反映する。期間は [照会] を押すまで反映しないため、URL の期間のまま 1 ページ目へ移る。
+  // 続けて押されても取りこぼさないよう、次の選択は画面上の選択(form)から作る
+  function handleStatusChange(statuses: AttendanceStatus[]) {
+    updateForm({ statuses });
+    // 画面の位置を動かさない(ページ先頭へ戻さない)
+    go(
+      { startDate: applied.startDate, endDate: applied.endDate, statuses, page: 1 },
+      { scroll: false },
+    );
   }
 
   function handleSubmit(event: FormEvent) {
@@ -84,16 +123,16 @@ export function AttendanceHistoryView() {
     if (items.length === 0) {
       return (
         <>
-          <p className="py-6 text-center text-sm/5 text-general-80">{t.empty}</p>
+          <p className="py-6 text-center text-sm/5 text-general-80">
+            {applied.statuses.length > 0 ? t.emptyFiltered : t.empty}
+          </p>
           {/* 範囲外のページを指定された場合に戻れるよう、件数があるときは Pagination を出す */}
           {totalCount > 0 && (
             <Pagination
               page={page}
               totalPages={totalPages}
               totalCount={totalCount}
-              onChange={(next) =>
-                go({ startDate: applied.startDate, endDate: applied.endDate, page: next })
-              }
+              onChange={goToPage}
             />
           )}
         </>
@@ -185,9 +224,7 @@ export function AttendanceHistoryView() {
           page={page}
           totalPages={totalPages}
           totalCount={totalCount}
-          onChange={(next) =>
-            go({ startDate: applied.startDate, endDate: applied.endDate, page: next })
-          }
+          onChange={goToPage}
         />
       </>
     );
@@ -203,13 +240,18 @@ export function AttendanceHistoryView() {
           noValidate
           className="flex flex-col gap-4 sm:flex-row sm:items-start"
         >
-          <div className="sm:flex-1">
+          <div className="flex flex-col gap-4 sm:flex-1">
             <DateRangeFields
               idPrefix="attendance"
               startDate={form.startDate}
               endDate={form.endDate}
               onChange={updateForm}
               error={rangeError}
+            />
+            <StatusFilterButtons
+              idPrefix="attendance"
+              selected={form.statuses}
+              onChange={handleStatusChange}
             />
           </div>
           <button type="submit" className={`${primaryButtonClass} h-12 px-8 sm:mt-6`}>
@@ -218,7 +260,17 @@ export function AttendanceHistoryView() {
         </form>
       </Card>
 
-      {!listBlocked && <Card title={t.listTitle}>{renderList()}</Card>}
+      {!listBlocked && (
+        <Card title={t.listTitle}>
+          {/* 絞り込みの結果を待つ間は前の一覧を薄く残す(読み込み表示に置き換えず、ちらつかせない) */}
+          <div
+            aria-busy={query.isStale}
+            className={query.isStale ? 'opacity-60 transition-opacity' : undefined}
+          >
+            {renderList()}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

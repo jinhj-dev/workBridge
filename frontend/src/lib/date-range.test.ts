@@ -4,6 +4,7 @@ import {
   defaultDateRange,
   parseAdminQuery,
   parseHistoryQuery,
+  parseMyHistoryQuery,
   toQueryString,
   tokyoToday,
   validateDateRange,
@@ -60,10 +61,7 @@ describe('parseHistoryQuery', () => {
 
   it('shouldUseValidValuesFromQuery', () => {
     expect(
-      parseHistoryQuery(
-        new URLSearchParams('startDate=2026-10-01&endDate=2026-10-31&page=3'),
-        now,
-      ),
+      parseHistoryQuery(new URLSearchParams('startDate=2026-10-01&endDate=2026-10-31&page=3'), now),
     ).toEqual({ startDate: '2026-10-01', endDate: '2026-10-31', page: 3 });
   });
 
@@ -78,6 +76,37 @@ describe('parseHistoryQuery', () => {
 
   it.each(['0', '-1', 'abc', '1.5'])('shouldReplaceInvalidPage(%s)WithOne', (value) => {
     expect(parseHistoryQuery(new URLSearchParams(`page=${value}`), now).page).toBe(1);
+  });
+});
+
+describe('parseMyHistoryQuery', () => {
+  const now = new Date('2026-11-09T00:00:00+09:00');
+
+  it('shouldReturnNoStatusesWhenStatusIsMissingOrEmpty', () => {
+    expect(parseMyHistoryQuery(new URLSearchParams(''), now).statuses).toEqual([]);
+    expect(parseMyHistoryQuery(new URLSearchParams('status='), now).statuses).toEqual([]);
+  });
+
+  it('shouldParseCommaSeparatedStatusesInDisplayOrderWithoutDuplicates', () => {
+    const params = new URLSearchParams('status=MISSING_CLOCK_OUT,DONE,DONE');
+    expect(parseMyHistoryQuery(params, now).statuses).toEqual(['DONE', 'MISSING_CLOCK_OUT']);
+  });
+
+  it('shouldDropUnknownStatuses', () => {
+    const params = new URLSearchParams('status=ABSENT,WORKING');
+    expect(parseMyHistoryQuery(params, now).statuses).toEqual(['WORKING']);
+  });
+
+  it('shouldKeepPeriodAndPageAlongWithStatuses', () => {
+    const params = new URLSearchParams(
+      'startDate=2026-10-01&endDate=2026-10-31&page=2&status=DONE',
+    );
+    expect(parseMyHistoryQuery(params, now)).toEqual({
+      startDate: '2026-10-01',
+      endDate: '2026-10-31',
+      page: 2,
+      statuses: ['DONE'],
+    });
   });
 });
 

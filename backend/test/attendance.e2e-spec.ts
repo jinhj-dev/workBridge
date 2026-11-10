@@ -294,6 +294,96 @@ describe('勤怠 API(e2e)', () => {
       ]);
     });
 
+    describe('状態の絞り込み', () => {
+      // 今日(11/09)が勤務中、11/08 が退勤漏れ、11/07・11/06 が退勤済み
+      async function insertStatusFixtures(userId: string): Promise<void> {
+        await insertAttendance(prisma, {
+          userId,
+          workDate: '2026-11-09',
+          clockIn: '2026-11-09T09:00:00+09:00',
+        });
+        await insertAttendance(prisma, {
+          userId,
+          workDate: '2026-11-08',
+          clockIn: '2026-11-08T09:00:00+09:00',
+        });
+        for (const day of ['2026-11-07', '2026-11-06']) {
+          await insertAttendance(prisma, {
+            userId,
+            workDate: day,
+            clockIn: `${day}T09:00:00+09:00`,
+            clockOut: `${day}T18:00:00+09:00`,
+          });
+        }
+      }
+
+      it('shouldReturnOnlyRecordsOfTheGivenStatus', async () => {
+        const user = await createUserWithToken();
+        await insertStatusFixtures(user.id);
+
+        const working = await history(user.token, { status: 'WORKING' }).expect(200);
+        expect((working.body as PageBody).items.map((item) => item.workDate)).toEqual([
+          '2026-11-09',
+        ]);
+        const missing = await history(user.token, { status: 'MISSING_CLOCK_OUT' }).expect(200);
+        expect((missing.body as PageBody).items.map((item) => item.workDate)).toEqual([
+          '2026-11-08',
+        ]);
+        const done = await history(user.token, { status: 'DONE' }).expect(200);
+        expect((done.body as PageBody).items.map((item) => item.workDate)).toEqual([
+          '2026-11-07',
+          '2026-11-06',
+        ]);
+      });
+
+      it('shouldReturnRecordsOfAnyGivenStatusWhenMultipleStatusesAreSpecified', async () => {
+        const user = await createUserWithToken();
+        await insertStatusFixtures(user.id);
+
+        const res = await history(user.token, { status: 'DONE,MISSING_CLOCK_OUT' }).expect(200);
+        const body = res.body as PageBody;
+        expect(body.totalCount).toBe(3);
+        expect(body.items.map((item) => [item.workDate, item.status])).toEqual([
+          ['2026-11-08', 'MISSING_CLOCK_OUT'],
+          ['2026-11-07', 'DONE'],
+          ['2026-11-06', 'DONE'],
+        ]);
+      });
+
+      it('shouldCountAndPaginateOnlyRecordsMatchingTheStatus', async () => {
+        const user = await createUserWithToken();
+        await insertStatusFixtures(user.id);
+
+        const res = await history(user.token, {
+          status: 'DONE,MISSING_CLOCK_OUT,DONE',
+          page: 2,
+          limit: 2,
+        }).expect(200);
+        const body = res.body as PageBody;
+        expect(body).toMatchObject({ page: 2, limit: 2, totalCount: 3, totalPages: 2 });
+        expect(body.items.map((item) => item.workDate)).toEqual(['2026-11-06']);
+      });
+
+      it('shouldNotReturnOtherUsersRecordsWhenFilteringByStatus', async () => {
+        const me = await createUserWithToken();
+        const other = await createUserWithToken();
+        await insertStatusFixtures(other.id);
+
+        const res = await history(me.token, { status: 'DONE,MISSING_CLOCK_OUT,WORKING' }).expect(
+          200,
+        );
+        expect((res.body as PageBody).totalCount).toBe(0);
+      });
+
+      it('shouldReturn400ValidationErrorForUnknownOrEmptyStatus', async () => {
+        const user = await createUserWithToken();
+        for (const status of ['UNKNOWN', 'DONE,UNKNOWN', '']) {
+          const res = await history(user.token, { status }).expect(400);
+          expect((res.body as ErrorBody).code).toBe('VALIDATION_ERROR');
+        }
+      });
+    });
+
     it('shouldReturn400InvalidDateRangeWhenRangeExceeds366Days', async () => {
       const user = await createUserWithToken();
       // 2026-11-01 〜 2027-11-02 は両端を含めて 367 日

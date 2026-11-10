@@ -5,8 +5,10 @@ import { Role } from '../src/generated/prisma/client.js';
 import type { PrismaClient } from '../src/generated/prisma/client.js';
 import {
   assertLocalDatabaseUrl,
+  buildE2eAttendanceFixture,
   parseE2eAccountConfig,
   resetE2eAdminAttendance,
+  seedE2eAdminAttendance,
 } from './e2e-account-data.js';
 
 const ADMIN_PASSWORD = 'Admin1234pass';
@@ -176,5 +178,75 @@ describe('resetE2eAdminAttendance', () => {
 
     await expect(resetE2eAdminAttendance(prisma)).rejects.toThrow('npm run db:e2e-accounts');
     expect(deleteMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('buildE2eAttendanceFixture', () => {
+  it('shouldBuildOneRowPerStatusCaseRelativeToToday', () => {
+    const rows = buildE2eAttendanceFixture('2026-11-10');
+
+    expect(rows.map((row) => [row.workDate, row.clockOut === null])).toEqual([
+      ['2026-11-10', true], // 勤務中(今日・退勤なし)
+      ['2026-11-09', true], // 退勤漏れ
+      ['2026-11-08', false], // 退勤済み
+      ['2026-11-07', true], // 退勤漏れ
+      ['2026-11-06', false], // 退勤済み
+      ['2026-10-01', false], // 退勤済み(照会期間の外)
+    ]);
+  });
+
+  it('shouldClockInOnTheWorkDateInTokyoAndClockOutLater', () => {
+    for (const row of buildE2eAttendanceFixture('2026-03-01')) {
+      expect(row.clockIn).toBe(`${row.workDate}T09:00:00+09:00`);
+      if (row.clockOut !== null) {
+        expect(new Date(row.clockOut).getTime()).toBeGreaterThan(new Date(row.clockIn).getTime());
+      }
+    }
+  });
+});
+
+describe('seedE2eAdminAttendance', () => {
+  it('shouldResetThenInsertFixtureForAdminOnly', async () => {
+    const calls: string[] = [];
+    const admin = { id: 'admin-id', name: 'E2E管理者' };
+    const createMany = vi.fn().mockImplementation(() => {
+      calls.push('create');
+      return Promise.resolve({ count: 6 });
+    });
+    const prisma = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue(admin),
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ id: admin.id }),
+      },
+      attendance: {
+        deleteMany: vi.fn().mockImplementation(() => {
+          calls.push('delete');
+          return Promise.resolve({ count: 3 });
+        }),
+        createMany,
+      },
+    } as unknown as PrismaClient;
+
+    await expect(seedE2eAdminAttendance(prisma, '2026-11-10')).resolves.toBe(6);
+
+    expect(calls).toEqual(['delete', 'create']);
+    const args = createMany.mock.calls[0]?.[0] as {
+      data: { userId: string }[];
+    };
+    expect(args.data).toHaveLength(6);
+    expect(args.data.every((row) => row.userId === 'admin-id')).toBe(true);
+  });
+
+  it('shouldNotInsertWhenAdminDoesNotExist', async () => {
+    const createMany = vi.fn();
+    const prisma = {
+      user: { findUnique: vi.fn().mockResolvedValue(null) },
+      attendance: { deleteMany: vi.fn(), createMany },
+    } as unknown as PrismaClient;
+
+    await expect(seedE2eAdminAttendance(prisma, '2026-11-10')).rejects.toThrow(
+      'npm run db:e2e-accounts',
+    );
+    expect(createMany).not.toHaveBeenCalled();
   });
 });

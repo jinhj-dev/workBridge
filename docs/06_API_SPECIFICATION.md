@@ -190,14 +190,15 @@ Response 200
 
 ### API-ATT-004: 내 근태 이력
 - `GET /attendance` · USER · FR-ATT-003
-- Query: `startDate`, `endDate`(`YYYY-MM-DD`), `page`, `limit`
+- Query: `startDate`, `endDate`(`YYYY-MM-DD`), `status`, `page`, `limit`
+- `status`: `WORKING` / `DONE` / `MISSING_CLOCK_OUT`을 쉼표로 구분해 여러 개 지정할 수 있다(예: `DONE,MISSING_CLOCK_OUT`). 지정한 상태 중 하나라도 일치하는 기록을 반환하고, 생략하면 전체 상태를 반환한다. 중복 값은 하나로 본다. 상태 조건은 API-ATT-005와 같다
 - 기본 기간: `startDate` 생략 시 이번 달 1일, `endDate` 생략 시 오늘(둘 다 Asia/Tokyo 기준, 각각 따로 적용)
 - 대상은 항상 토큰의 본인이다(사용자 지정 파라미터 없음).
 - Response 200: 페이지네이션(`Attendance[]`), 근무일 내림차순
 
 | HTTP | Code | 설명 |
 |---|---|---|
-| 400 | VALIDATION_ERROR | 날짜 형식 오류, `page`·`limit` 범위 오류 |
+| 400 | VALIDATION_ERROR | 날짜 형식 오류, `status` 값 오류(허용 값이 아니거나 빈 값), `page`·`limit` 범위 오류 |
 | 400 | INVALID_DATE_RANGE | 시작일이 종료일보다 늦음, 또는 기간이 양끝 포함 366일 초과 |
 
 ### API-ATT-005: 전체 근태 조회
