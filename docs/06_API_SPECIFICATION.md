@@ -273,9 +273,12 @@ Response 201: `Leave`
 
 ### API-LEAVE-003: 내 휴가 이력
 - `GET /leaves/me` · USER · FR-LEAVE-005
-- Query: `year`(선택, 휴가 시작일의 연도, 2000~2100 정수. 생략하면 전체 연도), `status`(선택, `PENDING` / `APPROVED` / `REJECTED` / `CANCELLED`), `page`, `limit`
+- Query: `year`(선택, 휴가 시작일의 연도, 2000~2100 정수. 생략하면 전체 연도), `status`, `leaveType`, `page`, `limit`
+- `status`: `PENDING` / `APPROVED` / `REJECTED` / `CANCELLED`를 쉼표로 구분해 여러 개 지정할 수 있다. 지정한 상태 중 하나라도 일치하는 휴가를 반환하고, 생략하면 전체 상태를 반환한다. 중복 값은 하나로 본다
+- `leaveType`: `ANNUAL` / `HALF_AM` / `HALF_PM` / `SPECIAL` / `OTHER`를 쉼표로 구분해 여러 개 지정할 수 있다. 규칙은 `status`와 같다
+- 조건 결합: `year` AND `status`(그룹 내 OR) AND `leaveType`(그룹 내 OR). 예: `?year=2026&status=PENDING,APPROVED&leaveType=HALF_AM,HALF_PM`
 - Response 200: 페이지네이션(`Leave[]`), 신청일 내림차순(동순위는 id 내림차순)
-- 400 VALIDATION_ERROR: `year`·`status`·`page`·`limit` 값 오류
+- 400 VALIDATION_ERROR: `year`·`page`·`limit` 값 오류, `status`·`leaveType` 값 오류(허용 값이 아니거나 빈 값. 예: `status=`, `status=PENDING,`). `status`·`leaveType` 오류의 `details[].field`는 배열 요소 위치가 붙은 `status.N`·`leaveType.N` 형식(예: `PENDING,X` → `status.1`, 빈 값 → `status.0`)
 
 ### API-LEAVE-004: 휴가 상세
 - `GET /leaves/:id` · USER(신청자, 할당된 승인자, ADMIN만) · FR-LEAVE-005

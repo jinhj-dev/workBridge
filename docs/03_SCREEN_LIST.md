@@ -5,7 +5,7 @@
 | SCR-001 | 로그인 | /login | 비로그인 | 로그인 | FR-AUTH-001, FR-AUTH-002 |
 | SCR-002 | 대시보드 | /dashboard | 공통 | 출퇴근 등록, 개인 근태·휴가 현황, 승인 대기 현황, (ADMIN) 오늘 전체 현황 | FR-DASH-001, FR-ATT-001, FR-ATT-002, FR-LEAVE-001, FR-LEAVE-002, FR-LEAVE-003, FR-LEAVE-006 |
 | SCR-003 | 근태 관리 | /attendance | 공통 | 개인 근태 이력 조회 | FR-ATT-003 |
-| SCR-004 | 휴가 관리 | /leaves | 공통 | 휴가 신청, 내 신청 이력 조회·상세·취소 | FR-LEAVE-001, 004, 005, 006 |
+| SCR-004 | 휴가 관리 | /leaves | 공통 | 휴가 신청(공통 모달), 내 신청 이력 조회(상태·종류 필터)·상세·취소 | FR-LEAVE-001, 004, 005, 006 |
 | SCR-005 | 휴가 승인 | /leaves/approvals | 공통 | 승인 대기 목록 조회, 승인·반려 | FR-LEAVE-002, 003, 005 |
 | SCR-006 | 사원 관리 | /admin/users | 관리자 | 사원 목록 조회 및 신규 등록 | FR-USER-001 |
 | SCR-007 | 사원 상세 | /admin/users/:id | 관리자 | 사원 정보 수정, 승인 정책·계정 상태·부여 연차 관리 | FR-USER-002, FR-LEAVE-006 |
@@ -57,6 +57,7 @@
 ### 모달
 
 - 휴가 상세는 모든 화면에서 같은 "휴가 상세 모달"을 사용한다(SCR-004 4.4 참조).
+- 휴가 신청은 SCR-002·SCR-004에서 같은 "공통 휴가 신청 모달"을 사용한다(SCR-004 3.2 참조).
 - 확인이 필요한 처리(출근, 퇴근, 취소, 승인, 반려, 비활성화)는 확인 모달을 거친다.
 
 ### 전역 내비게이션
@@ -88,7 +89,8 @@
 ```
 /login ──(성공)──> mustChangePassword ? /password : (redirect 또는 /dashboard)
 /password ──(변경 완료)──> /dashboard
-/dashboard ──[휴가 신청]──> /leaves?tab=apply
+/dashboard ──[휴가 신청]──> 공통 휴가 신청 모달(화면 이동 없음)
+/leaves ──[休暇申請]──> 공통 휴가 신청 모달
 /dashboard ──[승인 대기 전체보기]──> /leaves/approvals
 /dashboard ──[승인 대기 항목]──> 휴가 상세 모달(승인·반려)
 /leaves ──[상세]──> 휴가 상세 모달(취소)

@@ -2,14 +2,14 @@
 
 import { useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Card } from '@/components/Card';
+import { Modal } from '@/components/Modal';
 import {
   FieldError,
   inputClass,
   labelClass,
   primaryButtonClass,
-  selectClass,
   textareaClass,
+  textButtonClass,
 } from '@/components/form';
 import { ApproverSelect } from '@/components/leave/ApproverSelect';
 import { Spinner } from '@/components/Spinner';
@@ -19,12 +19,11 @@ import type { Leave, LeaveType, UserSummary } from '@/lib/api/types';
 import { useApiQuery } from '@/lib/api/useApiQuery';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { formatDays } from '@/lib/format';
-import { countLeaveDays, isHalfDay } from '@/lib/leave-days';
+import { LEAVE_TYPES, countLeaveDays, isHalfDay } from '@/lib/leave-days';
 import { messages } from '@/messages/ja';
 
 const t = messages.leaves.apply;
 const REASON_MAX = 500;
-const LEAVE_TYPES = Object.keys(messages.leave.types) as LeaveType[];
 
 type FieldName = 'leaveType' | 'period' | 'reason' | 'approver';
 type FieldErrors = Partial<Record<FieldName, string>>;
@@ -38,20 +37,29 @@ const SERVER_FIELD: Record<string, FieldName> = {
   approverId: 'approver',
 };
 
-interface LeaveApplyFormProps {
-  // 申請が受け付けられたとき(要約の再取得・履歴への移動は呼び出し側)
+interface LeaveApplyModalProps {
+  open: boolean;
+  onClose: () => void;
+  // 申請が受け付けられたとき(閉じる・要約の再取得などは呼び出し側)
   onApplied: (leave: Leave) => void;
   // 残日数が変わっていた可能性があるとき(422)
-  onBalanceStale: () => void;
+  onBalanceStale?: () => void;
 }
 
-// SCR-004 §3.2 休暇申請フォーム
-export function LeaveApplyForm({ onApplied, onBalanceStale }: LeaveApplyFormProps) {
+// SCR-004 §3.2 / SCR-002 §3-4 共通の休暇申請モーダル。開くたびに初期状態にするには呼び出し側で key を変える
+export function LeaveApplyModal({
+  open,
+  onClose,
+  onApplied,
+  onBalanceStale,
+}: LeaveApplyModalProps) {
   const { user: me } = useAuth();
   const { showToast } = useToast();
   const baseId = useId();
   const approvalRequired = me?.approvalRequired === true;
-  const approvers = useApiQuery<UserSummary[]>(approvalRequired ? '/leaves/approvers' : null);
+  const approvers = useApiQuery<UserSummary[]>(
+    open && approvalRequired ? '/leaves/approvers' : null,
+  );
 
   const [leaveType, setLeaveType] = useState<LeaveType | ''>('');
   const [startDate, setStartDate] = useState('');
@@ -70,6 +78,7 @@ export function LeaveApplyForm({ onApplied, onBalanceStale }: LeaveApplyFormProp
     reason: `${baseId}-reason`,
     approver: `${baseId}-approver`,
   };
+  const formId = `${baseId}-form`;
   const half = isHalfDay(leaveType);
   // 半休は終了日を開始日に固定する
   const effectiveEnd = half ? startDate : endDate;
@@ -129,7 +138,7 @@ export function LeaveApplyForm({ onApplied, onBalanceStale }: LeaveApplyFormProp
     } else {
       // 409 LEAVE_CONFLICT・422 など。承認者欄がないのに承認者エラーが返った場合もここ
       showToast(error.message, 'error');
-      if (error.code === 'INSUFFICIENT_LEAVE_BALANCE') onBalanceStale();
+      if (error.code === 'INSUFFICIENT_LEAVE_BALANCE') onBalanceStale?.();
       return;
     }
     if (Object.values(found).some(Boolean)) {
@@ -175,39 +184,66 @@ export function LeaveApplyForm({ onApplied, onBalanceStale }: LeaveApplyFormProp
   const periodDescribedBy = errors.period ? `${ids.startDate}-error` : undefined;
 
   return (
-    <Card title={t.title}>
+    <Modal
+      open={open}
+      title={t.title}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className={`${textButtonClass} h-12 px-4`}>
+            {messages.common.cancel}
+          </button>
+          <button
+            type="submit"
+            form={formId}
+            disabled={submitting}
+            className={`${primaryButtonClass} flex h-12 items-center justify-center gap-2 px-6 text-base/6 disabled:cursor-not-allowed disabled:bg-primary-60`}
+          >
+            {submitting && <Spinner />}
+            {t.submit}
+          </button>
+        </>
+      }
+    >
       <form
+        id={formId}
         onSubmit={handleSubmit}
         noValidate
-        className="grid max-w-3xl gap-x-6 gap-y-5 sm:grid-cols-2"
+        className="grid gap-x-6 gap-y-5 sm:grid-cols-2"
       >
-        <div className="sm:col-span-2">
-          <label htmlFor={ids.leaveType} className={labelClass}>
-            {t.leaveType}
-          </label>
-          <select
-            id={ids.leaveType}
-            value={leaveType}
-            onChange={(e) => {
-              setLeaveType(e.target.value as LeaveType | '');
-              clearError('leaveType');
-              clearError('period');
-            }}
-            aria-invalid={errors.leaveType ? true : undefined}
-            aria-describedby={errors.leaveType ? `${ids.leaveType}-error` : undefined}
-            className={selectClass}
-          >
-            <option value="">{t.leaveTypePlaceholder}</option>
-            {LEAVE_TYPES.map((type) => (
-              <option key={type} value={type}>
+        <fieldset
+          className="sm:col-span-2"
+          aria-invalid={errors.leaveType ? true : undefined}
+          aria-describedby={errors.leaveType ? `${ids.leaveType}-error` : undefined}
+        >
+          <legend className={labelClass}>{t.leaveType}</legend>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {LEAVE_TYPES.map((type, index) => (
+              <label
+                key={type}
+                className="flex cursor-pointer items-center gap-2 text-sm/5 text-general-100"
+              >
+                <input
+                  id={index === 0 ? ids.leaveType : undefined}
+                  type="radio"
+                  name={`${baseId}-leaveType`}
+                  value={type}
+                  checked={leaveType === type}
+                  onChange={() => {
+                    setLeaveType(type);
+                    clearError('leaveType');
+                    clearError('period');
+                  }}
+                  className="size-5 cursor-pointer accent-primary-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100"
+                />
                 {messages.leave.types[type]}
-              </option>
+              </label>
             ))}
-          </select>
+          </div>
           {errors.leaveType && (
             <FieldError id={`${ids.leaveType}-error`} message={errors.leaveType} />
           )}
-        </div>
+        </fieldset>
 
         <div>
           <label htmlFor={ids.startDate} className={labelClass}>
@@ -312,18 +348,7 @@ export function LeaveApplyForm({ onApplied, onBalanceStale }: LeaveApplyFormProp
             <p className="text-sm/5 text-general-80">{t.autoApprove}</p>
           )}
         </div>
-
-        <div className="sm:col-span-2">
-          <button
-            type="submit"
-            disabled={submitting}
-            className={`${primaryButtonClass} flex h-12 w-full items-center justify-center gap-2 px-6 text-base/6 disabled:cursor-not-allowed disabled:bg-primary-60 sm:w-auto`}
-          >
-            {submitting && <Spinner />}
-            {t.submit}
-          </button>
-        </div>
       </form>
-    </Card>
+    </Modal>
   );
 }

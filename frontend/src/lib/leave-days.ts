@@ -6,8 +6,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const YMD_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const YEARS_BACK = 4;
 
-export type LeavesTab = 'apply' | 'history';
-
 // 状態の一覧(表示順)。絞り込みの選択肢と URL Query の解釈で共通に使う
 export const LEAVE_STATUSES: readonly LeaveStatus[] = [
   'PENDING',
@@ -16,10 +14,19 @@ export const LEAVE_STATUSES: readonly LeaveStatus[] = [
   'CANCELLED',
 ];
 
+// 休暇種別の一覧(表示順)。申請モーダルの選択肢・絞り込み・URL Query の解釈で共通に使う
+export const LEAVE_TYPES: readonly LeaveType[] = [
+  'ANNUAL',
+  'HALF_AM',
+  'HALF_PM',
+  'SPECIAL',
+  'OTHER',
+];
+
 export interface LeavesQuery {
-  tab: LeavesTab;
   year: number;
-  status: LeaveStatus | ''; // 空文字は「すべて」
+  statuses: LeaveStatus[]; // 空は「すべて」
+  leaveTypes: LeaveType[]; // 空は「すべて」
   page: number;
 }
 
@@ -58,16 +65,22 @@ export function yearOptions(currentYear: number): number[] {
   return Array.from({ length: YEARS_BACK + 2 }, (_, i) => currentYear + 1 - i);
 }
 
-// 不正・欠落した値は既定値(履歴・今年・すべて・1 ページ)に置き換える
+// カンマ区切りの値から、未知の値と重複を捨てて表示順に並べる
+function parseList<T extends string>(value: string | null, known: readonly T[]): T[] {
+  const requested = (value ?? '').split(',');
+  return known.filter((item) => requested.includes(item));
+}
+
+// 不正・欠落した値は既定値(今年・すべて・1 ページ)に置き換える
 export function parseLeavesQuery(params: ParamsLike, currentYear: number): LeavesQuery {
   const rawYear = params.get('year') ?? '';
   const year = /^\d{4}$/.test(rawYear) ? Number(rawYear) : currentYear;
   const rawPage = params.get('page') ?? '';
   const page = /^\d+$/.test(rawPage) && Number(rawPage) >= 1 ? Number(rawPage) : 1;
   return {
-    tab: params.get('tab') === 'apply' ? 'apply' : 'history',
     year: yearOptions(currentYear).includes(year) ? year : currentYear,
-    status: LEAVE_STATUSES.find((known) => known === params.get('status')) ?? '',
+    statuses: parseList(params.get('status'), LEAVE_STATUSES),
+    leaveTypes: parseList(params.get('leaveType'), LEAVE_TYPES),
     page,
   };
 }

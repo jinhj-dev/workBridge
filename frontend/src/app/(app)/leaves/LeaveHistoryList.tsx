@@ -4,27 +4,30 @@ import { Card } from '@/components/Card';
 import { labelClass, secondaryButtonClass, selectClass } from '@/components/form';
 import { Badge } from '@/components/Badge';
 import { LEAVE_STATUS_BADGE } from '@/components/leave/LeaveDetailModal';
+import { LeaveFilterButtons } from '@/components/leave/LeaveFilterButtons';
 import { Pagination } from '@/components/Pagination';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
 import { tdClass, thClass } from '@/components/table';
 import type { ApiQuery } from '@/lib/api/useApiQuery';
-import type { Leave, LeaveStatus, Paginated } from '@/lib/api/types';
+import type { Leave, Paginated } from '@/lib/api/types';
 import { formatDays, formatPeriod, formatTokyoDate } from '@/lib/format';
-import { LEAVE_STATUSES, yearOptions } from '@/lib/leave-days';
+import { LEAVE_STATUSES, LEAVE_TYPES, yearOptions } from '@/lib/leave-days';
 import type { LeavesQuery } from '@/lib/leave-days';
+import { useSyncedState } from '@/lib/useSyncedState';
 import { messages } from '@/messages/ja';
 
 const t = messages.leaves.history;
 const leaveTypes = messages.leave.types;
+const FILTER_HINT_ID = 'leaves-filter-hint';
 const detailButtonClass = `${secondaryButtonClass} h-9 px-4 text-sm/5`;
 
 interface LeaveHistoryListProps {
   query: ApiQuery<Paginated<Leave>>;
-  filters: Pick<LeavesQuery, 'year' | 'status' | 'page'>;
+  filters: LeavesQuery;
   currentYear: number;
-  // 絞り込み・ページが変わったとき(絞り込みの変更は呼び出し側で 1 ページ目に戻す)
-  onChange: (next: Pick<LeavesQuery, 'year' | 'status' | 'page'>) => void;
+  // 絞り込み・ページが変わったとき(絞り込みを変えるときは 1 ページ目にして渡す)
+  onChange: (next: LeavesQuery, options?: { scroll: boolean }) => void;
   onOpenDetail: (leaveId: string) => void;
 }
 
@@ -36,6 +39,18 @@ export function LeaveHistoryList({
   onChange,
   onOpenDetail,
 }: LeaveHistoryListProps) {
+  // 続けて押されても取りこぼさないよう、次の選択は URL ではなく画面上の選択から作る
+  const [toggles, updateToggles] = useSyncedState(
+    { statuses: filters.statuses, leaveTypes: filters.leaveTypes },
+    `${filters.statuses.join(',')}|${filters.leaveTypes.join(',')}`,
+  );
+
+  // 状態・種別は押した時点で反映する。画面の位置は動かさない(ページ先頭へ戻さない)
+  function handleToggleChange(patch: Partial<Pick<LeavesQuery, 'statuses' | 'leaveTypes'>>) {
+    updateToggles(patch);
+    onChange({ ...filters, ...toggles, ...patch, page: 1 }, { scroll: false });
+  }
+
   function renderDetailButton(leave: Leave) {
     return (
       <button
@@ -161,16 +176,17 @@ export function LeaveHistoryList({
   return (
     <Card title={t.title}>
       <div className="flex flex-col gap-6">
-        <div className="grid max-w-md grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="leaves-year" className={labelClass}>
+        <div className="flex flex-col gap-4">
+          {/* sm 未満は「年」と選択欄を横 1 列に並べる */}
+          <div className="flex items-center gap-3 sm:block sm:max-w-xs">
+            <label htmlFor="leaves-year" className={`${labelClass} shrink-0 max-sm:mb-0`}>
               {t.year}
             </label>
             <select
               id="leaves-year"
               value={filters.year}
               onChange={(e) => onChange({ ...filters, year: Number(e.target.value), page: 1 })}
-              className={selectClass}
+              className={`${selectClass} min-w-0 flex-1`}
             >
               {yearOptions(currentYear).map((year) => (
                 <option key={year} value={year}>
@@ -179,28 +195,37 @@ export function LeaveHistoryList({
               ))}
             </select>
           </div>
-          <div>
-            <label htmlFor="leaves-status" className={labelClass}>
-              {t.status}
-            </label>
-            <select
-              id="leaves-status"
-              value={filters.status}
-              onChange={(e) =>
-                onChange({ ...filters, status: e.target.value as LeaveStatus | '', page: 1 })
-              }
-              className={selectClass}
-            >
-              <option value="">{messages.common.all}</option>
-              {LEAVE_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {messages.leave.statuses[status]}
-                </option>
-              ))}
-            </select>
-          </div>
+          <LeaveFilterButtons
+            idPrefix="leaves-status"
+            label={t.status}
+            options={LEAVE_STATUSES}
+            optionLabel={(status) => messages.leave.statuses[status]}
+            variantOf={(status) => LEAVE_STATUS_BADGE[status]}
+            selected={toggles.statuses}
+            onChange={(statuses) => handleToggleChange({ statuses })}
+            describedBy={FILTER_HINT_ID}
+          />
+          <LeaveFilterButtons
+            idPrefix="leaves-leave-type"
+            label={t.leaveType}
+            options={LEAVE_TYPES}
+            optionLabel={(type) => leaveTypes[type]}
+            variantOf={() => 'neutral'}
+            selected={toggles.leaveTypes}
+            onChange={(next) => handleToggleChange({ leaveTypes: next })}
+            describedBy={FILTER_HINT_ID}
+          />
+          <p id={FILTER_HINT_ID} className="-mt-2 text-xs/4 text-general-80">
+            {t.filterHint}
+          </p>
         </div>
-        <div>{renderList()}</div>
+        {/* 絞り込みの結果を待つ間は前の一覧を薄く残す(読み込み表示に置き換えず、ちらつかせない) */}
+        <div
+          aria-busy={query.isStale}
+          className={query.isStale ? 'opacity-60 transition-opacity' : undefined}
+        >
+          {renderList()}
+        </div>
       </div>
     </Card>
   );

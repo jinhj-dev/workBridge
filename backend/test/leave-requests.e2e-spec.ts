@@ -360,6 +360,117 @@ describe('休暇申請 API(e2e)', () => {
       .expect(400);
   });
 
+  it('shouldFilterOwnLeavesByMultipleStatusesAndLeaveTypes', async () => {
+    const me = await createUser();
+    const other = await createUser();
+    const base = { userId: me.id, approverId: other.id, startDate: '2026-11-20' };
+    const pendingAnnual = await insertLeave(prisma, { ...base, status: 'PENDING' });
+    const approvedHalfAm = await insertLeave(prisma, {
+      ...base,
+      status: 'APPROVED',
+      leaveType: 'HALF_AM',
+      days: 0.5,
+    });
+    const approvedHalfPm = await insertLeave(prisma, {
+      ...base,
+      status: 'APPROVED',
+      leaveType: 'HALF_PM',
+      days: 0.5,
+    });
+    const rejectedHalfAm = await insertLeave(prisma, {
+      ...base,
+      status: 'REJECTED',
+      leaveType: 'HALF_AM',
+      days: 0.5,
+    });
+    await insertLeave(prisma, { ...base, status: 'CANCELLED', leaveType: 'SPECIAL' });
+
+    const idsOf = async (query: Record<string, string>): Promise<string[]> => {
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/leaves/me')
+        .query(query)
+        .set('Authorization', `Bearer ${me.token}`)
+        .expect(200);
+      return (response.body as PageBody).items.map((item) => item.id).sort();
+    };
+
+    // status 複数(OR)・重複は 1 つとして扱う
+    expect(await idsOf({ status: 'PENDING,APPROVED,PENDING' })).toEqual(
+      [pendingAnnual.id, approvedHalfAm.id, approvedHalfPm.id].sort(),
+    );
+    // leaveType 単一値(status 指定なしなので REJECTED 含む全状態)
+    expect(await idsOf({ leaveType: 'HALF_AM' })).toEqual(
+      [approvedHalfAm.id, rejectedHalfAm.id].sort(),
+    );
+    // leaveType 複数(OR)
+    expect(await idsOf({ leaveType: 'HALF_AM,HALF_PM', status: 'APPROVED' })).toEqual(
+      [approvedHalfAm.id, approvedHalfPm.id].sort(),
+    );
+    // status と leaveType は AND、year とも結合
+    expect(
+      await idsOf({ year: '2026', status: 'PENDING,APPROVED', leaveType: 'ANNUAL,HALF_PM' }),
+    ).toEqual([pendingAnnual.id, approvedHalfPm.id].sort());
+    // 単一値(後方互換)
+    expect(await idsOf({ status: 'PENDING' })).toEqual([pendingAnnual.id]);
+    // 指定なしは全件
+    expect(await idsOf({})).toHaveLength(5);
+  });
+
+  it('shouldTreatDuplicateStatusAsSingleAndExcludeOtherUsersLeaves', async () => {
+    const me = await createUser();
+    const other = await createUser();
+    const mine = await insertLeave(prisma, {
+      userId: me.id,
+      approverId: other.id,
+      startDate: '2026-11-21',
+      status: 'APPROVED',
+      leaveType: 'HALF_AM',
+      days: 0.5,
+    });
+    await insertLeave(prisma, {
+      userId: other.id,
+      approverId: me.id,
+      startDate: '2026-11-21',
+      status: 'APPROVED',
+      leaveType: 'HALF_AM',
+      days: 0.5,
+    });
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/leaves/me')
+      .query({ status: 'APPROVED,APPROVED', leaveType: 'HALF_AM' })
+      .set('Authorization', `Bearer ${me.token}`)
+      .expect(200);
+    const body = response.body as PageBody;
+    expect(body.totalCount).toBe(1);
+    expect(body.items.map((item) => item.id)).toEqual([mine.id]);
+  });
+
+  it('shouldRejectInvalidStatusOrLeaveTypeListForOwnLeaves', async () => {
+    const me = await createUser();
+    for (const query of [
+      { status: '' },
+      { status: 'PENDING,' },
+      { status: 'PENDING,X' },
+      { leaveType: '' },
+      { leaveType: 'ANNUAL,' },
+      { leaveType: 'ANNUAL,UNKNOWN' },
+    ]) {
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/leaves/me')
+        .query(query)
+        .set('Authorization', `Bearer ${me.token}`)
+        .expect(400);
+      expect(response.body).toMatchObject({ code: 'VALIDATION_ERROR' });
+      const fields = (response.body as { details: { field: string }[] }).details.map(
+        (d) => d.field,
+      );
+      // 配列要素の位置が付く(例: status.1)。他の項目名は含まれない
+      expect(fields).toHaveLength(1);
+      expect(fields[0]?.split('.')[0]).toBe(Object.keys(query)[0]);
+    }
+  });
+
   describe('取消', () => {
     function cancel(user: TestUser, id: string): request.Test {
       return request(app.getHttpServer())

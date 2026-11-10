@@ -189,7 +189,8 @@ export class LeavesService {
   async listMine(userId: string, query: MyLeavesQueryDto): Promise<Page<LeaveResponse>> {
     const { items, totalCount } = await this.leavesRepository.findByUser({
       userId,
-      status: query.status,
+      statuses: query.status,
+      leaveTypes: query.leaveType,
       ...(query.year !== undefined
         ? {
             startDateFrom: toDbDate(`${query.year}-01-01`),

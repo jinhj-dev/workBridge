@@ -149,14 +149,16 @@ export class LeavesRepository {
     userId: string;
     startDateFrom?: Date;
     startDateTo?: Date;
-    status?: LeaveStatus;
+    statuses?: LeaveStatus[];
+    leaveTypes?: LeaveType[];
     skip: number;
     take: number;
   }): Promise<{ items: LeaveRow[]; totalCount: number }> {
-    const { userId, startDateFrom, startDateTo, status, skip, take } = params;
+    const { userId, startDateFrom, startDateTo, statuses, leaveTypes, skip, take } = params;
     const where: Prisma.LeaveWhereInput = {
       userId,
-      ...(status ? { status } : {}),
+      ...(statuses && statuses.length > 0 ? { status: { in: statuses } } : {}),
+      ...(leaveTypes && leaveTypes.length > 0 ? { leaveType: { in: leaveTypes } } : {}),
       ...(startDateFrom && startDateTo
         ? { startDate: { gte: startDateFrom, lte: startDateTo } }
         : {}),

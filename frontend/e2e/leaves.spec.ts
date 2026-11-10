@@ -55,21 +55,20 @@ test('shouldShowSummaryAndHistoryWithoutLoadError', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: t.title })).toBeVisible();
   await expect(page.getByText(t.remaining)).toBeVisible();
-  await expect(page.getByRole('tab', { name: t.tabHistory })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
+  await expect(page.getByRole('button', { name: t.applyButton })).toBeVisible();
+  await expect(page.getByRole('table')).toBeVisible();
   await expect(page.getByText(messages.common.loadError)).toHaveCount(0);
 });
 
 test('shouldApplyLeaveAutoApprovedThenCancelFromDetail', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await loginAsAdmin(page);
-  await page.goto('/leaves?tab=apply');
+  await page.goto('/leaves');
+  await page.getByRole('button', { name: t.applyButton }).click();
 
   const { year, ymd } = nextYearMonday();
   await expect(page.getByText(t.apply.autoApprove)).toBeVisible();
-  await page.getByLabel(t.apply.leaveType).selectOption('SPECIAL');
+  await page.getByRole('radio', { name: messages.leave.types.SPECIAL }).check();
   await page.getByLabel(t.apply.startDate).fill(ymd);
   await page.getByLabel(t.apply.endDate).fill(ymd);
   await page.getByLabel(t.apply.reason).fill('E2E 休暇申請');
@@ -93,13 +92,60 @@ test('shouldApplyLeaveAutoApprovedThenCancelFromDetail', async ({ page }) => {
   await expect(row).toContainText(messages.leave.statuses.CANCELLED);
 });
 
-test('shouldOpenApplyTabFromDashboardButton', async ({ page }) => {
+test('shouldApplyFromDashboardModalAndStayOnDashboard', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await loginAsAdmin(page);
 
-  await page.getByRole('link', { name: messages.dashboard.leave.apply }).click();
-  await expect(page).toHaveURL(/\/leaves\?tab=apply$/);
-  await expect(page.getByLabel(t.apply.leaveType)).toBeVisible();
+  await page.getByRole('button', { name: messages.dashboard.leave.apply }).click();
+  const dialog = page.getByRole('dialog', { name: t.apply.title });
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole('radio', { name: messages.leave.types.ANNUAL })).toBeVisible();
+
+  // 他のテストと重ならないよう、来年 3 月の 2 週目の月曜を使う(申請は即時承認)
+  const { ymd } = nextYearMonday();
+  const secondWeekMonday = new Date(`${ymd}T00:00:00Z`);
+  secondWeekMonday.setUTCDate(secondWeekMonday.getUTCDate() + 7);
+  const day = secondWeekMonday.toISOString().slice(0, 10);
+
+  await page.getByRole('radio', { name: messages.leave.types.SPECIAL }).check();
+  await page.getByLabel(t.apply.startDate).fill(day);
+  await page.getByLabel(t.apply.endDate).fill(day);
+  await page.getByLabel(t.apply.reason).fill('E2E ダッシュボード申請');
+  await page.getByRole('button', { name: t.apply.submit }).click();
+
+  await expect(page.getByText(t.apply.approvedSuccess)).toBeVisible();
+  await expect(dialog).toBeHidden();
+  await expect(page).toHaveURL(/\/dashboard$/);
+});
+
+test('shouldFilterHistoryByStatusAndLeaveTypeToggles', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await loginAsAdmin(page);
+  await page.goto('/leaves');
+
+  const statusGroup = page.getByRole('group', { name: t.history.status });
+  await statusGroup.getByRole('button', { name: messages.leave.statuses.PENDING }).click();
+  await statusGroup.getByRole('button', { name: messages.leave.statuses.APPROVED }).click();
+  // 表示順(PENDING → APPROVED)で URL に入る
+  await expect(page).toHaveURL(/status=PENDING%2CAPPROVED/);
+  await expect(
+    statusGroup.getByRole('button', { name: messages.leave.statuses.REJECTED }),
+  ).toHaveAttribute('aria-pressed', 'false');
+
+  // 一覧に表示された行はすべて選択した状態のもの(0 件なら空表示)
+  const rows = page.locator('table tbody tr');
+  await expect(rows.first().or(page.getByText(t.history.empty))).toBeVisible();
+  for (const row of await rows.all()) {
+    await expect(row).not.toContainText(messages.leave.statuses.REJECTED);
+    await expect(row).not.toContainText(messages.leave.statuses.CANCELLED);
+  }
+
+  const typeGroup = page.getByRole('group', { name: t.history.leaveType });
+  await typeGroup.getByRole('button', { name: messages.leave.types.SPECIAL }).click();
+  await expect(page).toHaveURL(/leaveType=SPECIAL/);
+  for (const row of await rows.all()) {
+    await expect(row).toContainText(messages.leave.types.SPECIAL);
+  }
 });
 
 test('shouldShowLeaveConflictToastWhenSameDateAppliedAgain', async ({ page }) => {
@@ -112,8 +158,9 @@ test('shouldShowLeaveConflictToastWhenSameDateAppliedAgain', async ({ page }) =>
   const day = tuesday.toISOString().slice(0, 10);
 
   const apply = async (): Promise<void> => {
-    await page.goto('/leaves?tab=apply');
-    await page.getByLabel(t.apply.leaveType).selectOption('SPECIAL');
+    await page.goto('/leaves');
+    await page.getByRole('button', { name: t.applyButton }).click();
+    await page.getByRole('radio', { name: messages.leave.types.SPECIAL }).check();
     await page.getByLabel(t.apply.startDate).fill(day);
     await page.getByLabel(t.apply.endDate).fill(day);
     await page.getByLabel(t.apply.reason).fill('E2E 重複申請');
@@ -132,20 +179,24 @@ test('shouldNotOverflowHorizontallyAtNarrowWidth', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await loginAsAdmin(page);
 
-  for (const path of ['/leaves', '/leaves?tab=apply']) {
-    await page.goto(path);
-    await expect(page.getByRole('heading', { name: t.title })).toBeVisible();
-    const overflow = await page.evaluate(
+  await page.goto('/leaves');
+  await expect(page.getByRole('heading', { name: t.title })).toBeVisible();
+  const measureOverflow = (): Promise<number> =>
+    page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
-    expect(overflow, `${path} で横スクロールが発生`).toBeLessThanOrEqual(0);
-  }
+  expect(await measureOverflow(), '/leaves で横スクロールが発生').toBeLessThanOrEqual(0);
+
+  await page.getByRole('button', { name: t.applyButton }).click();
+  await expect(page.getByRole('dialog', { name: t.apply.title })).toBeVisible();
+  expect(await measureOverflow(), '申請モーダルで横スクロールが発生').toBeLessThanOrEqual(0);
 });
 
 test('shouldShowValidationErrorsWhenSubmittingEmptyForm', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await loginAsAdmin(page);
-  await page.goto('/leaves?tab=apply');
+  await page.goto('/leaves');
+  await page.getByRole('button', { name: t.applyButton }).click();
 
   await page.getByRole('button', { name: t.apply.submit }).click();
   await expect(page.getByText(t.apply.validation.leaveType)).toBeVisible();
