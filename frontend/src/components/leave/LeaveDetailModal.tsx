@@ -2,12 +2,13 @@
 
 import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { CalendarIcon } from '@/components/CalendarIcon';
 import { DetailTable, DetailTableRow } from '@/components/DetailTable';
 import {
   FieldError,
   labelClass,
-  primaryButtonClass,
-  secondaryButtonClass,
+  modalPrimaryButtonClass,
+  modalSecondaryButtonClass,
   textareaClass,
 } from '@/components/form';
 import { LeaveStatusBadge } from '@/components/leave/LeaveStatusBadge';
@@ -174,9 +175,6 @@ export function LeaveDetailModal({
           ? t.cancel.title
           : t.detail.title;
 
-  const submitButtonClass = `${primaryButtonClass} flex h-10 items-center justify-center gap-2 px-4 text-sm/5 disabled:cursor-not-allowed disabled:bg-primary-60`;
-  const subButtonClass = `${secondaryButtonClass} h-10 px-4 text-sm/5`;
-
   function renderFooter(): ReactNode {
     if (shownStep === 'cancel') {
       return (
@@ -185,7 +183,7 @@ export function LeaveDetailModal({
             type="button"
             disabled={submitting}
             onClick={() => setStep('detail')}
-            className={subButtonClass}
+            className={modalSecondaryButtonClass}
           >
             {t.cancel.back}
           </button>
@@ -193,7 +191,7 @@ export function LeaveDetailModal({
             type="button"
             disabled={submitting}
             onClick={() => void submit(`/leaves/${leaveId}/cancel`, undefined, t.cancel.success)}
-            className={submitButtonClass}
+            className={modalPrimaryButtonClass}
           >
             {submitting && <Spinner />}
             {t.cancel.submit}
@@ -215,7 +213,7 @@ export function LeaveDetailModal({
                 handleClose();
               }
             }}
-            className={subButtonClass}
+            className={modalSecondaryButtonClass}
           >
             {messages.common.cancel}
           </button>
@@ -227,7 +225,7 @@ export function LeaveDetailModal({
                 ? () => void submit(`/leaves/${leaveId}/approve`, undefined, t.approve.success)
                 : handleReject
             }
-            className={submitButtonClass}
+            className={modalPrimaryButtonClass}
           >
             {submitting && <Spinner />}
             {shownStep === 'approve' ? t.approve.submit : t.reject.submit}
@@ -237,20 +235,32 @@ export function LeaveDetailModal({
     }
     return (
       <>
-        <button type="button" onClick={handleClose} className={subButtonClass}>
+        <button type="button" onClick={handleClose} className={modalSecondaryButtonClass}>
           {messages.common.close}
         </button>
         {canCancel && (
-          <button type="button" onClick={() => setStep('cancel')} className={subButtonClass}>
+          <button
+            type="button"
+            onClick={() => setStep('cancel')}
+            className={modalSecondaryButtonClass}
+          >
             {t.detail.cancel}
           </button>
         )}
         {canProcess && (
           <>
-            <button type="button" onClick={() => setStep('reject')} className={subButtonClass}>
+            <button
+              type="button"
+              onClick={() => setStep('reject')}
+              className={modalSecondaryButtonClass}
+            >
               {t.detail.reject}
             </button>
-            <button type="button" onClick={() => setStep('approve')} className={submitButtonClass}>
+            <button
+              type="button"
+              onClick={() => setStep('approve')}
+              className={modalPrimaryButtonClass}
+            >
               {t.detail.approve}
             </button>
           </>
@@ -353,21 +363,5 @@ export function LeaveDetailModal({
     >
       {renderBody()}
     </Modal>
-  );
-}
-
-function CalendarIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
-      <path d="M8 3v4M16 3v4M3.5 10h17" />
-    </svg>
   );
 }

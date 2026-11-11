@@ -116,4 +116,31 @@ describe('ApproverSelect', () => {
     expect(screen.getByRole('combobox')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByRole('combobox')).toHaveAccessibleDescription('承認者を選択してください。');
   });
+
+  it('shouldSetAriaRequiredOnlyWhenRequired', () => {
+    const { rerender } = render(
+      <ApproverSelect
+        id="approver"
+        value={null}
+        onChange={vi.fn()}
+        candidates={CANDIDATES}
+        status="success"
+        onRetry={vi.fn()}
+        required
+      />,
+    );
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-required', 'true');
+
+    rerender(
+      <ApproverSelect
+        id="approver"
+        value={null}
+        onChange={vi.fn()}
+        candidates={CANDIDATES}
+        status="success"
+        onRetry={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('combobox')).not.toHaveAttribute('aria-required');
+  });
 });

@@ -1,12 +1,11 @@
 import type { ReactNode } from 'react';
 
+// DetailTable と FormTable で共有する表の見た目
+export const tableFrameClass = 'overflow-hidden rounded-md border border-general-40';
+
 // 項目名と値の 2 列表(詳細モーダルなど)。行は DetailTableRow で並べる
 export function DetailTable({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <dl className={`overflow-hidden rounded-md border border-general-40 ${className ?? ''}`}>
-      {children}
-    </dl>
-  );
+  return <dl className={`${tableFrameClass} ${className ?? ''}`}>{children}</dl>;
 }
 
 export function DetailTableRow({ label, children }: { label: string; children: ReactNode }) {

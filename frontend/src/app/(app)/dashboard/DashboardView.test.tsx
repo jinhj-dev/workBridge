@@ -421,7 +421,10 @@ describe('DashboardView 休暇状況', () => {
     const dialog = await screen.findByRole('dialog', { name: messages.leaves.apply.title });
     const balanceCallsBefore = callsTo('/leaves/balance').length;
 
-    await ui.click(within(dialog).getByRole('radio', { name: messages.leave.types.ANNUAL }));
+    await ui.selectOptions(
+      within(dialog).getByRole('combobox', { name: messages.leaves.apply.leaveType }),
+      'ANNUAL',
+    );
     await ui.type(within(dialog).getByLabelText(messages.leaves.apply.startDate), '2026-11-16');
     await ui.type(within(dialog).getByLabelText(messages.leaves.apply.endDate), '2026-11-18');
     await ui.type(within(dialog).getByLabelText(messages.leaves.apply.reason), '私用');

@@ -15,6 +15,7 @@ export const messages = {
     close: '閉じる',
     loading: '読み込み中',
     cancel: 'キャンセル',
+    selectPlaceholder: '選択してください',
     retry: '再試行',
     loadError: 'データを読み込めませんでした。',
     noValue: '—',
@@ -177,7 +178,7 @@ export const messages = {
     pending: '承認待ち',
     remaining: '残日数',
     apply: {
-      title: '休暇を申請',
+      title: '休暇申請',
       leaveType: '休暇種別',
       startDate: '開始日',
       endDate: '終了日',

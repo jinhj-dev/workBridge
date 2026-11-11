@@ -14,6 +14,7 @@ interface ApproverSelectProps {
   value: UserSummary | null;
   onChange: (value: UserSummary | null) => void;
   error?: string | null;
+  required?: boolean;
   candidates: UserSummary[];
   status: 'loading' | 'error' | 'success';
   onRetry: () => void;
@@ -29,6 +30,7 @@ export function ApproverSelect({
   value,
   onChange,
   error,
+  required,
   candidates,
   status,
   onRetry,
@@ -131,6 +133,7 @@ export function ApproverSelect({
         aria-autocomplete="list"
         aria-activedescendant={open && filtered[active] ? optionId(active) : undefined}
         aria-invalid={error ? true : undefined}
+        aria-required={required || undefined}
         aria-describedby={error ? `${id}-error` : undefined}
         placeholder={t.placeholder}
         value={editing ?? (value ? optionLabel(value) : '')}

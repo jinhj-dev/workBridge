@@ -26,6 +26,7 @@
     "db:e2e-accounts": "tsx prisma/e2e-accounts.ts",
     "db:e2e-attendance-reset": "tsx prisma/e2e-attendance-reset.ts",
     "db:e2e-attendance-fixture": "tsx prisma/e2e-attendance-fixture.ts",
+    "db:e2e-leaves-reset": "tsx prisma/e2e-leaves-reset.ts",
     "db:sample-attendance": "tsx prisma/sample-attendance.ts",
     "db:sample-users": "tsx prisma/sample-users.ts",
     "db:migrate": "prisma migrate dev",

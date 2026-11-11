@@ -19,6 +19,10 @@ export const primaryButtonClass =
 export const secondaryButtonClass =
   'rounded border border-general-50 bg-white font-bold text-general-100 hover:bg-general-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
 
+// モーダル footer のボタン(詳細・申請モーダル共通)。高さ 40
+export const modalPrimaryButtonClass = `${primaryButtonClass} flex h-10 items-center justify-center gap-2 px-4 text-sm/5 disabled:cursor-not-allowed disabled:bg-primary-60`;
+export const modalSecondaryButtonClass = `${secondaryButtonClass} h-10 px-4 text-sm/5`;
+
 // 枠も背景もない文字だけのボタン(補助的な操作)。大きさ・余白は呼び出し側で指定する
 export const textButtonClass =
   'rounded text-sm/5 font-medium text-primary-100 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
@@ -48,5 +52,14 @@ export function FieldError({ id, message }: { id: string; message: string }) {
       <ErrorIcon />
       {message}
     </p>
+  );
+}
+
+// 必須項目の印。意味はコントロールの aria-required で伝えるため読み上げ対象から外す
+export function RequiredMark() {
+  return (
+    <span aria-hidden="true" className="ml-1 font-bold text-danger-100">
+      *
+    </span>
   );
 }

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/Toast';
@@ -98,8 +98,12 @@ function renderForm(user: AuthUser = EMPLOYEE, open = true) {
   return ui;
 }
 
-function radio(type: LeaveType): HTMLElement {
-  return screen.getByRole('radio', { name: messages.leave.types[type] });
+function leaveTypeSelect(): HTMLElement {
+  return screen.getByRole('combobox', { name: t.leaveType });
+}
+
+async function chooseType(ui: ReturnType<typeof userEvent.setup>, type: LeaveType) {
+  await ui.selectOptions(leaveTypeSelect(), type);
 }
 
 type Ui = ReturnType<typeof userEvent.setup>;
@@ -110,7 +114,7 @@ async function pickApprover(ui: Ui) {
 }
 
 async function fillAnnual(ui: Ui, { withApprover = true }: { withApprover?: boolean } = {}) {
-  await ui.click(radio('ANNUAL'));
+  await chooseType(ui, 'ANNUAL');
   await ui.type(screen.getByLabelText(t.startDate), '2026-11-16');
   await ui.type(screen.getByLabelText(t.endDate), '2026-11-18');
   await ui.type(screen.getByLabelText(t.reason), '  私用  ');
@@ -138,30 +142,31 @@ describe('LeaveApplyModal(SCR-004 / SCR-002 休暇申請モーダル)', () => {
     expect(screen.getByText(t.validation.period)).toBeInTheDocument();
     expect(screen.getByText(t.validation.reasonRequired)).toBeInTheDocument();
     expect(screen.getByText(t.validation.approver)).toBeInTheDocument();
-    expect(radio('ANNUAL')).toHaveFocus();
+    expect(leaveTypeSelect()).toHaveFocus();
     expect(postCalls()).toHaveLength(0);
   });
 
-  it('shouldRenderFiveLeaveTypeRadiosWithNoneSelected', () => {
+  it('shouldRenderFiveLeaveTypeOptionsWithNoneSelected', () => {
     mockApi(() => createdLeave());
     renderForm();
-    const radios = screen.getAllByRole('radio');
-    expect(radios.map((r) => r.getAttribute('value'))).toEqual([
+    const options = within(leaveTypeSelect()).getAllByRole('option') as HTMLOptionElement[];
+    expect(options[0]).toHaveTextContent(messages.common.selectPlaceholder);
+    expect(leaveTypeSelect()).toHaveValue('');
+    expect(options.slice(1).map((o) => o.value)).toEqual([
       'ANNUAL',
       'HALF_AM',
       'HALF_PM',
       'SPECIAL',
       'OTHER',
     ]);
-    expect(radios.every((r) => !(r as HTMLInputElement).checked)).toBe(true);
   });
 
-  it('shouldClearLeaveTypeErrorWhenRadioChosen', async () => {
+  it('shouldClearLeaveTypeErrorWhenTypeChosen', async () => {
     mockApi(() => createdLeave());
     const ui = renderForm();
     await ui.click(screen.getByRole('button', { name: t.submit }));
     expect(screen.getByText(t.validation.leaveType)).toBeInTheDocument();
-    await ui.click(radio('SPECIAL'));
+    await chooseType(ui, 'SPECIAL');
     expect(screen.queryByText(t.validation.leaveType)).not.toBeInTheDocument();
   });
 
@@ -191,7 +196,7 @@ describe('LeaveApplyModal(SCR-004 / SCR-002 休暇申請モーダル)', () => {
     const ui = renderForm();
     expect(screen.getByText(messages.common.noValue)).toBeInTheDocument();
 
-    await ui.click(radio('HALF_AM'));
+    await chooseType(ui, 'HALF_AM');
     await ui.type(screen.getByLabelText(t.startDate), '2026-11-16');
     expect(screen.getByLabelText(t.endDate)).toBeDisabled();
     expect(screen.getByLabelText(t.endDate)).toHaveValue('2026-11-16');
@@ -201,13 +206,13 @@ describe('LeaveApplyModal(SCR-004 / SCR-002 休暇申請モーダル)', () => {
   it('shouldFollowStartDateAndEnableEndDateWhenSwitchedBackToAnnual', async () => {
     mockApi(() => createdLeave());
     const ui = renderForm();
-    await ui.click(radio('HALF_AM'));
+    await chooseType(ui, 'HALF_AM');
     await ui.type(screen.getByLabelText(t.startDate), '2026-11-16');
     await ui.clear(screen.getByLabelText(t.startDate));
     await ui.type(screen.getByLabelText(t.startDate), '2026-11-17');
     expect(screen.getByLabelText(t.endDate)).toHaveValue('2026-11-17');
 
-    await ui.click(radio('ANNUAL'));
+    await chooseType(ui, 'ANNUAL');
     expect(screen.getByLabelText(t.endDate)).toBeEnabled();
     await ui.clear(screen.getByLabelText(t.endDate));
     await ui.type(screen.getByLabelText(t.endDate), '2026-11-18');
@@ -217,7 +222,7 @@ describe('LeaveApplyModal(SCR-004 / SCR-002 休暇申請モーダル)', () => {
   it('shouldRejectPeriodOnlyWeekend', async () => {
     mockApi(() => createdLeave());
     const ui = renderForm();
-    await ui.click(radio('ANNUAL'));
+    await chooseType(ui, 'ANNUAL');
     await ui.type(screen.getByLabelText(t.startDate), '2026-11-14');
     await ui.type(screen.getByLabelText(t.endDate), '2026-11-15');
     await ui.type(screen.getByLabelText(t.reason), '私用');
@@ -240,7 +245,7 @@ describe('LeaveApplyModal(SCR-004 / SCR-002 休暇申請モーダル)', () => {
   it('shouldCountReasonByCodePointAndRejectOver500', async () => {
     mockApi(() => createdLeave());
     const ui = renderForm();
-    await ui.click(radio('ANNUAL'));
+    await chooseType(ui, 'ANNUAL');
     await ui.type(screen.getByLabelText(t.startDate), '2026-11-16');
     await ui.type(screen.getByLabelText(t.endDate), '2026-11-16');
     await ui.click(screen.getByLabelText(t.reason));
@@ -365,5 +370,64 @@ describe('LeaveApplyModal サーバーの入力エラー', () => {
     await ui.click(screen.getByRole('button', { name: t.submit }));
     expect(await screen.findByText('サーバー: 理由が不正')).toBeInTheDocument();
     expect(screen.getByLabelText(t.reason)).toHaveFocus();
+  });
+});
+
+describe('LeaveApplyModal の表示(SCR-004 §3.2 表レイアウト・必須表示)', () => {
+  it('shouldUseLeaveApplyTitleAsDialogName', () => {
+    mockApi(() => createdLeave());
+    renderForm();
+    expect(screen.getByRole('dialog', { name: t.title })).toBeInTheDocument();
+  });
+
+  it('shouldMarkFiveRequiredRowsWithAriaRequiredWhenApprovalRequired', async () => {
+    mockApi(() => createdLeave());
+    renderForm();
+    await screen.findByLabelText(t.approver);
+
+    const required = document.querySelectorAll('[aria-required="true"]');
+    expect(required).toHaveLength(5);
+    for (const label of [t.leaveType, t.startDate, t.endDate, t.reason, t.approver]) {
+      expect(screen.getByText(label).parentElement).toHaveTextContent('*');
+    }
+  });
+
+  it('shouldNotMarkDaysRowAsRequired', async () => {
+    mockApi(() => createdLeave());
+    renderForm();
+    await screen.findByLabelText(t.approver);
+    expect(screen.getByText(t.days).parentElement).not.toHaveTextContent('*');
+  });
+
+  it('shouldShowAutoApproveNoticeWithoutRequiredMarkOrApproverWhenApprovalNotRequired', () => {
+    mockApi(() => createdLeave({ status: 'APPROVED', autoApproved: true, approver: null }));
+    renderForm(AUTO_APPROVE_USER);
+    expect(screen.getByText(t.approver).parentElement).not.toHaveTextContent('*');
+    expect(screen.getByText(t.autoApprove)).toBeInTheDocument();
+    expect(document.querySelectorAll('[aria-required="true"]')).toHaveLength(4);
+  });
+
+  it('shouldKeepAriaRequiredOnDisabledEndDateForHalfDay', async () => {
+    mockApi(() => createdLeave());
+    const ui = renderForm();
+    await chooseType(ui, 'HALF_AM');
+    const endDate = screen.getByLabelText(t.endDate);
+    expect(endDate).toBeDisabled();
+    expect(endDate).toHaveAttribute('aria-required', 'true');
+  });
+
+  it('shouldShowThreeDaysForAnnualLeaveSpanningWeekdays', async () => {
+    mockApi(() => createdLeave());
+    const ui = renderForm();
+    await chooseType(ui, 'ANNUAL');
+    await ui.type(screen.getByLabelText(t.startDate), '2026-11-16');
+    await ui.type(screen.getByLabelText(t.endDate), '2026-11-18');
+    expect(screen.getByText('3日')).toBeInTheDocument();
+  });
+
+  it('shouldNotShowStatusLabelInsideModal', () => {
+    mockApi(() => createdLeave());
+    renderForm();
+    expect(screen.queryByText(messages.leaves.history.status)).not.toBeInTheDocument();
   });
 });

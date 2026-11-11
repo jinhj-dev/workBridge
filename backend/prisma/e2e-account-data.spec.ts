@@ -8,6 +8,7 @@ import {
   buildE2eAttendanceFixture,
   parseE2eAccountConfig,
   resetE2eAdminAttendance,
+  resetE2eAdminLeaves,
   seedE2eAdminAttendance,
 } from './e2e-account-data.js';
 
@@ -177,6 +178,41 @@ describe('resetE2eAdminAttendance', () => {
     const { prisma, deleteMany } = fakePrisma({ id: 'other-id', name: '別の社員' });
 
     await expect(resetE2eAdminAttendance(prisma)).rejects.toThrow('npm run db:e2e-accounts');
+    expect(deleteMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('resetE2eAdminLeaves', () => {
+  // 必要な prisma のメソッドだけを持つ偽物。DB には接続しない
+  function fakePrisma(admin: { id: string; name: string } | null, deletedCount = 0) {
+    const findUnique = vi.fn().mockResolvedValue(admin);
+    const deleteMany = vi.fn().mockResolvedValue({ count: deletedCount });
+    const prisma = { user: { findUnique }, leave: { deleteMany } };
+    return { prisma: prisma as unknown as PrismaClient, findUnique, deleteMany };
+  }
+
+  it('shouldDeleteOnlyAdminLeavesAndReturnCount', async () => {
+    const { prisma, findUnique, deleteMany } = fakePrisma({ id: 'admin-id', name: 'E2E管理者' }, 3);
+
+    await expect(resetE2eAdminLeaves(prisma)).resolves.toBe(3);
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { empId: '900001' },
+      select: { id: true, name: true },
+    });
+    expect(deleteMany).toHaveBeenCalledWith({ where: { userId: 'admin-id' } });
+  });
+
+  it('shouldThrowWithoutDeletingWhenAdminDoesNotExist', async () => {
+    const { prisma, deleteMany } = fakePrisma(null);
+
+    await expect(resetE2eAdminLeaves(prisma)).rejects.toThrow('npm run db:e2e-accounts');
+    expect(deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('shouldThrowWithoutDeletingWhenUserAtEmpIdIsNotE2eAdmin', async () => {
+    const { prisma, deleteMany } = fakePrisma({ id: 'other-id', name: '別の社員' });
+
+    await expect(resetE2eAdminLeaves(prisma)).rejects.toThrow('npm run db:e2e-accounts');
     expect(deleteMany).not.toHaveBeenCalled();
   });
 });
