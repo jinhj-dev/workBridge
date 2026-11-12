@@ -35,4 +35,4 @@ playwright-report/
 .playwright-mcp/
 
 # Claude Code
-.claude/work/*/*/*.png
+.claude/work/**/*.png
