@@ -110,7 +110,8 @@ describe('DepartmentsView(SCR-010 部署管理)', () => {
     const row = await waitFor(() => tableRow('営業部'));
     expect(within(row).getByText('SALES')).toBeInTheDocument();
     expect(within(row).getByText('3名')).toBeInTheDocument();
-    expect(screen.getByText(t.memberCountNote)).toBeInTheDocument();
+    // 有効な社員のみを数える旨の案内は notes 一覧の末尾に表示される
+    expect(screen.getByText('※ 所属社員数は有効な社員のみを数えます。')).toBeInTheDocument();
   });
 
   it('shouldHideEditAndDeleteForSystemDepartmentAndShowBadge', async () => {

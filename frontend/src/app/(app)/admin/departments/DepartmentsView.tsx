@@ -468,7 +468,6 @@ export function DepartmentsView() {
               {t.notes.map((note) => (
                 <li key={note}>{note}</li>
               ))}
-              <li>{t.memberCountNote}</li>
             </ul>
           </Notice>
         </div>
