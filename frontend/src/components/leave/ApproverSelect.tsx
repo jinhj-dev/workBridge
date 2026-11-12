@@ -3,14 +3,14 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { FocusEvent, KeyboardEvent, ReactNode } from 'react';
 import {
-  ErrorIcon,
   FieldError,
   IconField,
   iconInputClass,
   iconInputTrailingClass,
   inputClass,
-  secondaryButtonClass,
 } from '@/components/form';
+import { Notice } from '@/components/Notice';
+import { SectionError } from '@/components/SectionError';
 import { Skeleton } from '@/components/Skeleton';
 import type { UserSummary } from '@/lib/api/types';
 import { messages } from '@/messages/ja';
@@ -98,17 +98,9 @@ export function ApproverSelect({
   if (status === 'error') {
     return (
       <div className="flex flex-col items-start gap-2">
-        <p role="alert" className="flex items-start gap-1.5 text-sm/5 text-general-100">
-          <ErrorIcon />
-          {t.loadError}
-        </p>
-        <button
-          type="button"
-          onClick={onRetry}
-          className={`${secondaryButtonClass} h-9 px-4 text-sm/5`}
-        >
-          {messages.common.retry}
-        </button>
+        <div className="w-full">
+          <SectionError message={t.loadError} onRetry={onRetry} />
+        </div>
         {error && <FieldError id={`${id}-error`} message={error} />}
       </div>
     );
@@ -116,10 +108,9 @@ export function ApproverSelect({
   if (candidates.length === 0 && !onSearch) {
     return (
       <div className="flex flex-col items-start gap-2">
-        <p className="flex items-start gap-1.5 text-sm/5 text-general-100">
-          <ErrorIcon />
-          {t.empty}
-        </p>
+        <div className="w-full">
+          <Notice variant="warning">{t.empty}</Notice>
+        </div>
         {error && <FieldError id={`${id}-error`} message={error} />}
       </div>
     );

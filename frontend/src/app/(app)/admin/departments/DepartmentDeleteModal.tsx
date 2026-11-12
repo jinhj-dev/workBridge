@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { primaryButtonClass, secondaryButtonClass } from '@/components/form';
 import { Modal } from '@/components/Modal';
+import { Notice } from '@/components/Notice';
 import { Spinner } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
 import { ApiError, NetworkError, apiFetch } from '@/lib/api/client';
@@ -84,9 +85,7 @@ export function DepartmentDeleteModal({ department, onClose, onDone }: Departmen
         <div className="flex flex-col gap-2">
           <p className="break-words text-general-100">{t.confirm(department.name)}</p>
           {department.inactiveMemberCount > 0 && (
-            <p className="text-sm/5 text-general-80">
-              {t.inactiveNote(department.inactiveMemberCount)}
-            </p>
+            <Notice variant="warning">{t.inactiveNote(department.inactiveMemberCount)}</Notice>
           )}
         </div>
       )}

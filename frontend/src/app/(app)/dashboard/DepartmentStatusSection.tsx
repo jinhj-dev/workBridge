@@ -1,4 +1,5 @@
 import { Card } from '@/components/Card';
+import { Notice } from '@/components/Notice';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
 import { cardThClass } from '@/components/table';
@@ -86,7 +87,7 @@ export function DepartmentStatusSection({ query, isAdmin }: DepartmentStatusSect
           </table>
         </div>
         {!isWorkday && (
-          <p className="text-sm/5 text-general-80">{messages.dashboard.holidayNote}</p>
+          <Notice>{messages.dashboard.holidayNote}</Notice>
         )}
       </div>
     );

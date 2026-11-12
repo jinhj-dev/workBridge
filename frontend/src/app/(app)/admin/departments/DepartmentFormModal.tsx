@@ -11,7 +11,7 @@ import {
   textareaClass,
 } from '@/components/form';
 import { FormRow } from '@/components/FormRow';
-import { InfoNotice } from '@/components/InfoNotice';
+import { Notice } from '@/components/Notice';
 import { ApproverSelect } from '@/components/leave/ApproverSelect';
 import { Modal } from '@/components/Modal';
 import { Spinner } from '@/components/Spinner';
@@ -294,7 +294,7 @@ export function DepartmentFormModal({
             <FieldError id="department-description-error" message={errors.description} />
           )}
         </FormRow>
-        <InfoNotice>{t.notice}</InfoNotice>
+        <Notice>{t.notice}</Notice>
       </form>
     </Modal>
   );

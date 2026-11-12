@@ -10,6 +10,7 @@ import {
   secondaryButtonClass,
 } from '@/components/form';
 import { Modal } from '@/components/Modal';
+import { Notice } from '@/components/Notice';
 import { Spinner } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
 import { ApiError, NetworkError, apiFetch } from '@/lib/api/client';
@@ -160,9 +161,7 @@ export function AttendanceEditModal({ attendance, onClose, onSaved }: Attendance
     return (
       <div className="flex flex-col gap-4">
         {errors.server && (
-          <div role="alert">
-            <FieldError id="attendance-edit-server-error" message={errors.server} />
-          </div>
+          <Notice variant="error">{errors.server}</Notice>
         )}
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm/5">
           <dt className="text-general-80">{t.employee}</dt>

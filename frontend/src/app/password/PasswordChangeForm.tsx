@@ -14,6 +14,7 @@ import {
   textButtonClass,
 } from '@/components/form';
 import { Logo } from '@/components/Logo';
+import { Notice } from '@/components/Notice';
 import { Spinner } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
 import { messages } from '@/messages/ja';
@@ -166,7 +167,7 @@ export function PasswordChangeForm() {
         <div className="w-full max-w-135 rounded-md border border-general-40 bg-white p-7 shadow-card sm:p-10">
           <Logo />
           <h1 className="mt-6 text-h4 font-bold">{t.title}</h1>
-          {mustChangePassword && <p className="mt-2 text-sm/5 text-general-80">{t.notice}</p>}
+          {mustChangePassword && <Notice className="mt-4">{t.notice}</Notice>}
 
           <form noValidate onSubmit={handleSubmit} className="mt-6 flex flex-col gap-5">
             {renderField('currentPassword', t.currentPassword, 'current-password')}

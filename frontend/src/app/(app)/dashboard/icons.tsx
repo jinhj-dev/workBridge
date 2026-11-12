@@ -194,15 +194,6 @@ export function ExitIcon() {
   );
 }
 
-export function InfoIcon() {
-  return (
-    <Icon>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 11v5M12 7.5v.01" />
-    </Icon>
-  );
-}
-
 export function EnterIcon() {
   return (
     <Icon>
