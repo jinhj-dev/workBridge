@@ -47,6 +47,46 @@ describe('部署 DTO のスキーマ', () => {
     });
   });
 
+  describe('description / managerId', () => {
+    it('shouldTrimDescriptionAndConvertBlankToNull', () => {
+      const base = { code: 'DEV', name: '開発部' };
+      expect(createDepartmentSchema.parse({ ...base, description: '  説明 ' }).description).toBe(
+        '説明',
+      );
+      expect(createDepartmentSchema.parse({ ...base, description: '   ' }).description).toBeNull();
+      expect(createDepartmentSchema.parse(base).description).toBeUndefined();
+    });
+
+    it('shouldRejectDescriptionOver500Characters', () => {
+      const base = { code: 'DEV', name: '開発部' };
+      expect(
+        createDepartmentSchema.safeParse({ ...base, description: 'a'.repeat(500) }).success,
+      ).toBe(true);
+      expect(
+        createDepartmentSchema.safeParse({ ...base, description: 'a'.repeat(501) }).success,
+      ).toBe(false);
+    });
+
+    it('shouldRejectNonUuidManagerIdButAcceptNull', () => {
+      const base = { code: 'DEV', name: '開発部' };
+      expect(createDepartmentSchema.safeParse({ ...base, managerId: 'abc' }).success).toBe(false);
+      expect(createDepartmentSchema.safeParse({ ...base, managerId: null }).success).toBe(true);
+    });
+
+    it('shouldAcceptUpdateWithOnlyNullManagerIdOrDescription', () => {
+      expect(updateDepartmentSchema.safeParse({ managerId: null }).success).toBe(true);
+      expect(updateDepartmentSchema.safeParse({ description: '' }).success).toBe(true);
+    });
+  });
+
+  describe('adminDepartmentQuerySchema sort/order', () => {
+    it('shouldDefaultToCodeAscAndRejectUnknownKeys', () => {
+      expect(adminDepartmentQuerySchema.parse({})).toMatchObject({ sort: 'code', order: 'asc' });
+      expect(adminDepartmentQuerySchema.safeParse({ sort: 'id' }).success).toBe(false);
+      expect(adminDepartmentQuerySchema.safeParse({ order: 'up' }).success).toBe(false);
+    });
+  });
+
   describe('adminDepartmentQuerySchema', () => {
     it('shouldRejectCodeLongerThan20Characters', () => {
       expect(adminDepartmentQuerySchema.safeParse({ code: 'A'.repeat(21) }).success).toBe(false);

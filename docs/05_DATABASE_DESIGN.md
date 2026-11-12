@@ -38,6 +38,8 @@ PostgreSQL 네이티브 ENUM 타입으로 정의한다. 값을 추가할 때는 
 | id | UUID | O | NO | 부서 ID |
 | code | VARCHAR(20) | | NO | 부서 코드. 영숫자·하이픈 1~20자, 대문자로 정규화하여 저장(형식 검증은 애플리케이션, FR-DEPT-001) |
 | name | VARCHAR(100) | | NO | 부서명 |
+| description | VARCHAR(500) | | YES | 부서 설명. 앞뒤 공백 제거, 빈 문자열은 NULL로 저장(애플리케이션, FR-DEPT-001) |
+| manager_id | UUID | | YES | 부서 책임자 사용자 ID. 활성 사원만 지정(검증은 애플리케이션, FR-DEPT-001) |
 | created_at | TIMESTAMPTZ | | NO | 생성일 |
 | updated_at | TIMESTAMPTZ | | NO | 수정일 |
 
@@ -45,6 +47,9 @@ PostgreSQL 네이티브 ENUM 타입으로 정의한다. 값을 추가할 때는 
 
 - code: UNIQUE
 - name: UNIQUE
+- manager_id: FK → users.id. UNIQUE 없음(한 사원이 여러 부서의 책임자를 겸임할 수 있다)
+
+description·manager_id는 마이그레이션 `add_departments_description_manager`에서 추가했다. 기존 행은 둘 다 NULL(백필 없음)이며, 未所属도 NULL로 유지한다.
 
 ### 시스템 부서 (未所属)
 
@@ -219,6 +224,7 @@ hire_date는 마이그레이션 `add_users_hire_date`에서 기존 행을 `2026-
 ## 7. Index
 
 - departments(code) — UNIQUE 제약으로 생성
+- departments(manager_id) — FK 열. 사원 비활성화 시 책임자 해제(`WHERE manager_id = $1`) 조회용
 - attendance(user_id, work_date) — UNIQUE 제약으로 생성
 - attendance(work_date)
 - users(emp_id) — UNIQUE 제약으로 생성
@@ -272,6 +278,18 @@ hire_date는 마이그레이션 `add_users_hire_date`에서 기존 행을 `2026-
 
 - 사용자 단위 잠금과 달리 `FOR UPDATE`를 쓴다. 다른 트랜잭션이 사원을 이 부서로 등록·이동할 때 FK 검사가 거는 `FOR KEY SHARE`를 **막는 것이 목적**이기 때문이다. 상대가 먼저 커밋하면 3에서 그 사원이 보여 409가 되고, 이쪽이 먼저 잠그면 상대의 FK 검사가 삭제 커밋 후 실패한다.
 - 삭제 중 비활성 사원이 재활성화되면(부서 FK 변경이 없어 부서 잠금과 충돌하지 않음) 4의 UPDATE 대상에서 빠지고 5에서 FK 위반이 되어 롤백된다.
+- `manager_id`는 부서 → 사원 방향 FK이므로 책임자가 지정되어 있어도 삭제를 막지 않는다(행과 함께 사라진다).
+
+### 부서 등록·수정의 책임자 지정 (FR-DEPT-001)
+
+`managerId`에 사원 ID를 지정한 경우에만 한 트랜잭션 안에서 다음 순서로 처리한다(null 지정·생략 시 잠금 없음). 잠금 순서는 부서 삭제와 같이 부서 행 → 사원 행이다.
+
+1. (수정만) `SELECT code FROM departments WHERE id = $1 FOR UPDATE`로 부서 행을 잠근다. 없으면 404, `UNASSIGNED`이면 409 PROTECTED_DEPARTMENT(책임자 검사보다 먼저).
+2. `SELECT is_active FROM users WHERE id = $2 FOR NO KEY UPDATE`로 사원 행을 잠근다(사용자 단위 잠금. 동시 비활성화와 직렬화). 없거나 비활성이면 400 INVALID_MANAGER. 소속 부서는 보지 않는다.
+3. 부서를 INSERT/UPDATE한다. 코드·이름 중복은 409.
+
+- 사원 비활성화 시 책임자 해제(FR-USER-002)는 비활성화 트랜잭션 안에서 `UPDATE departments SET manager_id = NULL ... WHERE manager_id = $1`로 처리한다(API-USER-004 미구현으로 아직 구현되지 않음). 사원의 부서 이동은 manager_id를 바꾸지 않는다.
+- 사용자는 물리 삭제하지 않으므로 RESTRICT FK가 운영에서 문제가 되지 않는다. 테스트 데이터 정리(`TestDataTracker.cleanup()`)는 users 삭제 전에 대상 사원을 가리키는 manager_id를 NULL로 바꾼다.
 
 ## 9. 날짜·시간과 타입 처리
 

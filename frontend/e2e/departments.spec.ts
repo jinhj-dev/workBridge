@@ -39,7 +39,10 @@ test('shouldOpenFromSidebarAndShowSystemDepartmentWithoutActions', async ({ page
 
   const systemRow = page.getByRole('row').filter({ hasText: 'UNASSIGNED' });
   await expect(systemRow.getByText(t.system)).toBeVisible();
-  await expect(systemRow.getByRole('button')).toHaveCount(0);
+  // 未所属は詳細と所属社員の確認のみ(編集・削除は出ない)
+  await expect(systemRow.getByRole('button', { name: t.edit })).toHaveCount(0);
+  await expect(systemRow.getByRole('button', { name: t.delete })).toHaveCount(0);
+  await expect(systemRow.getByRole('button', { name: /所属社員を確認/ })).toBeVisible();
 });
 
 test('shouldCreateEditAndDeleteDepartment', async ({ page }) => {
@@ -58,8 +61,8 @@ test('shouldCreateEditAndDeleteDepartment', async ({ page }) => {
   await dialog.getByRole('button', { name: t.form.create }).click();
   await expect(page.getByText(t.form.created)).toBeVisible();
 
-  await page.getByLabel(t.code).first().fill(code);
-  await page.getByRole('button', { name: t.search }).click();
+  await page.getByPlaceholder(t.searchPlaceholder).fill(name);
+  await expect(page).toHaveURL(/name=/);
   const row = page.getByRole('row').filter({ hasText: name });
   await expect(row).toBeVisible();
   await expect(row.getByText(t.members(0))).toBeVisible();
@@ -81,14 +84,51 @@ test('shouldShowErrorToastAndKeepRowWhenDeletingDepartmentWithActiveMembers', as
   await page.setViewportSize({ width: 1440, height: 900 });
   await loginAsAdmin(page);
   // seed で作る総務部(GA)には有効な初期 ADMIN が所属する
-  await page.goto('/admin/departments?code=GA');
+  await page.goto('/admin/departments');
 
-  const row = page
-    .getByRole('row')
-    .filter({ has: page.getByRole('cell', { name: 'GA', exact: true }) });
+  const row = page.getByRole('row').filter({ hasText: 'GA' }).first();
   await expect(row).toBeVisible();
   await row.getByRole('button', { name: t.delete }).click();
   await expect(page.getByText(t.hasMembers)).toBeVisible();
   await expect(page.getByRole('dialog', { name: t.deleteModal.title })).toBeHidden();
   await expect(row).toBeVisible();
+});
+
+test('shouldSortSelectAndShowMembersOfDepartment', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await loginAsAdmin(page);
+  await page.goto('/admin/departments');
+
+  await page.getByRole('button', { name: t.sort.columnLabel(t.memberCount) }).click();
+  await expect(page).toHaveURL(/sort=memberCount&order=desc/);
+
+  // 下部の「選択中の部署情報」は無い
+  await expect(page.getByRole('region', { name: '選択中の部署情報' })).toHaveCount(0);
+
+  await page
+    .getByRole('button', { name: /所属社員を確認/ })
+    .first()
+    .click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: t.membersModal.close }).last().click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+
+  await page.getByRole('button', { name: t.clear }).click();
+  await expect(page).toHaveURL(/\/admin\/departments$/);
+});
+
+test('shouldCaptureDepartmentsScreenshotsOnDesktopAndMobile', async ({ page }) => {
+  await loginAsAdmin(page);
+  for (const [label, size] of [
+    ['1440', { width: 1440, height: 1000 }],
+    ['375', { width: 375, height: 900 }],
+  ] as const) {
+    await page.setViewportSize(size);
+    await page.goto('/admin/departments');
+    await expect(page.getByRole('heading', { name: t.title })).toBeVisible();
+    await page.screenshot({
+      path: `../.claude/work/department-redesign/screenshots/departments-${label}.png`,
+      fullPage: true,
+    });
+  }
 });

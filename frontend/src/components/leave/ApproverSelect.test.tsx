@@ -144,3 +144,70 @@ describe('ApproverSelect', () => {
     expect(screen.getByRole('combobox')).not.toHaveAttribute('aria-required');
   });
 });
+
+// onSearch 指定時(部署責任者)は入力で外れた選択を、確定せず離れたとき元に戻す。未指定(휴가 승인자)は従来どおり
+function SearchHarness(props: {
+  onChangeSpy: (value: UserSummary | null) => void;
+  withSearch?: boolean;
+}) {
+  const [value, setValue] = useState<UserSummary | null>(null);
+  return (
+    <>
+      <ApproverSelect
+        id="approver"
+        value={value}
+        onChange={(next) => {
+          setValue(next);
+          props.onChangeSpy(next);
+        }}
+        candidates={CANDIDATES}
+        status="success"
+        onRetry={vi.fn()}
+        onSearch={props.withSearch === false ? undefined : vi.fn()}
+      />
+      <button type="button">外側</button>
+    </>
+  );
+}
+
+describe('ApproverSelect(onSearch 指定時の blur 復元)', () => {
+  async function selectSato(ui: ReturnType<typeof userEvent.setup>) {
+    await ui.click(screen.getByRole('combobox'));
+    await ui.click(screen.getByRole('option', { name: /佐藤/ }));
+  }
+
+  it('shouldRestorePreviousManagerWhenTypedTextLeftWithoutSelection', async () => {
+    const ui = userEvent.setup();
+    const spy = vi.fn();
+    render(<SearchHarness onChangeSpy={spy} />);
+    await selectSato(ui);
+    await ui.type(screen.getByRole('combobox'), 'x');
+    expect(spy).toHaveBeenLastCalledWith(null);
+    // 候補を選ばず外側をクリック(blur)
+    await ui.click(screen.getByRole('button', { name: '外側' }));
+    expect(spy).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'u-1' }));
+    expect(screen.getByRole('combobox')).toHaveValue('佐藤花子 (10001) / 営業部');
+  });
+
+  it('shouldKeepClearedSelectionWhenInputEmptiedBeforeLeaving', async () => {
+    const ui = userEvent.setup();
+    const spy = vi.fn();
+    render(<SearchHarness onChangeSpy={spy} />);
+    await selectSato(ui);
+    await ui.clear(screen.getByRole('combobox'));
+    await ui.click(screen.getByRole('button', { name: '外側' }));
+    // 入力欄を空にしたのは意図的な解除なので復元しない
+    expect(spy).toHaveBeenLastCalledWith(null);
+  });
+
+  it('shouldNotRestoreWhenOnSearchIsNotGiven', async () => {
+    const ui = userEvent.setup();
+    const spy = vi.fn();
+    render(<SearchHarness onChangeSpy={spy} withSearch={false} />);
+    await selectSato(ui);
+    await ui.type(screen.getByRole('combobox'), 'x');
+    await ui.click(screen.getByRole('button', { name: '外側' }));
+    // 承認者向け(onSearch なし)は従来どおり、離れると選択は外れたまま
+    expect(spy).toHaveBeenLastCalledWith(null);
+  });
+});

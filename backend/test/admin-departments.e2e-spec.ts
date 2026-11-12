@@ -5,7 +5,12 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { Prisma, type PrismaClient } from '../src/generated/prisma/client.js';
-import { createTestPrisma, TestDataTracker, uniqueSuffix } from './db/db-helpers.js';
+import {
+  captureDbError,
+  createTestPrisma,
+  TestDataTracker,
+  uniqueSuffix,
+} from './db/db-helpers.js';
 import { createTestApp, createTokenSigner, DEFAULT_NOW, FixedClock } from './e2e-helpers.js';
 
 interface DepartmentBody {
@@ -33,6 +38,7 @@ describe('管理者 部署 API(e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaClient;
   let tracker: TestDataTracker;
+  let adminId: string;
   let adminToken: string;
   let employeeToken: string;
   const clock = new FixedClock();
@@ -43,6 +49,7 @@ describe('管理者 部署 API(e2e)', () => {
     tracker = new TestDataTracker(prisma);
     app = await createTestApp(clock);
     const admin = await tracker.createUser({ role: 'ADMIN', mustChangePassword: false });
+    adminId = admin.id;
     adminToken = await sign(admin.id);
     const employee = await tracker.createUser({ mustChangePassword: false });
     employeeToken = await sign(employee.id);
@@ -517,6 +524,358 @@ describe('管理者 部署 API(e2e)', () => {
       expect((res?.body as ErrorBody).code).toBe('DEPARTMENT_HAS_MEMBERS');
       const after = await prisma.user.findUniqueOrThrow({ where: { id: member.id } });
       expect(after.departmentId).toBe(department.id);
+    });
+  });
+
+  describe('説明・責任者・並び替え・要約(DEPT-002・004・005・007〜009)', () => {
+    it('shouldCreateWithDescriptionAndManagerAndNormalizeBlankDescription', async () => {
+      const manager = await tracker.createUser({ name: '責任者A' });
+      const res = await api('post')
+        .send({
+          code: `M${uniqueSuffix()}`,
+          name: `部署${uniqueSuffix()}`,
+          description: ' 説明 ',
+          managerId: manager.id,
+        })
+        .expect(201);
+      const body = res.body as DepartmentBody & { description: string | null; manager: unknown };
+      tracker.departmentIds.push(body.id);
+      expect(body.description).toBe('説明');
+      expect(body.manager).toEqual({ id: manager.id, empId: manager.empId, name: '責任者A' });
+      const blank = await api('patch', `/${body.id}`).send({ description: '  ' }).expect(200);
+      expect((blank.body as { description: unknown }).description).toBeNull();
+    });
+
+    it('shouldReturn400InvalidManagerWithoutSideEffectsForUnknownOrInactiveUser', async () => {
+      const inactive = await tracker.createUser({ isActive: false });
+      const dept = await createViaApi();
+      for (const managerId of [randomUUID(), inactive.id]) {
+        const patched = await api('patch', `/${dept.id}`).send({ managerId }).expect(400);
+        expect((patched.body as ErrorBody).code).toBe('INVALID_MANAGER');
+        const code = `X${uniqueSuffix()}`;
+        const created = await api('post')
+          .send({ code, name: `部署${uniqueSuffix()}`, managerId })
+          .expect(400);
+        expect((created.body as ErrorBody).code).toBe('INVALID_MANAGER');
+        // 失敗した登録では部署が作られない
+        expect(await prisma.department.count({ where: { code } })).toBe(0);
+      }
+      // 失敗した修正では既存の責任者(未設定)が変わらない
+      const after = await api('get', `/${dept.id}`).expect(200);
+      expect((after.body as { manager: unknown }).manager).toBeNull();
+    });
+
+    it('shouldKeepExistingManagerWhenPatchWithInvalidManagerFails', async () => {
+      const manager = await tracker.createUser();
+      const inactive = await tracker.createUser({ isActive: false });
+      const dept = await createViaApi();
+      await api('patch', `/${dept.id}`).send({ managerId: manager.id }).expect(200);
+      for (const managerId of [inactive.id, randomUUID()]) {
+        await api('patch', `/${dept.id}`).send({ managerId }).expect(400);
+      }
+      const after = await api('get', `/${dept.id}`).expect(200);
+      expect((after.body as { manager: { id: string } }).manager.id).toBe(manager.id);
+    });
+
+    it('shouldReturn400ValidationErrorForMalformedManagerIdOnCreate', async () => {
+      const code = `X${uniqueSuffix()}`;
+      const res = await api('post')
+        .send({ code, name: `部署${uniqueSuffix()}`, managerId: 'abc' })
+        .expect(400);
+      expect((res.body as ErrorBody).code).toBe('VALIDATION_ERROR');
+      expect((res.body as { details: { field: string }[] }).details[0].field).toBe('managerId');
+      expect(await prisma.department.count({ where: { code } })).toBe(0);
+    });
+
+    it('shouldAcceptManagerFromSameDeptOtherDeptOrRequesterItself', async () => {
+      const dept = await createViaApi();
+      const other = await createViaApi();
+      const sameDeptMember = await tracker.createUser({ departmentId: dept.id });
+      const otherDeptMember = await tracker.createUser({ departmentId: other.id });
+      for (const managerId of [sameDeptMember.id, otherDeptMember.id, adminId]) {
+        const res = await api('patch', `/${dept.id}`).send({ managerId }).expect(200);
+        const manager = (res.body as { manager: Record<string, unknown> }).manager;
+        expect(manager.id).toBe(managerId);
+        expect(Object.keys(manager).sort()).toEqual(['empId', 'id', 'name']);
+      }
+    });
+
+    it('shouldAllowSameManagerOnMultipleDepartmentsAndReleaseWithNull', async () => {
+      const manager = await tracker.createUser();
+      const a = await createViaApi();
+      const b = await createViaApi();
+      await api('patch', `/${a.id}`).send({ managerId: manager.id }).expect(200);
+      await api('patch', `/${b.id}`).send({ managerId: manager.id }).expect(200);
+      // 別の部署の責任者を兼ねても、もう一方の責任者は維持される
+      const keptA = await api('get', `/${a.id}`).expect(200);
+      expect((keptA.body as { manager: { id: string } }).manager.id).toBe(manager.id);
+      const released = await api('patch', `/${a.id}`).send({ managerId: null }).expect(200);
+      expect((released.body as { manager: unknown }).manager).toBeNull();
+      const keptB = await api('get', `/${b.id}`).expect(200);
+      expect((keptB.body as { manager: { id: string } }).manager.id).toBe(manager.id);
+    });
+
+    it('shouldRecordManagerOnSameUserForDepartmentsAndBlockDeletingManagerAtDb', async () => {
+      const manager = await tracker.createUser();
+      const a = await createViaApi();
+      const b = await createViaApi();
+      // 同じ社員を 2 部署の責任者に直接設定する(UNIQUE 制約なし)
+      await prisma.$executeRaw`UPDATE departments SET manager_id = ${manager.id}::uuid WHERE id IN (${a.id}::uuid, ${b.id}::uuid)`;
+      expect(await prisma.department.count({ where: { managerId: manager.id } })).toBe(2);
+      // 責任者に指定された部署の削除は成功する
+      await api('delete', `/${a.id}`).expect(204);
+      // 責任者に指定された社員の物理削除は FK RESTRICT で失敗する
+      const info = await captureDbError(() => prisma.user.delete({ where: { id: manager.id } }));
+      expect(info.code).toBe('P2003');
+      // ON DELETE RESTRICT の違反は SQLSTATE 23001(restrict_violation)
+      expect(info.sqlState).toBe('23001');
+      expect(await prisma.user.count({ where: { id: manager.id } })).toBe(1);
+      const indexes = await prisma.$queryRaw<{ indexname: string }[]>`
+        SELECT indexname FROM pg_indexes
+        WHERE tablename = 'departments' AND indexname = 'departments_manager_id_idx'`;
+      expect(indexes).toHaveLength(1);
+    });
+
+    it('shouldReturn400ForMalformedManagerId', async () => {
+      const dept = await createViaApi();
+      const res = await api('patch', `/${dept.id}`).send({ managerId: 'abc' }).expect(400);
+      expect((res.body as { details: { field: string }[] }).details[0].field).toBe('managerId');
+    });
+
+    it('shouldReturn409ProtectedBeforeManagerCheckForUnassigned', async () => {
+      const unassigned = await prisma.department.findUniqueOrThrow({
+        where: { code: 'UNASSIGNED' },
+      });
+      const res = await api('patch', `/${unassigned.id}`)
+        .send({ managerId: randomUUID() })
+        .expect(409);
+      expect((res.body as ErrorBody).code).toBe('PROTECTED_DEPARTMENT');
+    });
+
+    it('shouldSortByMemberCountUsingActiveMembersOnly', async () => {
+      const prefix = `S${uniqueSuffix().slice(0, 6)}`;
+      const none = await createViaApi(`${prefix}A`);
+      const one = await createViaApi(`${prefix}B`);
+      const two = await createViaApi(`${prefix}C`);
+      await tracker.createUser({ departmentId: one.id });
+      await tracker.createUser({ departmentId: two.id });
+      await tracker.createUser({ departmentId: two.id });
+      // 無効な社員は数えない(none は 0 のまま)
+      await tracker.createUser({ departmentId: none.id, isActive: false });
+      const desc = await api('get', `?code=${prefix}&sort=memberCount&order=desc`).expect(200);
+      expect((desc.body as PageBody).items.map((d) => d.code)).toEqual([
+        `${prefix}C`,
+        `${prefix}B`,
+        `${prefix}A`,
+      ]);
+      const asc = await api('get', `?code=${prefix}&sort=memberCount&order=asc`).expect(200);
+      expect((asc.body as PageBody).items.map((d) => d.code)).toEqual([
+        `${prefix}A`,
+        `${prefix}B`,
+        `${prefix}C`,
+      ]);
+    });
+
+    it('shouldOrderTiedMemberCountByCodeAscInBothDirections', async () => {
+      const prefix = `U${uniqueSuffix().slice(0, 6)}`;
+      const tieB = await createViaApi(`${prefix}B`);
+      const tieA = await createViaApi(`${prefix}A`);
+      await createViaApi(`${prefix}C`);
+      await tracker.createUser({ departmentId: tieB.id });
+      await tracker.createUser({ departmentId: tieA.id });
+      // 件数が同じ部署は code 昇順(並び順の方向に関係なく)
+      const desc = await api('get', `?code=${prefix}&sort=memberCount&order=desc`).expect(200);
+      expect((desc.body as PageBody).items.map((d) => d.code)).toEqual([
+        `${prefix}A`,
+        `${prefix}B`,
+        `${prefix}C`,
+      ]);
+      const asc = await api('get', `?code=${prefix}&sort=memberCount&order=asc`).expect(200);
+      expect((asc.body as PageBody).items.map((d) => d.code)).toEqual([
+        `${prefix}C`,
+        `${prefix}A`,
+        `${prefix}B`,
+      ]);
+      // 2 ページ目も同じ並びの続きになる
+      const page2 = await api(
+        'get',
+        `?code=${prefix}&sort=memberCount&order=desc&limit=1&page=2`,
+      ).expect(200);
+      expect(page2.body).toMatchObject({ totalCount: 3, page: 2 });
+      expect((page2.body as PageBody).items.map((d) => d.id)).toEqual([tieB.id]);
+    });
+
+    it('shouldSortByUpdatedAtDescendingSoRecentlyUpdatedComesFirst', async () => {
+      const prefix = `P${uniqueSuffix().slice(0, 6)}`;
+      const first = await createViaApi(`${prefix}A`);
+      const second = await createViaApi(`${prefix}B`);
+      const third = await createViaApi(`${prefix}C`);
+      // 最後に作成した third より後に first を修正する
+      await api('patch', `/${first.id}`)
+        .send({ name: `改名${uniqueSuffix()}` })
+        .expect(200);
+      const res = await api('get', `?code=${prefix}&sort=updatedAt&order=desc`).expect(200);
+      const ids = (res.body as PageBody).items.map((d) => d.id);
+      expect(ids[0]).toBe(first.id);
+      expect(ids).toHaveLength(3);
+      expect(ids.indexOf(third.id)).toBeLessThan(ids.indexOf(second.id));
+    });
+
+    it('shouldPaginateMemberCountSortWithNameSearchAndIncludeDescriptionAndManager', async () => {
+      const suffix = uniqueSuffix();
+      const manager = await tracker.createUser({ name: '責任者B', empId: `MG${suffix}` });
+      const two = await createViaApi(undefined, `${suffix}二人部署`);
+      const one = await createViaApi(undefined, `${suffix}一人部署`);
+      const zero = await createViaApi(undefined, `${suffix}ゼロ部署`);
+      await tracker.createUser({ departmentId: two.id });
+      await tracker.createUser({ departmentId: two.id });
+      await tracker.createUser({ departmentId: one.id });
+      await api('patch', `/${zero.id}`)
+        .send({ description: '説明あり', managerId: manager.id })
+        .expect(200);
+      // 検索対象外の部署(名前が一致しない)は件数に含まれない
+      await createViaApi();
+
+      const res = await api('get', '').query({
+        name: suffix,
+        sort: 'memberCount',
+        order: 'desc',
+        page: 2,
+        limit: 2,
+      });
+      expect(res.status).toBe(200);
+      const body = res.body as PageBody & {
+        items: (DepartmentBody & { description: string | null; manager: unknown })[];
+      };
+      expect(body.totalCount).toBe(3);
+      expect(body.items.map((d) => d.id)).toEqual([zero.id]);
+      expect(body.items[0]).toMatchObject({
+        description: '説明あり',
+        manager: { id: manager.id, empId: manager.empId, name: '責任者B' },
+        memberCount: 0,
+      });
+    });
+
+    it('shouldSortByNameDescAndReturn400ForInvalidSortOrOrder', async () => {
+      const prefix = `N${uniqueSuffix().slice(0, 6)}`;
+      await createViaApi(`${prefix}1`, `${prefix}あ`);
+      await createViaApi(`${prefix}2`, `${prefix}い`);
+      const res = await api('get', `?code=${prefix}&sort=name&order=desc`).expect(200);
+      expect((res.body as PageBody).items.map((d) => d.code)).toEqual([`${prefix}2`, `${prefix}1`]);
+      const bad = await api('get', '?sort=id').expect(400);
+      expect((bad.body as { details: { field: string }[] }).details[0].field).toBe('sort');
+      await api('get', '?order=up').expect(400);
+    });
+
+    it('shouldReturnSummaryExcludingUnassignedFromDepartmentCount', async () => {
+      const res = await api('get', '/summary').expect(200);
+      const body = res.body as { departmentCount: number; memberCount: number };
+      expect(body.departmentCount).toBe(
+        await prisma.department.count({ where: { code: { not: 'UNASSIGNED' } } }),
+      );
+      expect(body.memberCount).toBe(await prisma.user.count({ where: { isActive: true } }));
+    });
+
+    it('shouldListOnlyActiveMembersOrderedByEmpId', async () => {
+      const dept = await createViaApi();
+      const suffix = uniqueSuffix();
+      const second = await tracker.createUser({ departmentId: dept.id, empId: `Z${suffix}B` });
+      const first = await tracker.createUser({ departmentId: dept.id, empId: `Z${suffix}A` });
+      await tracker.createUser({ departmentId: dept.id, isActive: false });
+      const res = await api('get', `/${dept.id}/members`).expect(200);
+      const body = res.body as {
+        items: { id: string; empId: string; name: string }[];
+        totalCount: number;
+      };
+      expect(body.totalCount).toBe(2);
+      expect(body.items.map((m) => m.empId)).toEqual([first.empId, second.empId]);
+      expect(Object.keys(body.items[0]).sort()).toEqual(['empId', 'id', 'name']);
+      await api('get', `/${randomUUID()}/members`).expect(404);
+      await api('get', '/not-a-uuid/members').expect(400);
+    });
+
+    it('shouldReturnActiveCandidatesIncludingAdminWithoutExtraFields', async () => {
+      const keyword = `KW${uniqueSuffix()}`;
+      const admin = await tracker.createUser({
+        role: 'ADMIN',
+        name: `${keyword}管理`,
+        mustChangePassword: false,
+      });
+      await tracker.createUser({ name: `${keyword}退職`, isActive: false });
+      const res = await api(
+        'get',
+        `/manager-candidates?keyword=${encodeURIComponent(keyword.toLowerCase())}`,
+      ).expect(200);
+      const body = res.body as Record<string, unknown>[];
+      expect(body).toHaveLength(1);
+      expect(Object.keys(body[0]).sort()).toEqual(['departmentName', 'empId', 'id', 'name']);
+      expect(body[0].id).toBe(admin.id);
+      const tooLong = await api('get', `/manager-candidates?keyword=${'a'.repeat(101)}`).expect(
+        400,
+      );
+      expect((tooLong.body as { details: { field: string }[] }).details[0].field).toBe('keyword');
+    });
+
+    it('shouldMatchCandidatesByEmpIdPartialAndTreatBlankKeywordAsNoCondition', async () => {
+      const empKey = `Q${uniqueSuffix()}`;
+      const target = await tracker.createUser({ empId: `${empKey}X1` });
+      // 部分一致(社員番号の途中)
+      const byEmpId = await api(
+        'get',
+        `/manager-candidates?keyword=${encodeURIComponent(empKey.slice(3))}`,
+      ).expect(200);
+      expect((byEmpId.body as { id: string }[]).map((c) => c.id)).toEqual([target.id]);
+      // 空白だけの検索語は条件なし(有効な社員の全件。上限 100)
+      const blank = await api('get', '/manager-candidates?keyword=%20%20').expect(200);
+      const activeCount = await prisma.user.count({ where: { isActive: true } });
+      expect((blank.body as unknown[]).length).toBe(Math.min(100, activeCount));
+    });
+
+    it('shouldReturn403ForEmployeeOnNewEndpoints', async () => {
+      for (const path of ['/summary', '/manager-candidates', `/${randomUUID()}/members`]) {
+        await api('get', path, employeeToken).expect(403);
+      }
+    });
+
+    it('shouldReturn403ForEmployeeWhenSettingManagerOnCreateOrUpdate', async () => {
+      const manager = await tracker.createUser();
+      const code = `X${uniqueSuffix()}`;
+      await api('post', '', employeeToken)
+        .send({ code, name: `部署${uniqueSuffix()}`, managerId: manager.id })
+        .expect(403);
+      expect(await prisma.department.count({ where: { code } })).toBe(0);
+      const dept = await createViaApi();
+      await api('patch', `/${dept.id}`, employeeToken).send({ managerId: manager.id }).expect(403);
+      const after = await api('get', `/${dept.id}`).expect(200);
+      expect((after.body as { manager: unknown }).manager).toBeNull();
+    });
+
+    it('shouldReturn401WithoutTokenOnNewEndpoints', async () => {
+      const server = app.getHttpServer();
+      await request(server).get(`${PATH}/summary`).expect(401);
+      await request(server).get(`${PATH}/manager-candidates`).expect(401);
+      await request(server).get(`${PATH}/${randomUUID()}/members`).expect(401);
+      await request(server)
+        .post(PATH)
+        .send({ code: 'X', name: 'x', managerId: randomUUID() })
+        .expect(401);
+      await request(server)
+        .patch(`${PATH}/${randomUUID()}`)
+        .send({ managerId: randomUUID() })
+        .expect(401);
+    });
+
+    it('shouldReturnSummaryWithSameBodyWhenNameQueryIsGiven', async () => {
+      const plain = await api('get', '/summary').expect(200);
+      const withQuery = await api('get', '/summary?name=存在しない部署名').expect(200);
+      expect(withQuery.body).toEqual(plain.body);
+    });
+
+    it('shouldDeleteDepartmentEvenWhenItHasManager', async () => {
+      const manager = await tracker.createUser();
+      const dept = await createViaApi();
+      await api('patch', `/${dept.id}`).send({ managerId: manager.id }).expect(200);
+      await api('delete', `/${dept.id}`).expect(204);
     });
   });
 });

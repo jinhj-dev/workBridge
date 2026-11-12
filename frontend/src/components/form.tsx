@@ -23,6 +23,10 @@ export const secondaryButtonClass =
 export const primaryOutlineButtonClass =
   'rounded-lg border border-primary-100 bg-white font-bold text-primary-100 hover:bg-primary-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100 disabled:cursor-not-allowed disabled:border-general-50 disabled:text-general-60 disabled:hover:bg-white';
 
+// 09 §3 Button の Danger アウトライン(白地 + danger の枠・文字)。削除など取り消せない操作の入口に使う
+export const dangerOutlineButtonClass =
+  'rounded-lg border border-danger-100 bg-white font-bold text-danger-100 hover:bg-danger-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger-100 disabled:cursor-not-allowed disabled:border-general-50 disabled:text-general-60 disabled:hover:bg-white';
+
 // モーダル footer のボタン(詳細・申請モーダル共通)。高さ 40
 export const modalPrimaryButtonClass = `${primaryButtonClass} flex h-10 items-center justify-center gap-2 px-4 text-sm/5 disabled:cursor-not-allowed disabled:bg-primary-60`;
 export const modalSecondaryButtonClass = `${secondaryButtonClass} h-10 px-4 text-sm/5`;

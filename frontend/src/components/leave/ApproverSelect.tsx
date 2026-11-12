@@ -7,7 +7,16 @@ import { Skeleton } from '@/components/Skeleton';
 import type { UserSummary } from '@/lib/api/types';
 import { messages } from '@/messages/ja';
 
-const t = messages.leaves.approverSelect;
+const defaultTexts = messages.leaves.approverSelect;
+
+// 文言の差し替え用(省略時は承認者向け)
+export interface ApproverSelectTexts {
+  placeholder: string;
+  listLabel: string;
+  empty: string;
+  noMatch: string;
+  loadError: string;
+}
 
 interface ApproverSelectProps {
   id: string;
@@ -18,10 +27,14 @@ interface ApproverSelectProps {
   candidates: UserSummary[];
   status: 'loading' | 'error' | 'success';
   onRetry: () => void;
+  texts?: ApproverSelectTexts;
+  // 指定すると候補の絞り込みをサーバー側で行う: 入力中の文字を通知し(確定・取消時は空文字)、
+  // candidates は絞り込み済みとして扱う。0 件でも入力欄は残す
+  onSearch?: (keyword: string) => void;
 }
 
 function optionLabel(user: UserSummary): string {
-  return t.option(user.name, user.empId, user.departmentName);
+  return defaultTexts.option(user.name, user.empId, user.departmentName);
 }
 
 // 09 §3 Autocomplete 相当。承認者の候補を氏名・社員番号で絞り込んで選ぶ(ARIA combobox)
@@ -34,13 +47,18 @@ export function ApproverSelect({
   candidates,
   status,
   onRetry,
+  texts,
+  onSearch,
 }: ApproverSelectProps) {
+  const t = texts ?? defaultTexts;
   const listId = useId();
   // 入力中の文字。null のときは選択済みの承認者を表示する
   const [editing, setEditing] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const listRef = useRef<HTMLUListElement>(null);
+  // 入力で選択が外れる直前の値(onSearch 指定時のみ、確定せずに離れたとき復元する)
+  const previousValueRef = useRef<UserSummary | null>(null);
 
   // 候補一覧はフロー内に置くため、開いた直後に Modal 本文のスクロール内で見える位置へ寄せる
   useEffect(() => {
@@ -68,7 +86,7 @@ export function ApproverSelect({
       </div>
     );
   }
-  if (candidates.length === 0) {
+  if (candidates.length === 0 && !onSearch) {
     return (
       <div className="flex flex-col items-start gap-2">
         <p className="flex items-start gap-1.5 text-sm/5 text-general-100">
@@ -81,15 +99,24 @@ export function ApproverSelect({
   }
 
   const keyword = (editing ?? '').trim().toLowerCase();
-  const filtered = keyword
-    ? candidates.filter((c) => c.name.toLowerCase().includes(keyword) || c.empId.includes(keyword))
-    : candidates;
+  const filtered =
+    keyword && !onSearch
+      ? candidates.filter(
+          (c) => c.name.toLowerCase().includes(keyword) || c.empId.includes(keyword),
+        )
+      : candidates;
   const active = Math.min(activeIndex, Math.max(filtered.length - 1, 0));
   const optionId = (index: number) => `${listId}-option-${index}`;
 
-  function select(user: UserSummary) {
-    onChange(user);
+  function stopEditing() {
     setEditing(null);
+    onSearch?.('');
+  }
+
+  function select(user: UserSummary) {
+    previousValueRef.current = null;
+    onChange(user);
+    stopEditing();
     setOpen(false);
   }
 
@@ -111,14 +138,19 @@ export function ApproverSelect({
     } else if (event.key === 'Escape' && open) {
       event.preventDefault();
       setOpen(false);
-      setEditing(null);
+      stopEditing();
     }
   }
 
   function handleBlur(event: FocusEvent<HTMLDivElement>) {
     if (event.currentTarget.contains(event.relatedTarget)) return;
     setOpen(false);
-    setEditing(null);
+    // 入力文字が残ったまま選ばずに離れた場合は元の選択を戻す(空欄にした場合は意図的な解除として維持)
+    if (onSearch && !value && previousValueRef.current && (editing ?? '').trim() !== '') {
+      onChange(previousValueRef.current);
+    }
+    previousValueRef.current = null;
+    stopEditing();
   }
 
   return (
@@ -139,9 +171,13 @@ export function ApproverSelect({
         value={editing ?? (value ? optionLabel(value) : '')}
         onChange={(e) => {
           setEditing(e.target.value);
+          onSearch?.(e.target.value);
           setActiveIndex(0);
           setOpen(true);
-          if (value) onChange(null);
+          if (value) {
+            previousValueRef.current = value;
+            onChange(null);
+          }
         }}
         onFocus={() => setOpen(true)}
         onClick={() => setOpen(true)}

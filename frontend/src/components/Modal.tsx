@@ -12,6 +12,7 @@ interface ModalProps {
   footer: ReactNode;
   icon?: ReactNode; // タイトル左のアイコン(24px。装飾なので aria-hidden)
   size?: 'md' | 'lg'; // md: 最大 420px(既定) / lg: 最大 640px
+  subtitle?: ReactNode; // タイトル直下の補足(バッジなど)
 }
 
 const SIZE_CLASS = { md: 'max-w-105', lg: 'max-w-160' } as const;
@@ -19,7 +20,16 @@ const SIZE_CLASS = { md: 'max-w-105', lg: 'max-w-160' } as const;
 // 09 のモーダル規約: タイトル + 閉じる(X) + 本文 + 右寄せのボタン(上に区切り線)。
 // 本文だけが縦スクロールし、ヘッダー・フッターは固定。外側クリックでは閉じない。
 // <dialog> の showModal でフォーカストラップと Esc での閉じる操作をブラウザに任せる。
-export function Modal({ open, title, onClose, children, footer, icon, size = 'md' }: ModalProps) {
+export function Modal({
+  open,
+  title,
+  onClose,
+  children,
+  footer,
+  icon,
+  size = 'md',
+  subtitle,
+}: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null);
   // 同じ画面に複数のモーダルがあっても見出しの id が重ならないようにする
   const titleId = useId();
@@ -50,9 +60,12 @@ export function Modal({ open, title, onClose, children, footer, icon, size = 'md
               {icon}
             </span>
           )}
-          <h2 id={titleId} className="text-xl/7 font-bold">
-            {title}
-          </h2>
+          <div className="min-w-0">
+            <h2 id={titleId} className="text-xl/7 font-bold">
+              {title}
+            </h2>
+            {subtitle && <div className="mt-1">{subtitle}</div>}
+          </div>
         </div>
         <button
           type="button"

@@ -31,6 +31,8 @@ function dept(overrides: Partial<DepartmentDetail>): DepartmentDetail {
     memberCount: 0,
     inactiveMemberCount: 0,
     isSystem: false,
+    description: null,
+    manager: null,
     createdAt: '2026-11-01T09:00:00+09:00',
     updatedAt: '2026-11-08T09:00:00+09:00',
     ...overrides,
@@ -45,12 +47,27 @@ function pageOf(items: DepartmentDetail[], page = 1, totalPages = 1): Paginated<
   return { items, page, limit: 20, totalCount: items.length, totalPages };
 }
 
+const SUMMARY = { departmentCount: 8, memberCount: 120 };
+
+// 要約(API-DEPT-007)・所属社員(API-DEPT-008)・一覧を振り分ける
+function respond(items: DepartmentDetail[], path: string, init?: RequestInit) {
+  if (init?.method) return Promise.resolve(undefined);
+  if (path.startsWith('/admin/departments/summary')) return Promise.resolve(SUMMARY);
+  if (path.startsWith('/admin/departments/manager-candidates')) return Promise.resolve([]);
+  if (path.includes('/members')) {
+    return Promise.resolve({
+      items: [{ id: 'u-1', empId: '00001', name: '山田 太郎' }],
+      page: 1,
+      limit: 20,
+      totalCount: 1,
+      totalPages: 1,
+    });
+  }
+  return Promise.resolve(pageOf(items));
+}
+
 function mockList(items: DepartmentDetail[]) {
-  apiFetch.mockImplementation((path: string, init?: RequestInit) => {
-    if (init?.method) return Promise.resolve(undefined);
-    expect(path).toContain('/admin/departments');
-    return Promise.resolve(pageOf(items));
-  });
+  apiFetch.mockImplementation((path: string, init?: RequestInit) => respond(items, path, init));
 }
 
 function renderView() {
@@ -87,7 +104,13 @@ describe('DepartmentsView(SCR-010 部署管理)', () => {
     renderView();
     const row = await waitFor(() => tableRow('未所属'));
     expect(within(row).getByText(t.system)).toBeInTheDocument();
-    expect(within(row).queryByRole('button')).not.toBeInTheDocument();
+    // 未所属は詳細と所属社員の確認のみ(編集・削除なし)
+    expect(within(row).queryByRole('button', { name: t.editLabel('未所属') })).toBeNull();
+    expect(within(row).queryByRole('button', { name: t.deleteLabel('未所属') })).toBeNull();
+    expect(within(row).getByRole('button', { name: t.detailLabel('未所属') })).toBeInTheDocument();
+    expect(
+      within(row).getByRole('button', { name: t.viewMembersLabel('未所属') }),
+    ).toBeInTheDocument();
   });
 
   it('shouldShowEmptyMessageWhenNoDepartments', async () => {
@@ -102,16 +125,105 @@ describe('DepartmentsView(SCR-010 部署管理)', () => {
     expect(await screen.findByRole('button', { name: messages.common.retry })).toBeInTheDocument();
   });
 
-  it('shouldPushTrimmedConditionsAndPageOneToUrlWhenSearching', async () => {
+  it('shouldReplaceUrlWithTrimmedNameAndPageOneAfterDebounce', async () => {
     nav.search = 'page=3';
     mockList([EMPTY_DEPT]);
     renderView();
     await waitFor(() => tableRow('開発部'));
     const user = userEvent.setup();
-    await user.type(screen.getAllByLabelText(t.code)[0], ' dev ');
-    await user.type(screen.getAllByLabelText(t.name)[0], '開発');
-    await user.click(screen.getByRole('button', { name: t.search }));
-    expect(router.push).toHaveBeenCalledWith('/admin/departments?code=dev&name=%E9%96%8B%E7%99%BA');
+    await user.type(screen.getByPlaceholderText(t.searchPlaceholder), ' 開発 ');
+    await waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith('/admin/departments?name=%E9%96%8B%E7%99%BA'),
+    );
+  });
+
+  it('shouldPushSortWithDefaultOrderWhenSortHeaderClicked', async () => {
+    mockList([EMPTY_DEPT]);
+    renderView();
+    await waitFor(() => tableRow('開発部'));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: t.sort.columnLabel(t.memberCount) }));
+    expect(router.push).toHaveBeenCalledWith('/admin/departments?sort=memberCount&order=desc');
+  });
+
+  it('shouldToggleOrderWhenSameSortHeaderClicked', async () => {
+    nav.search = 'sort=updatedAt&order=desc';
+    mockList([EMPTY_DEPT]);
+    renderView();
+    await waitFor(() => tableRow('開発部'));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: t.sort.columnLabel(t.updatedAt) }));
+    expect(router.push).toHaveBeenCalledWith('/admin/departments?sort=updatedAt&order=asc');
+  });
+
+  it('shouldClearAllConditionsWhenClearClicked', async () => {
+    nav.search = 'name=a&sort=updatedAt&order=desc&page=2';
+    mockList([EMPTY_DEPT]);
+    renderView();
+    await waitFor(() => tableRow('開発部'));
+    await userEvent.click(screen.getByRole('button', { name: t.clear }));
+    expect(router.push).toHaveBeenCalledWith('/admin/departments');
+  });
+
+  it('shouldShowSummaryCounts', async () => {
+    mockList([EMPTY_DEPT]);
+    renderView();
+    expect(await screen.findByText('120')).toBeInTheDocument();
+    expect(screen.getByText('8')).toBeInTheDocument();
+  });
+
+  it('shouldKeepListAndShowDashWhenSummaryFails', async () => {
+    apiFetch.mockImplementation((path: string) =>
+      path.startsWith('/admin/departments/summary')
+        ? Promise.reject(new ApiError(500, 'INTERNAL', 'error', []))
+        : Promise.resolve(pageOf([EMPTY_DEPT])),
+    );
+    renderView();
+    await waitFor(() => tableRow('開発部'));
+    await waitFor(() =>
+      expect(screen.getAllByText(messages.common.noValue).length).toBeGreaterThanOrEqual(2),
+    );
+  });
+
+  it('shouldShowDetailModalOfClickedDepartmentOnly', async () => {
+    mockList([
+      dept({
+        id: 'd-1',
+        name: '開発部',
+        description: '開発を担当',
+        manager: { id: 'u-9', empId: '00009', name: '鈴木 健太' },
+      }),
+      dept({ id: 'd-2', code: 'SALES', name: '営業部' }),
+    ]);
+    renderView();
+    // 下部の「選択中の部署情報」は無くなり、詳細ボタンを押すまで何も開かない
+    await waitFor(() => tableRow('開発部'));
+    expect(screen.queryByRole('region', { name: '選択中の部署情報' })).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const user = userEvent.setup();
+    await user.click(
+      within(tableRow('開発部')).getByRole('button', { name: t.detailLabel('開発部') }),
+    );
+    const modal = await screen.findByRole('dialog', { name: t.detailModal.title });
+    expect(within(modal).getByText('鈴木 健太（00009）')).toBeInTheDocument();
+    expect(within(modal).getByText('開発を担当')).toBeInTheDocument();
+    expect(within(modal).queryByText('営業部')).toBeNull();
+    await user.click(within(modal).getAllByRole('button', { name: t.detailModal.close })[1]);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('shouldOpenMembersModalWhenViewMembersClicked', async () => {
+    mockList([EMPTY_DEPT]);
+    renderView();
+    // 所属社員数 0 名でも確認できる。押した行の部署 ID で所属社員を取得する
+    const [button] = await screen.findAllByRole('button', { name: t.viewMembersLabel('開発部') });
+    await userEvent.click(button);
+    expect(await screen.findByText('山田 太郎')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: t.membersModal.title })).toBeInTheDocument();
+    expect(screen.getByText(t.membersModal.subtitle('開発部', 1))).toBeInTheDocument();
+    expect(
+      apiFetch.mock.calls.some(([path]) => String(path).includes('/admin/departments/d-1/members')),
+    ).toBe(true);
   });
 
   it('shouldShowErrorToastWithoutCallingApiWhenDeletingDepartmentWithMembers', async () => {
@@ -155,7 +267,7 @@ describe('DepartmentsView(SCR-010 部署管理)', () => {
       if (init?.method === 'DELETE') {
         return Promise.reject(new ApiError(409, 'DEPARTMENT_HAS_MEMBERS', 'サーバー側の文言', []));
       }
-      return Promise.resolve(pageOf([EMPTY_DEPT]));
+      return respond([EMPTY_DEPT], path, init);
     });
     renderView();
     const user = userEvent.setup();
@@ -167,10 +279,72 @@ describe('DepartmentsView(SCR-010 部署管理)', () => {
     await waitFor(() => expect(listCallCount()).toBeGreaterThanOrEqual(2));
   });
 
+  it('shouldFillEditModalWithSelectedDepartmentDescriptionAndManager', async () => {
+    mockList([
+      dept({
+        id: 'd-1',
+        code: 'DEV',
+        name: '開発部',
+        description: '開発を担当',
+        manager: { id: 'u-9', empId: '00009', name: '鈴木 健太' },
+      }),
+    ]);
+    renderView();
+    const user = userEvent.setup();
+    const [detailButton] = await screen.findAllByRole('button', { name: t.detailLabel('開発部') });
+    await user.click(detailButton);
+    const modal = await screen.findByRole('dialog', { name: t.detailModal.title });
+    await user.click(within(modal).getByRole('button', { name: t.editSelected }));
+    expect(await screen.findByText(t.form.editTitle)).toBeInTheDocument();
+    // 詳細モーダルは閉じて編集モーダルに切り替わる
+    expect(screen.queryByRole('dialog', { name: t.detailModal.title })).toBeNull();
+    expect(screen.getByLabelText(t.code)).toHaveValue('DEV');
+    expect(screen.getByLabelText(t.form.description)).toHaveValue('開発を担当');
+    expect(await screen.findByLabelText(t.form.manager)).toHaveValue('鈴木 健太 (00009)');
+  });
+
+  it('shouldHideEditActionForSystemDepartmentInDetailModal', async () => {
+    mockList([SYSTEM_DEPT, EMPTY_DEPT]);
+    renderView();
+    const user = userEvent.setup();
+    const [detailButton] = await screen.findAllByRole('button', { name: t.detailLabel('未所属') });
+    await user.click(detailButton);
+    const modal = await screen.findByRole('dialog', { name: t.detailModal.title });
+    expect(within(modal).getByText(t.system)).toBeInTheDocument();
+    expect(within(modal).getAllByRole('button', { name: t.detailModal.close }).length).toBe(2);
+    expect(within(modal).queryByRole('button', { name: t.editSelected })).toBeNull();
+  });
+
+  it('shouldShowUnsetManagerAndNoValueDescriptionWhenBothAreEmpty', async () => {
+    mockList([EMPTY_DEPT]);
+    renderView();
+    const row = await waitFor(() => tableRow('開発部'));
+    // 表の責任者・説明は「—」
+    expect(within(row).getAllByText(messages.common.noValue).length).toBeGreaterThanOrEqual(2);
+    const user = userEvent.setup();
+    await user.click(within(row).getByRole('button', { name: t.detailLabel('開発部') }));
+    const modal = await screen.findByRole('dialog', { name: t.detailModal.title });
+    expect(within(modal).getByText(t.managerUnset)).toBeInTheDocument();
+    expect(within(modal).getByText(messages.common.noValue)).toBeInTheDocument();
+  });
+
+  it('shouldApplyDangerStyleToDeleteButtonOnly', async () => {
+    mockList([EMPTY_DEPT]);
+    renderView();
+    const row = await waitFor(() => tableRow('開発部'));
+    expect(within(row).getByRole('button', { name: t.deleteLabel('開発部') })).toHaveClass(
+      'border-danger-100',
+      'text-danger-100',
+    );
+    expect(within(row).getByRole('button', { name: t.detailLabel('開発部') })).not.toHaveClass(
+      'text-danger-100',
+    );
+  });
+
   it('shouldShowLoadingStatusBeforeListArrives', () => {
     apiFetch.mockReturnValue(new Promise(() => {}));
     renderView();
-    expect(screen.getByText(messages.common.loading)).toBeInTheDocument();
+    expect(screen.getAllByText(messages.common.loading).length).toBeGreaterThan(0);
   });
 
   it('shouldRefetchListWhenRetryClicked', async () => {
@@ -184,14 +358,17 @@ describe('DepartmentsView(SCR-010 部署管理)', () => {
   });
 
   it('shouldRestoreConditionsAndPageFromUrl', async () => {
-    nav.search = 'code=sal&name=%E5%96%B6&page=2';
-    apiFetch.mockResolvedValue(pageOf([USED_DEPT], 2, 2));
+    nav.search = 'name=%E5%96%B6&sort=updatedAt&order=desc&page=2';
+    apiFetch.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.startsWith('/admin/departments/summary') ? SUMMARY : pageOf([USED_DEPT], 2, 2),
+      ),
+    );
     renderView();
     await waitFor(() => tableRow('営業部'));
-    expect(screen.getAllByLabelText(t.code)[0]).toHaveValue('sal');
-    expect(screen.getAllByLabelText(t.name)[0]).toHaveValue('営');
-    expect(apiFetch.mock.calls[0][0]).toBe(
-      '/admin/departments?code=sal&name=%E5%96%B6&page=2&limit=20',
+    expect(screen.getByPlaceholderText(t.searchPlaceholder)).toHaveValue('営');
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/admin/departments?name=%E5%96%B6&sort=updatedAt&order=desc&page=2&limit=20',
     );
   });
 
@@ -217,7 +394,7 @@ describe('DepartmentsView(SCR-010 部署管理)', () => {
         if (init?.method === 'DELETE') {
           return Promise.reject(new ApiError(statusCode, code, message, []));
         }
-        return Promise.resolve(pageOf([dept({ id: 'd-1', name: '開発部' })]));
+        return respond([dept({ id: 'd-1', name: '開発部' })], path, init);
       });
       renderView();
       const user = userEvent.setup();
@@ -232,6 +409,8 @@ describe('DepartmentsView(SCR-010 部署管理)', () => {
 
   // 一覧の取得(メソッドなし)の回数
   function listCallCount(): number {
-    return apiFetch.mock.calls.filter(([, init]) => !init?.method).length;
+    return apiFetch.mock.calls.filter(
+      ([path, init]) => !init?.method && String(path).startsWith('/admin/departments?'),
+    ).length;
   }
 });
