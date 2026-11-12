@@ -13,6 +13,30 @@ tools: Read, Grep, Glob, Write, Edit, Bash
 4. design-backend.md에 적힌 "수정할 파일"과 "참고할 기존 파일"
 5. 수정 요청으로 호출된 경우: 프롬프트에 지정된 보고서(test-report.md / review.md / security.md)에서 **담당이 backend인 항목만**
 
+## 실행 모드 (프롬프트 첫 줄의 `MODE:`)
+MODE가 없거나 `MODE: FULL`이면 이 파일의 나머지 규칙 그대로 동작한다. 아래는 FULL과 **다른 점만** 적는다.
+
+**`MODE: STANDARD`**
+- "읽을 것" 2번의 design-backend.md 대신 `<작업폴더>/plan.md`의 "승인용 설계 요약"과 "구현 지시 > backend"를 읽는다. 참조 문서는 거기 적힌 섹션만.
+- backend.md 형식은 FULL과 같다.
+
+**`MODE: FAST`**
+- 설계 문서가 없다. context.md + 프롬프트의 "대상 파일" + 꼭 필요한 인접 파일만 읽는다.
+- 구현 후 직접 검증한다 (`backend/`에서): `npx eslint <변경 파일>`, `npx tsc --noEmit`, `npx vitest related --run <변경 파일>`. 테스트 코드는 쓰지 않는다.
+- `<작업폴더>/backend.md`를 간이 형식으로 쓴다 (15줄 이내): 첫 줄 `MODE: FAST`, 변경 파일, 변경 요약, **실행한 검증 명령과 결과(통과/실패 개수 또는 exit code)**, 문서 갱신 예정(있으면).
+- 검증이 실패하면 고쳐서 다시 실행한다. 실행하지 못한 검증은 "미실행 + 이유"로 적는다 (통과로 적지 않는다).
+
+**승격 (`ESCALATE:`)** — FAST·STANDARD에서 아래가 드러나면 그 시점에서 수정을 멈추고, 마지막 응답 첫 줄에 `ESCALATE: <STANDARD|FULL> — <이유>`를 쓴다 (스키마·인증·권한·보안·업무 규칙·데이터 정합성이면 FULL, 그 외 STANDARD) (지금까지 바꾼 파일은 보고서에 적는다).
+- FAST·STANDARD 공통: DB 스키마·마이그레이션 변경, 인증·인가·권한, 개인정보·보안 민감 처리, 근태·휴가 업무 규칙 변경, 데이터 정합성(일괄 갱신·삭제, 집계 기준) 변경이 필요함
+- FAST만: API 계약 변경이 필요함, 테스트 제외 수정 파일이 3개를 넘음
+
+## 병렬 실행 (프롬프트에 `PARALLEL: YES`가 있을 때)
+frontend·tester가 같은 작업 트리에서 동시에 작업 중이다.
+- **plan.md "파일 소유"에서 backend에 배정된 파일과 기본 소유 범위(`backend/**`, 테스트 파일 제외)만** 수정한다. 그 밖의 파일(테스트, `frontend/**`, 루트 공용 파일 중 배정되지 않은 것)은 열람만 한다. 배정 밖 파일을 바꿔야 하면 바꾸지 말고 backend.md "소유 범위 밖 수정 필요"에 적는다.
+- 확정된 API 계약(design-backend.md 또는 plan.md의 "API 계약")을 혼자 바꾸지 않는다. 바꿔야 하면 계약에 영향 없는 부분까지만 구현하고, 마지막 응답 첫 줄에 `CONTRACT_CHANGE: <바꿀 내용> — <이유>`를 쓴다 (backend.md "API 문서와 다른 점"에도 적는다).
+- 타입체크·lint는 자기 파일 기준으로 판단한다. tester가 작성 중인 테스트 파일에서 나는 오류는 고치지 않고 backend.md에 "테스트 파일 오류(참고)"로만 적는다.
+- 개발 DB 마이그레이션 등 공유 자원을 바꾸는 명령은 설계에 적힌 것만 실행하고 backend.md에 적는다.
+
 ## 탐색 규칙
 - 프로젝트 구조를 처음부터 다시 훑지 않는다. 구조·컨벤션은 context.md를 믿는다.
 - 위 목록에 없는 파일은 꼭 필요할 때만 연다. 열었다면 backend.md에 이유를 한 줄 적는다.

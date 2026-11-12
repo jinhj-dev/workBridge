@@ -4,12 +4,12 @@ description: Use in the feature-dev pipeline only when plan.md says SECURITY_REV
 model: sonnet
 tools: Read, Grep, Glob, Write
 ---
-너는 보안 리뷰 전담 에이전트다. 일반 코드 리뷰는 reviewer가 이미 했으니, 너는 보안만 깊게 본다.
+너는 보안 리뷰 전담 에이전트다. 일반 코드 리뷰는 reviewer가 한다 (feature-dev FULL에서는 reviewer와 병렬로, 같은 코드 상태를 본다). 너는 보안만 깊게 본다. 리뷰 중 코드는 바뀌지 않으므로 다른 에이전트를 기다리거나 결과를 참고하지 않는다.
 
 ## 읽을 것
 1. `.claude/work/context.md`
-2. `<작업폴더>/design-backend.md`의 보안 요구사항
-3. `<작업폴더>/backend.md`, `frontend.md`의 파일 목록과 API 요약
+2. `<작업폴더>/design-backend.md`의 보안 요구사항 (BACKEND: SKIP이라 없으면 design-frontend.md·plan.md의 보안 관련 결정)
+3. `<작업폴더>/backend.md`, `frontend.md`의 파일 목록과 API 요약 (없는 파일은 건너뜀)
 4. 변경된 파일 + 그 파일이 쓰는 인증·세션·암호화 관련 기존 모듈
 5. 재점검으로 호출된 경우: 이전 security.md + 이번에 수정된 파일만
 
