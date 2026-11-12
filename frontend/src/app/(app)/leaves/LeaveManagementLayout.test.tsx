@@ -1,6 +1,7 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApprovalsAccessProvider } from '@/components/layout/ApprovalsAccess';
 import { ToastProvider } from '@/components/Toast';
 import type { Leave, LeaveBalance, Paginated } from '@/lib/api/types';
 import type { AuthUser } from '@/lib/auth/AuthProvider';
@@ -9,7 +10,8 @@ import { LeaveManagementLayout } from './LeaveManagementLayout';
 import { LeavesView } from './LeavesView';
 
 const t = messages.leaveManagement;
-const APPROVER_CHECK = '/leaves/pending-approval?scope=mine&status=PENDING,APPROVED,REJECTED&limit=1';
+const APPROVER_CHECK =
+  '/leaves/pending-approval?scope=mine&status=PENDING,APPROVED,REJECTED&limit=1';
 
 const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn(), back: vi.fn() }));
 const nav = vi.hoisted(() => ({ pathname: '/leaves', search: '' }));
@@ -74,20 +76,16 @@ function mockApi(approverCount: number) {
   });
 }
 
-function tabLabels(): string[] {
-  return within(screen.getByRole('navigation', { name: t.tabsLabel }))
-    .getAllByRole('link')
-    .map((link) => link.textContent ?? '');
-}
-
 function renderLayout(user: AuthUser) {
   auth.user = user;
   const ui = userEvent.setup();
   render(
     <ToastProvider>
-      <LeaveManagementLayout>
-        <LeavesView />
-      </LeaveManagementLayout>
+      <ApprovalsAccessProvider>
+        <LeaveManagementLayout>
+          <LeavesView />
+        </LeaveManagementLayout>
+      </ApprovalsAccessProvider>
     </ToastProvider>,
   );
   return ui;
@@ -105,25 +103,20 @@ beforeEach(() => {
   nav.search = '';
 });
 
-describe('LeaveManagementLayout 承認タブの表示判定(FC-04)', () => {
-  it('shouldShowTwoTabsForEmployeeWithoutApprovalRequests', async () => {
-    mockApi(0);
-    renderLayout(EMPLOYEE);
-    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith(APPROVER_CHECK));
-    expect(await screen.findByRole('link', { name: t.tabCalendar })).toBeInTheDocument();
-    expect(tabLabels()).toEqual([t.tabMine, t.tabCalendar]);
-  });
-
-  it('shouldShowThreeTabsForEmployeeWithApprovalRequests', async () => {
+describe('LeaveManagementLayout 承認画面の表示判定(FC-04)', () => {
+  it('shouldNotRenderInPageTabsForAnyUser', async () => {
     mockApi(1);
     renderLayout(EMPLOYEE);
-    await waitFor(() => expect(tabLabels()).toEqual([t.tabMine, t.tabCalendar, t.tabApprovals]));
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith(APPROVER_CHECK));
+    expect(screen.queryByRole('link', { name: t.tabCalendar })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: t.tabApprovals })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: t.tabMine })).not.toBeInTheDocument();
   });
 
-  it('shouldShowThreeTabsWithoutCheckForAdmin', async () => {
+  it('shouldNotCheckApproverForAdmin', async () => {
     mockApi(0);
     renderLayout(ADMIN);
-    await waitFor(() => expect(tabLabels()).toEqual([t.tabMine, t.tabCalendar, t.tabApprovals]));
+    await screen.findByRole('heading', { name: t.title });
     expect(apiFetch).not.toHaveBeenCalledWith(APPROVER_CHECK);
   });
 
@@ -134,11 +127,20 @@ describe('LeaveManagementLayout 承認タブの表示判定(FC-04)', () => {
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/leaves'));
   });
 
+  it('shouldNotRedirectApproverFromApprovalsPath', async () => {
+    nav.pathname = '/leaves/approvals';
+    mockApi(1);
+    renderLayout(EMPLOYEE);
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith(APPROVER_CHECK));
+    await waitFor(() => expect(screen.getByRole('heading', { name: t.title })).toBeInTheDocument());
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
   it('shouldNotRedirectAdminFromApprovalsPath', async () => {
     nav.pathname = '/leaves/approvals';
     mockApi(0);
     renderLayout(ADMIN);
-    await waitFor(() => expect(tabLabels()).toHaveLength(3));
+    await screen.findByRole('heading', { name: t.title });
     expect(router.replace).not.toHaveBeenCalled();
   });
 });

@@ -77,7 +77,7 @@ beforeEach(() => {
 describe('AppShell 承認待ちバッジ', () => {
   // 承認メニューは休暇管理に統合され、承認待ち件数のバッジは休暇管理の項目に付く
   function leavesLink(): HTMLElement {
-    return within(fixedSidebar()).getByRole('link', { name: new RegExp(nav.leaves) });
+    return within(fixedSidebar()).getByRole('button', { name: new RegExp(nav.leaves) });
   }
 
   it('shouldShowCountBadgeOnLeaveManagementMenu', async () => {
@@ -90,7 +90,9 @@ describe('AppShell 承認待ちバッジ', () => {
   it('shouldNotShowApprovalsMenuInSidebar', () => {
     apiFetch.mockResolvedValue({ items: [], page: 1, limit: 1, totalCount: 3, totalPages: 3 });
     renderShell('authenticated', ADMIN);
-    expect(within(fixedSidebar()).queryByRole('link', { name: /休暇承認/ })).not.toBeInTheDocument();
+    expect(
+      within(fixedSidebar()).queryByRole('link', { name: /休暇承認/ }),
+    ).not.toBeInTheDocument();
   });
 
   it('shouldShow99PlusWhenCountExceeds99', async () => {
@@ -140,7 +142,7 @@ describe('AppShell 承認待ちバッジ', () => {
     renderShell('authenticated', ADMIN);
     await waitFor(() =>
       expect(
-        within(fixedSidebar()).getByRole('link', { name: new RegExp(nav.pendingCount(3)) }),
+        within(fixedSidebar()).getByRole('button', { name: new RegExp(nav.pendingCount(3)) }),
       ).toBeInTheDocument(),
     );
     expect(apiFetch).toHaveBeenCalledWith('/leaves/pending-approval?scope=mine&limit=1');
@@ -239,18 +241,20 @@ describe('AppShell メニュー', () => {
   it('shouldShowFourMenusForEmployeeWithCurrentPage', () => {
     renderShell('authenticated', EMPLOYEE);
     const links = within(fixedSidebar()).getAllByRole('link');
+    // 休暇管理はサブメニュー(自分の休暇・休暇カレンダー。承認は承認者のみ)
     expect(links.map((l) => l.getAttribute('href'))).toEqual([
       '/dashboard',
       '/attendance',
       '/leaves',
+      '/leaves/calendar',
     ]);
     expect(within(fixedSidebar()).getByRole('link', { name: nav.dashboard })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    expect(within(fixedSidebar()).getByRole('link', { name: nav.leaves })).not.toHaveAttribute(
-      'aria-current',
-    );
+    expect(
+      within(fixedSidebar()).getByRole('button', { name: new RegExp(nav.leaves) }),
+    ).toHaveAttribute('aria-expanded', 'false');
     expect(within(fixedSidebar()).queryByText(nav.adminGroup)).not.toBeInTheDocument();
   });
 
@@ -262,6 +266,8 @@ describe('AppShell メニュー', () => {
       '/dashboard',
       '/attendance',
       '/leaves',
+      '/leaves/calendar',
+      '/leaves/approvals',
       '/admin/users',
       '/admin/departments',
       '/admin/attendance',
@@ -386,7 +392,14 @@ describe('AppShell ドロワー', () => {
     expect(hamburger).toHaveAccessibleName(nav.closeMenu);
     expect(drawer).toBeVisible();
 
-    await ui.click(within(drawer as HTMLElement).getByRole('link', { name: nav.leaves }));
+    // 休暇管理は親項目の押下でサブメニューが開閉するだけ(ドロワーは閉じない)。配下の画面を選ぶと閉じる
+    await ui.click(
+      within(drawer as HTMLElement).getByRole('button', { name: new RegExp(nav.leaves) }),
+    );
+    expect(hamburger).toHaveAttribute('aria-expanded', 'true');
+    await ui.click(
+      within(drawer as HTMLElement).getByRole('link', { name: messages.leaveManagement.tabMine }),
+    );
     expect(hamburger).toHaveAttribute('aria-expanded', 'false');
     expect(drawer).not.toBeVisible();
   });

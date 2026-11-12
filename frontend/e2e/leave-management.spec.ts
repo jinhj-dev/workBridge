@@ -70,8 +70,11 @@ async function loginAsAdmin(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/dashboard$/);
 }
 
+// サイドバー(デスクトップ)の休暇管理サブメニュー。画面内のタブは廃止され、切り替えはここで行う
 function leaveTabs(page: Page) {
-  return page.getByRole('navigation', { name: t.tabsLabel });
+  return page
+    .getByRole('navigation', { name: messages.nav.mainLabel })
+    .locator('button[aria-controls] + div');
 }
 
 function calendarTable(page: Page) {

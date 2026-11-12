@@ -20,11 +20,16 @@ async function loginAsAdmin(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/dashboard$/);
 }
 
-// 承認は休暇管理の「承認」タブから開く(サイドバーに承認メニューは無い)
+// 承認はサイドバーの休暇管理サブメニュー「承認」から開く(休暇管理配下の画面では自動で開いている)
+function leaveSubmenu(page: Page) {
+  return page
+    .getByRole('navigation', { name: messages.nav.mainLabel })
+    .locator('button[aria-controls] + div');
+}
+
 async function openApprovalsFromLeaveTabs(page: Page): Promise<void> {
   await page.goto('/leaves');
-  await page
-    .getByRole('navigation', { name: messages.leaveManagement.tabsLabel })
+  await leaveSubmenu(page)
     .getByRole('link', { name: messages.leaveManagement.tabApprovals })
     .click();
   await expect(page).toHaveURL(/\/leaves\/approvals$/);
@@ -41,9 +46,7 @@ test('shouldShowApprovalsTabWithoutLoadError', async ({ page }) => {
   await openApprovalsFromLeaveTabs(page);
 
   await expect(
-    page.getByRole('navigation', { name: messages.leaveManagement.tabsLabel }).getByRole('link', {
-      name: messages.leaveManagement.tabApprovals,
-    }),
+    leaveSubmenu(page).getByRole('link', { name: messages.leaveManagement.tabApprovals }),
   ).toHaveAttribute('aria-current', 'page');
   // サイドバーに「休暇承認」メニューが無いこと(「承認」の一致は承認待ち件数の文言でも起きるため語句を固定する)
   await expect(page.getByRole('navigation', { name: messages.nav.mainLabel })).not.toContainText(
