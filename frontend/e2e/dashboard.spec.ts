@@ -37,10 +37,22 @@ test.describe('ログイン後', () => {
 
   async function expectDashboard(page: Page): Promise<void> {
     await expect(page).toHaveURL(/\/dashboard$/);
-    await expect(page.getByRole('heading', { level: 1, name: t.title })).toBeVisible();
-    for (const title of [t.summary.title, t.attendance.title, t.leave.title, t.pending.title]) {
+    // 見出しは「{挨拶}、{氏名}さん」
+    await expect(page.getByRole('heading', { level: 1, name: /、.+さん$/ })).toBeVisible();
+    for (const title of [
+      t.attendance.title,
+      t.company.title,
+      t.monthly.title,
+      t.leave.title,
+      t.departments.title,
+      t.recent.title,
+    ]) {
       await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible();
     }
+    // 管理者は承認待ちの有無にかかわらず承認待ちカードが見える(件数付きの見出し)
+    await expect(
+      page.getByRole('heading', { level: 2, name: /^承認待ちの申請（\d+件）$/ }),
+    ).toBeVisible();
   }
 
   test('shouldShowDashboardWithAdminSectionsAfterLogin', async ({ page }) => {

@@ -3,6 +3,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
+import { toDbDate } from '../src/common/time/tokyo-date.js';
 import type { PrismaClient } from '../src/generated/prisma/client.js';
 import { createTestPrisma, TestDataTracker } from './db/db-helpers.js';
 import {
@@ -15,6 +16,9 @@ import {
 
 interface SummaryBody {
   date: string;
+  isWorkday: boolean;
+  totalEmployeeCount: number;
+  attendanceRate: number | null;
   clockedInCount: number;
   notClockedInCount: number;
   onLeaveCount: number;
@@ -58,6 +62,7 @@ describe('管理者ダッシュボード API(e2e)', () => {
       role?: 'ADMIN' | 'EMPLOYEE';
       mustChangePassword?: boolean;
       isActive?: boolean;
+      hireDate?: Date;
     } = {},
   ): Promise<{ id: string; token: string }> {
     const user = await tracker.createUser({ mustChangePassword: false, ...overrides });
@@ -72,8 +77,19 @@ describe('管理者ダッシュボード API(e2e)', () => {
     return res.body as SummaryBody;
   }
 
-  function diff(after: SummaryBody, before: SummaryBody): Omit<SummaryBody, 'date'> {
+  function diff(
+    after: SummaryBody,
+    before: SummaryBody,
+  ): Pick<
+    SummaryBody,
+    | 'totalEmployeeCount'
+    | 'clockedInCount'
+    | 'notClockedInCount'
+    | 'onLeaveCount'
+    | 'pendingLeaveCount'
+  > {
     return {
+      totalEmployeeCount: after.totalEmployeeCount - before.totalEmployeeCount,
       clockedInCount: after.clockedInCount - before.clockedInCount,
       notClockedInCount: after.notClockedInCount - before.notClockedInCount,
       onLeaveCount: after.onLeaveCount - before.onLeaveCount,
@@ -112,11 +128,14 @@ describe('管理者ダッシュボード API(e2e)', () => {
   });
 
   it('shouldReturnTokyoDateOfFixedClock', async () => {
-    clock.set('2026-11-09T23:59:59+09:00');
-    expect((await fetchSummary()).date).toBe('2026-11-09');
-    clock.set('2026-11-10T00:00:00+09:00');
-    expect((await fetchSummary()).date).toBe('2026-11-10');
-    clock.set('2026-11-09T09:00:00+09:00');
+    try {
+      clock.set('2026-11-09T23:59:59+09:00');
+      expect((await fetchSummary()).date).toBe('2026-11-09');
+      clock.set('2026-11-10T00:00:00+09:00');
+      expect((await fetchSummary()).date).toBe('2026-11-10');
+    } finally {
+      clock.set('2026-11-09T09:00:00+09:00');
+    }
   });
 
   it('shouldCountActiveUsersByTodayStatusAndAllPendingLeaves', async () => {
@@ -169,10 +188,12 @@ describe('管理者ダッシュボード API(e2e)', () => {
     });
 
     const after = await fetchSummary();
-    // approver(活性・出勤なし・休暇なし)も未出勤に数えられる
+    // approver(活性・出勤なし・休暇なし)も未出勤に数えられる。出勤した半休の d は出勤のみ(排他)、無効な e は対象外
+    expect(after.isWorkday).toBe(true);
     expect(diff(after, before)).toEqual({
+      totalEmployeeCount: 5,
       clockedInCount: 2,
-      onLeaveCount: 2,
+      onLeaveCount: 1,
       notClockedInCount: 2,
       pendingLeaveCount: 2,
     });
@@ -212,10 +233,139 @@ describe('管理者ダッシュボード API(e2e)', () => {
 
     const after = await fetchSummary();
     expect(diff(after, before)).toEqual({
+      totalEmployeeCount: 4,
       clockedInCount: 0,
       onLeaveCount: 0,
       notClockedInCount: 4,
       pendingLeaveCount: 1,
     });
+  });
+
+  it('shouldExcludeUsersWhoseHireDateIsAfterToday', async () => {
+    const before = await fetchSummary();
+    await tracker.createUser({ hireDate: toDbDate('2026-11-10') });
+    await tracker.createUser({ hireDate: toDbDate('2026-11-09') });
+    const after = await fetchSummary();
+    expect(diff(after, before)).toMatchObject({ totalEmployeeCount: 1, notClockedInCount: 1 });
+  });
+
+  it('shouldReturnAttendanceRateWithOneDecimalPlaceFromFixedData', async () => {
+    // 2025-06-02(月)は他テストのデータが無い日付。2026-01-01 入社の既存ユーザーは対象外になる
+    const day = '2025-06-02';
+    clock.set(`${day}T10:00:00+09:00`);
+    try {
+      // 対象者が 0 人の状態から始める(2026-01-01 入社の承認者は 2025-06-02 時点では対象外)
+      const before = await fetchSummary();
+      expect(before.totalEmployeeCount).toBe(0);
+
+      const approver = await createUser();
+      const a = await createUser({ hireDate: toDbDate('2025-01-01') });
+      const b = await createUser({ hireDate: toDbDate('2025-01-01') });
+      await createUser({ hireDate: toDbDate('2025-01-01') });
+
+      await insertAttendance(prisma, {
+        userId: a.id,
+        workDate: day,
+        clockIn: `${day}T09:00:00+09:00`,
+      });
+      await insertLeave(prisma, {
+        userId: b.id,
+        approverId: approver.id,
+        status: 'APPROVED',
+        startDate: day,
+        days: 1,
+      });
+      // 3 人目は出勤・休暇なし(未出勤)
+      const res = await fetchSummary();
+      expect(res.date).toBe(day);
+      expect(res.isWorkday).toBe(true);
+      expect(res.totalEmployeeCount).toBe(3);
+      expect(res.clockedInCount).toBe(1);
+      expect(res.onLeaveCount).toBe(1);
+      expect(res.notClockedInCount).toBe(1);
+      expect(res.attendanceRate).toBe(33.3);
+    } finally {
+      clock.set('2026-11-09T09:00:00+09:00');
+    }
+  });
+
+  it('shouldReturnExactlyEightResponseKeys', async () => {
+    const res = await request(app.getHttpServer())
+      .get(SUMMARY_PATH)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(Object.keys(res.body as object).sort()).toEqual(
+      [
+        'attendanceRate',
+        'clockedInCount',
+        'date',
+        'isWorkday',
+        'notClockedInCount',
+        'onLeaveCount',
+        'pendingLeaveCount',
+        'totalEmployeeCount',
+      ].sort(),
+    );
+  });
+
+  it('shouldKeepTotalEmployeeCountOnNotWorkday', async () => {
+    // 2026-11-16(月)と 2026-11-14(土)の間で入社日の境界を跨がないよう、両日とも全テストユーザーの入社日後
+    let workday: SummaryBody;
+    let notWorkday: SummaryBody;
+    try {
+      clock.set('2026-11-16T10:00:00+09:00');
+      workday = await fetchSummary();
+      clock.set('2026-11-14T10:00:00+09:00');
+      notWorkday = await fetchSummary();
+    } finally {
+      clock.set('2026-11-09T09:00:00+09:00');
+    }
+    expect(workday.isWorkday).toBe(true);
+    expect(notWorkday.isWorkday).toBe(false);
+    expect(notWorkday.totalEmployeeCount).toBe(workday.totalEmployeeCount);
+    expect(notWorkday.onLeaveCount).toBe(0);
+    expect(notWorkday.notClockedInCount).toBe(0);
+  });
+
+  it.each([
+    ['日曜日', '2026-11-08T10:00:00+09:00', '2026-11-08'],
+    ['平日の祝日(文化の日)', '2026-11-03T10:00:00+09:00', '2026-11-03'],
+  ])('shouldCountOnlyClockedInUsersWhenNotWorkday(%s)', async (_label, now, day) => {
+    const approver = await createUser();
+    const a = await createUser();
+    const b = await createUser();
+    await insertAttendance(prisma, { userId: a.id, workDate: day, clockIn: now });
+    await insertLeave(prisma, {
+      userId: b.id,
+      approverId: approver.id,
+      status: 'APPROVED',
+      startDate: day,
+      days: 1,
+    });
+    clock.set(now);
+    try {
+      const res = await fetchSummary();
+      expect(res.date).toBe(day);
+      expect(res.isWorkday).toBe(false);
+      expect(res.onLeaveCount).toBe(0);
+      expect(res.notClockedInCount).toBe(0);
+      expect(res.clockedInCount).toBeGreaterThanOrEqual(1);
+      expect(res.attendanceRate).toBe(100);
+    } finally {
+      clock.set('2026-11-09T09:00:00+09:00');
+    }
+  });
+
+  it('shouldReturnNullAttendanceRateWhenNoOneClockedInOnNotWorkday', async () => {
+    // 他テストのデータと重ならない遠い土曜日(2098-01-04)
+    clock.set('2098-01-04T10:00:00+09:00');
+    try {
+      const res = await fetchSummary();
+      expect(res.isWorkday).toBe(false);
+      expect(res.clockedInCount).toBe(0);
+      expect(res.attendanceRate).toBeNull();
+    } finally {
+      clock.set('2026-11-09T09:00:00+09:00');
+    }
   });
 });

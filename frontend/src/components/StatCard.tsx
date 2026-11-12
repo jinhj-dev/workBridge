@@ -1,41 +1,77 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
+
+export type StatCardTone = 'primary' | 'danger';
 
 interface StatCardProps {
   label: string;
   value: string;
+  // 数値の右に小さく添える単位(名・件)
+  unit?: string;
+  // 左に置く装飾アイコン(aria-hidden のものを渡す)。指定すると色付きグラデーションの大きな表示になる
+  icon?: ReactNode;
+  // アイコン付きカードの背景色(primary: 淡い青 / danger: 淡いピンク)
+  tone?: StatCardTone;
   // 指定するとカード全体がリンクになる
   href?: string;
 }
 
-const baseClass = 'flex flex-col gap-1 rounded-md bg-white p-5 shadow-card';
+const plainClass = 'flex flex-col gap-1 rounded-md bg-white p-5 shadow-card';
+const TONE_CLASS: Record<StatCardTone, string> = {
+  primary: 'bg-linear-to-br from-white to-primary-30',
+  danger: 'bg-linear-to-br from-white to-danger-30',
+};
+const iconCardClass =
+  'grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1 rounded-2xl border border-general-40 p-3 shadow-card-soft sm:gap-x-4 sm:px-6 sm:py-4';
 
-// 09 §4 の stats カード: 項目名 + 数値(Heading 6)
-export function StatCard({ label, value, href }: StatCardProps) {
+// 09 §4 の stats カード: 項目名 + 数値。icon を渡すとダッシュボードの色付きカード(参照デザイン)になる
+export function StatCard({ label, value, unit, icon, tone = 'primary', href }: StatCardProps) {
+  const valueNode = (
+    <span className="tabular-nums">
+      {value}
+      {unit && <span className="ml-1 text-base/6 font-bold sm:text-xl/7">{unit}</span>}
+    </span>
+  );
+
+  if (!icon) {
+    const plain = (
+      <>
+        <span className="text-sm/5 text-general-80">{label}</span>
+        <span className="text-h6 font-bold text-general-100">{valueNode}</span>
+      </>
+    );
+    if (!href) return <div className={plainClass}>{plain}</div>;
+    return (
+      <Link
+        href={href}
+        className={`${plainClass} transition-colors hover:bg-primary-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100`}
+      >
+        {plain}
+      </Link>
+    );
+  }
+
+  const className = `${iconCardClass} ${TONE_CLASS[tone]}`;
   const content = (
     <>
-      <span className="flex items-center justify-between gap-2 text-sm/5 text-general-80">
-        {label}
-        {href && (
-          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-5 shrink-0">
-            <path
-              d="M9 6l6 6-6 6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        )}
+      <span
+        aria-hidden="true"
+        className="size-6 text-primary-100 sm:row-span-2 sm:size-10 [&>svg]:size-full"
+      >
+        {icon}
       </span>
-      <span className="text-h6 font-bold text-general-100 tabular-nums">{value}</span>
+      <span className="text-xs/4 font-bold text-general-100 sm:text-base/6">{label}</span>
+      <span className="col-span-2 text-2xl/8 font-bold text-general-100 sm:col-span-1 sm:text-stat sm:leading-10">
+        {valueNode}
+      </span>
     </>
   );
 
-  if (!href) return <div className={baseClass}>{content}</div>;
+  if (!href) return <div className={className}>{content}</div>;
   return (
     <Link
       href={href}
-      className={`${baseClass} transition-colors hover:bg-primary-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100`}
+      className={`${className} transition-shadow hover:shadow-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100`}
     >
       {content}
     </Link>

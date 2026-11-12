@@ -43,9 +43,8 @@ test('shouldKeepSessionAfterReloadWithRefreshCookie', async ({ page, context }) 
   // (変更が必要な場合の分岐は password.spec と LoginForm のコンポーネントテストで確認する)
   expect(loggedIn.user.mustChangePassword).toBe(false);
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(
-    page.getByRole('heading', { level: 1, name: messages.dashboard.title }),
-  ).toBeVisible();
+  // 見出しは「{挨拶}、{氏名}さん」
+  await expect(page.getByRole('heading', { level: 1, name: /、.+さん$/ })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
   // Refresh Token は httpOnly Cookie として、認証 API のパスにだけ保存される
@@ -73,9 +72,8 @@ test('shouldKeepSessionAfterReloadWithRefreshCookie', async ({ page, context }) 
   expect(await (await refreshRequest).headerValue('cookie')).toContain('refreshToken=');
   expect(await (await meRequest).headerValue('authorization')).toMatch(/^Bearer /);
   // 復元できればログイン画面へ戻されず、同じ画面のまま表示される
-  await expect(
-    page.getByRole('heading', { level: 1, name: messages.dashboard.title }),
-  ).toBeVisible();
+  // 見出しは「{挨拶}、{氏名}さん」
+  await expect(page.getByRole('heading', { level: 1, name: /、.+さん$/ })).toBeVisible();
   await expect(page).toHaveURL(/\/dashboard$/);
 });
 

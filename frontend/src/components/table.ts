@@ -2,6 +2,8 @@
 export const thClass =
   'h-11 border-b-2 border-general-40 px-2 text-left text-sm/5 font-medium whitespace-nowrap text-general-80';
 export const tdClass = 'h-13 border-b border-general-40 px-2 text-sm/5 text-general-100';
+// カード内の表の見出し(淡い灰色の帯)。高さ・左右余白・文字サイズは呼び出し側で指定する
+export const cardThClass = 'bg-general-30 text-left font-medium whitespace-nowrap text-general-80';
 // 文字色を呼び出し側で決めるセル(日付の色分けなど)は Base を使う
 export const compactTdBaseClass = 'h-9 border-b border-general-40 px-2 text-sm/5';
 export const compactTdClass = `${compactTdBaseClass} text-general-100`;

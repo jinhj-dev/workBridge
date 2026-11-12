@@ -1,0 +1,130 @@
+{
+  "attendance-1440": {
+    "overflow": {
+      "docScrollWidth": 1440,
+      "docClientWidth": 1440
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": false,
+      "tabTop": 0,
+      "tabHeight": 0,
+      "mainLowestBottomAfterScroll": 860,
+      "overlap": false
+    },
+    "url": "http://localhost:3100/attendance"
+  },
+  "attendance-390": {
+    "overflow": {
+      "docScrollWidth": 390,
+      "docClientWidth": 390
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": true,
+      "tabTop": 780,
+      "tabHeight": 64,
+      "mainLowestBottomAfterScroll": 732,
+      "overlap": false
+    },
+    "url": "http://localhost:3100/attendance"
+  },
+  "leaves-1440": {
+    "overflow": {
+      "docScrollWidth": 1440,
+      "docClientWidth": 1440
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": false,
+      "tabTop": 0,
+      "tabHeight": 0,
+      "mainLowestBottomAfterScroll": 722,
+      "overlap": false
+    },
+    "url": "http://localhost:3100/leaves"
+  },
+  "leaves-390": {
+    "overflow": {
+      "docScrollWidth": 390,
+      "docClientWidth": 390
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": true,
+      "tabTop": 780,
+      "tabHeight": 64,
+      "mainLowestBottomAfterScroll": 732,
+      "overlap": false
+    },
+    "url": "http://localhost:3100/leaves"
+  },
+  "approvals-1440": {
+    "overflow": {
+      "docScrollWidth": 1440,
+      "docClientWidth": 1440
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": false,
+      "tabTop": 0,
+      "tabHeight": 0,
+      "mainLowestBottomAfterScroll": 505,
+      "overlap": false
+    },
+    "url": "http://localhost:3100/leaves/approvals"
+  },
+  "approvals-390": {
+    "overflow": {
+      "docScrollWidth": 390,
+      "docClientWidth": 390
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": true,
+      "tabTop": 780,
+      "tabHeight": 64,
+      "mainLowestBottomAfterScroll": 583,
+      "overlap": false
+    },
+    "url": "http://localhost:3100/leaves/approvals"
+  },
+  "departments-1440": {
+    "overflow": {
+      "docScrollWidth": 1440,
+      "docClientWidth": 1440
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": false,
+      "tabTop": 0,
+      "tabHeight": 0,
+      "mainLowestBottomAfterScroll": 821,
+      "overlap": false
+    },
+    "url": "http://localhost:3100/admin/departments"
+  },
+  "departments-390": {
+    "overflow": {
+      "docScrollWidth": 390,
+      "docClientWidth": 390
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": true,
+      "tabTop": 780,
+      "tabHeight": 64,
+      "mainLowestBottomAfterScroll": 732,
+      "overlap": false
+    },
+    "url": "http://localhost:3100/admin/departments"
+  }
+}

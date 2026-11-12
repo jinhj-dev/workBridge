@@ -75,35 +75,33 @@ export interface LeaveBalance {
   remainingDays: number;
 }
 
-// API-DASH-001
+// API-DASH-001(全社の本日の状況。出勤 > 休暇 > 未出勤の排他分類。休日は出勤者のみ)
 export interface AdminDashboardSummary {
   date: string;
+  isWorkday: boolean;
+  totalEmployeeCount: number;
   clockedInCount: number;
   notClockedInCount: number;
   onLeaveCount: number;
+  attendanceRate: number | null; // % 小数 1 位。分母 0 は null
   pendingLeaveCount: number;
 }
 
-// API-DASH-002(月間の休暇取得人数。人数 1 以上の日だけ)
-export interface LeaveCalendarMonth {
-  month: string;
-  days: { date: string; count: number }[];
-}
-
-export type HalfDay = 'AM' | 'PM';
-
-// API-DASH-003(1 日分の休暇取得者。種別・理由は含まない)
-export interface LeaveCalendarMember {
-  userId: string;
-  empId: string;
-  name: string;
+// API-DASH-004(部署別の本日の状況。人数だけで個人は含まない)
+export interface DepartmentStatusItem {
+  departmentId: string | null; // 未所属は null
   departmentName: string;
-  halfDay: HalfDay | null;
+  memberCount: number;
+  clockedInCount: number;
+  onLeaveCount: number;
+  notClockedInCount: number;
+  attendanceRate: number | null;
 }
 
-export interface LeaveCalendarDay {
+export interface DepartmentStatus {
   date: string;
-  items: LeaveCalendarMember[];
+  isWorkday: boolean;
+  departments: DepartmentStatusItem[];
 }
 
 // API-ATT-007(出勤簿の月間表)

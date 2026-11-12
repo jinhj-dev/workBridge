@@ -328,7 +328,9 @@ export function LeaveApplyModal({
             </FormTableRow>
           ) : (
             <FormTableRow label={t.approver} labelId={`${baseId}-approver-label`}>
-              <p className="flex min-h-12 items-center text-sm/5 text-general-80">{t.autoApprove}</p>
+              <p className="flex min-h-12 items-center text-sm/5 text-general-80">
+                {t.autoApprove}
+              </p>
             </FormTableRow>
           )}
         </FormTable>

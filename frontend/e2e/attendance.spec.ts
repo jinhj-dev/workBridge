@@ -79,13 +79,15 @@ test('shouldShowTodayClockInAsWorkingOnAttendancePage', async ({ page }) => {
   await loginAsAdmin(page);
 
   // beforeAll で今日の記録を削除済みのため、出勤は必ず有効になる。今日の状態の読込完了を待ってから操作する
-  const clockIn = page.getByRole('button', { name: dashboard.clockIn, exact: true });
+  const clockIn = page.getByRole('button', { name: dashboard.clockInAction, exact: true });
   await expect(clockIn).toBeEnabled();
   await clockIn.click();
   const dialog = page.getByRole('dialog', { name: dashboard.confirmClockInTitle });
   await dialog.getByRole('button', { name: dashboard.confirm, exact: true }).click();
   await expect(page.getByText(dashboard.clockedIn)).toBeVisible();
-  await expect(page.getByRole('button', { name: dashboard.clockOut, exact: true })).toBeEnabled();
+  await expect(
+    page.getByRole('button', { name: dashboard.clockOutAction, exact: true }),
+  ).toBeEnabled();
 
   await page.goto('/attendance');
   await expect(page.getByRole('heading', { level: 1, name: t.title })).toBeVisible();

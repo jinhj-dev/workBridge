@@ -42,9 +42,7 @@ describe('Select', () => {
   });
 
   it('shouldHideChevronFromAccessibleTree', () => {
-    const { container } = render(
-      <Select id="s" value="A" onChange={vi.fn()} options={options} />,
-    );
+    const { container } = render(<Select id="s" value="A" onChange={vi.fn()} options={options} />);
     expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByRole('combobox')).not.toHaveAttribute('aria-required');
   });

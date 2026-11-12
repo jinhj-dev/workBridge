@@ -1,102 +1,77 @@
 import { Injectable } from '@nestjs/common';
-import type { LeaveType, Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import type { StatusCounts } from './today-status-rules.js';
 
-export interface TodaySummaryCounts {
-  clockedInCount: number;
-  notClockedInCount: number;
-  onLeaveCount: number;
-  pendingLeaveCount: number;
-}
-
-export interface LeaveCalendarDayCount {
-  date: string;
-  count: number;
-}
-
-export interface UserOnLeave {
-  id: string;
-  empId: string;
-  name: string;
+export interface DepartmentTodayCounts extends StatusCounts {
+  departmentId: string;
+  departmentCode: string;
   departmentName: string;
-  leaveTypes: LeaveType[];
+  memberCount: number;
+}
+
+interface DepartmentTodayRow {
+  department_id: string;
+  department_code: string;
+  department_name: string;
+  member_count: bigint;
+  clocked_in_count: bigint;
+  on_leave_count: bigint;
+  not_clocked_in_count: bigint;
 }
 
 @Injectable()
 export class DashboardRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  // 当日の全体状況を集計する(FR-DASH-001)。人数は活性ユーザーのみ、承認待ちは全件。
-  // 4 つの件数は同じトランザクションで数える
-  async countTodaySummary(today: Date): Promise<TodaySummaryCounts> {
-    const attendedToday: Prisma.AttendanceWhereInput = { workDate: today };
-    // 今日が期間に含まれる承認済み休暇(種類は問わない、半休も含む)
-    const onLeaveToday: Prisma.LeaveWhereInput = {
-      status: 'APPROVED',
-      startDate: { lte: today },
-      endDate: { gte: today },
-    };
-    const [clockedInCount, onLeaveCount, notClockedInCount, pendingLeaveCount] =
-      await this.prisma.$transaction([
-        this.prisma.user.count({
-          where: { isActive: true, attendances: { some: attendedToday } },
-        }),
-        this.prisma.user.count({ where: { isActive: true, leaves: { some: onLeaveToday } } }),
-        this.prisma.user.count({
-          where: {
-            isActive: true,
-            attendances: { none: attendedToday },
-            leaves: { none: onLeaveToday },
-          },
-        }),
-        this.prisma.leave.count({ where: { status: 'PENDING' } }),
-      ]);
-    return { clockedInCount, notClockedInCount, onLeaveCount, pendingLeaveCount };
-  }
-
-  // 月間の日付ごとの休暇者数(承認済み・活性ユーザー・土日除外、ユーザー単位の DISTINCT)。
-  // 休暇者がいる日だけ返す。start / end は 'YYYY-MM-DD'(パラメータバインドのみ)
-  async countApprovedLeavesByDay(start: string, end: string): Promise<LeaveCalendarDayCount[]> {
-    const rows = await this.prisma.$queryRaw<{ date: string; count: bigint }[]>`
-      SELECT to_char(days.d, 'YYYY-MM-DD') AS date, COUNT(DISTINCT l.user_id) AS count
+  // 部署ごとの当日の状況を集計する(FR-DASH-001)。対象は活性かつ入社日が今日以前の社員。
+  // 社員ごとに 出勤 > 休暇(承認済み・種類不問・半休含む)> 未出勤 の排他 3 分類にして数える。
+  // today は 'YYYY-MM-DD'(パラメータバインドのみ。::date で比較しセッションのタイムゾーンに依存しない)
+  async countTodayStatusByDepartment(today: string): Promise<DepartmentTodayCounts[]> {
+    const rows = await this.prisma.$queryRaw<DepartmentTodayRow[]>`
+      SELECT
+        d.id AS department_id,
+        d.code AS department_code,
+        d.name AS department_name,
+        COUNT(*) AS member_count,
+        COUNT(*) FILTER (WHERE s.status = 'IN') AS clocked_in_count,
+        COUNT(*) FILTER (WHERE s.status = 'LEAVE') AS on_leave_count,
+        COUNT(*) FILTER (WHERE s.status = 'ABSENT') AS not_clocked_in_count
       FROM (
-        SELECT generate_series(${start}::timestamp, ${end}::timestamp, interval '1 day')::date AS d
-      ) AS days
-      JOIN leaves l ON l.start_date <= days.d AND l.end_date >= days.d
-      JOIN users u ON u.id = l.user_id AND u.is_active
-      WHERE l.status = 'APPROVED'
-        AND l.start_date <= ${end}::date
-        AND l.end_date >= ${start}::date
-        AND EXTRACT(ISODOW FROM days.d) < 6
-      GROUP BY days.d
-      ORDER BY days.d`;
-    return rows.map((row) => ({ date: row.date, count: Number(row.count) }));
+        SELECT
+          u.department_id,
+          CASE
+            WHEN EXISTS (
+              SELECT 1 FROM attendance a WHERE a.user_id = u.id AND a.work_date = ${today}::date
+            ) THEN 'IN'
+            WHEN EXISTS (
+              SELECT 1 FROM leaves l
+              WHERE l.user_id = u.id
+                AND l.status = 'APPROVED'
+                AND l.start_date <= ${today}::date
+                AND l.end_date >= ${today}::date
+            ) THEN 'LEAVE'
+            ELSE 'ABSENT'
+          END AS status
+        FROM users u
+        WHERE u.is_active AND u.hire_date <= ${today}::date
+      ) AS s
+      JOIN departments d ON d.id = s.department_id
+      GROUP BY d.id, d.code, d.name
+      HAVING COUNT(*) > 0
+      ORDER BY d.code`;
+    return rows.map((row) => ({
+      departmentId: row.department_id,
+      departmentCode: row.department_code,
+      departmentName: row.department_name,
+      memberCount: Number(row.member_count),
+      clockedInCount: Number(row.clocked_in_count),
+      onLeaveCount: Number(row.on_leave_count),
+      notClockedInCount: Number(row.not_clocked_in_count),
+    }));
   }
 
-  // 指定日に承認済み休暇を持つ活性ユーザー(社員番号順)。休暇は種類のみ読む(事由などは読まない)
-  async findUsersOnApprovedLeave(date: Date): Promise<UserOnLeave[]> {
-    const approvedOnDate: Prisma.LeaveWhereInput = {
-      status: 'APPROVED',
-      startDate: { lte: date },
-      endDate: { gte: date },
-    };
-    const users = await this.prisma.user.findMany({
-      where: { isActive: true, leaves: { some: approvedOnDate } },
-      select: {
-        id: true,
-        empId: true,
-        name: true,
-        department: { select: { name: true } },
-        leaves: { where: approvedOnDate, select: { leaveType: true } },
-      },
-      orderBy: [{ empId: 'asc' }, { id: 'asc' }],
-    });
-    return users.map((user) => ({
-      id: user.id,
-      empId: user.empId,
-      name: user.name,
-      departmentName: user.department.name,
-      leaveTypes: user.leaves.map((leave) => leave.leaveType),
-    }));
+  // 承認待ちの休暇申請の総数(全件)
+  countPendingLeaves(): Promise<number> {
+    return this.prisma.leave.count({ where: { status: 'PENDING' } });
   }
 }

@@ -58,16 +58,25 @@ function StatusIcon({ status }: { status: LeaveStatus }) {
 }
 
 // 休暇ステータスのバッジ(pill + アイコン)。children で文言を差し替えられる(出勤簿の「休暇 承認済み」)
+// soft: 参照デザインの淡い配色・アイコンなし(ダッシュボードの直近の申請履歴)
+const SOFT_LEAVE_STATUS_BADGE: Record<LeaveStatus, BadgeVariant> = {
+  ...LEAVE_STATUS_BADGE,
+  PENDING: 'caution',
+  APPROVED: 'positive',
+};
+
 export function LeaveStatusBadge({
   status,
+  soft = false,
   children,
 }: {
   status: LeaveStatus;
+  soft?: boolean;
   children?: ReactNode;
 }) {
   return (
-    <Badge variant={LEAVE_STATUS_BADGE[status]} shape="pill">
-      <StatusIcon status={status} />
+    <Badge variant={(soft ? SOFT_LEAVE_STATUS_BADGE : LEAVE_STATUS_BADGE)[status]} shape="pill">
+      {!soft && <StatusIcon status={status} />}
       {children ?? messages.leave.statuses[status]}
     </Badge>
   );

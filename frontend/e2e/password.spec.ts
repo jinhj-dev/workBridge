@@ -73,9 +73,8 @@ test('shouldChangePasswordAndLoginOnlyWithNewPassword', async ({ page }) => {
 
   await expect(page.getByText(t.success)).toBeVisible();
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(
-    page.getByRole('heading', { level: 1, name: messages.dashboard.title }),
-  ).toBeVisible();
+  // 見出しは「{挨拶}、{氏名}さん」(login.spec.ts と同じ判定)
+  await expect(page.getByRole('heading', { level: 1, name: /、.+さん$/ })).toBeVisible();
 
   await logout(page);
 
@@ -85,9 +84,8 @@ test('shouldChangePasswordAndLoginOnlyWithNewPassword', async ({ page }) => {
   const body = (await (await loginResponse).json()) as { user: { mustChangePassword: boolean } };
   expect(body.user.mustChangePassword).toBe(false);
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(
-    page.getByRole('heading', { level: 1, name: messages.dashboard.title }),
-  ).toBeVisible();
+  // 見出しは「{挨拶}、{氏名}さん」(login.spec.ts と同じ判定)
+  await expect(page.getByRole('heading', { level: 1, name: /、.+さん$/ })).toBeVisible();
 
   await logout(page);
 

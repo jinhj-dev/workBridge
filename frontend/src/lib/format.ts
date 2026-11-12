@@ -96,3 +96,8 @@ export function formatDays(days: number): string {
 export function formatTodayLabel(now: Date): string {
   return todayFormatter.format(now);
 }
+
+// 労働時間(分) → 96時間 / 96時間30分(分が 0 のときは時間だけ)
+export function formatHours(minutes: number): string {
+  return messages.common.hours(Math.floor(minutes / 60), minutes % 60);
+}
