@@ -1,0 +1,86 @@
+[
+  {
+    "role": "admin",
+    "route": "/dashboard",
+    "width": 1440,
+    "scrollWidth": 1440,
+    "clientWidth": 1440
+  },
+  {
+    "role": "admin",
+    "route": "/dashboard",
+    "width": 1024,
+    "scrollWidth": 1024,
+    "clientWidth": 1024
+  },
+  {
+    "role": "admin",
+    "route": "/dashboard",
+    "width": 390,
+    "scrollWidth": 390,
+    "clientWidth": 390
+  },
+  {
+    "role": "admin",
+    "route": "/dashboard",
+    "width": 360,
+    "scrollWidth": 360,
+    "clientWidth": 360
+  },
+  {
+    "role": "employee",
+    "route": "/dashboard",
+    "width": 1440,
+    "scrollWidth": 1440,
+    "clientWidth": 1440
+  },
+  {
+    "role": "employee",
+    "route": "/dashboard",
+    "width": 1024,
+    "scrollWidth": 1024,
+    "clientWidth": 1024
+  },
+  {
+    "role": "employee",
+    "route": "/dashboard",
+    "width": 390,
+    "scrollWidth": 390,
+    "clientWidth": 390
+  },
+  {
+    "role": "employee",
+    "route": "/dashboard",
+    "width": 360,
+    "scrollWidth": 360,
+    "clientWidth": 360
+  },
+  {
+    "role": "admin",
+    "route": "/attendance",
+    "width": 1440,
+    "scrollWidth": 1440,
+    "clientWidth": 1440
+  },
+  {
+    "role": "admin",
+    "route": "/leaves",
+    "width": 1440,
+    "scrollWidth": 1440,
+    "clientWidth": 1440
+  },
+  {
+    "role": "admin",
+    "route": "/leaves/approvals",
+    "width": 1440,
+    "scrollWidth": 1440,
+    "clientWidth": 1440
+  },
+  {
+    "role": "admin",
+    "route": "/admin/departments",
+    "width": 1440,
+    "scrollWidth": 1440,
+    "clientWidth": 1440
+  }
+]

@@ -93,32 +93,6 @@ test('shouldApplyLeaveAutoApprovedThenCancelFromDetail', async ({ page }) => {
   await expect(row).toContainText(messages.leave.statuses.CANCELLED);
 });
 
-test('shouldApplyFromDashboardModalAndStayOnDashboard', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await loginAsAdmin(page);
-
-  await page.getByRole('button', { name: messages.dashboard.leave.apply }).click();
-  const dialog = page.getByRole('dialog', { name: t.apply.title });
-  await expect(dialog).toBeVisible();
-  await expect(page.getByRole('combobox', { name: t.apply.leaveType })).toBeVisible();
-
-  // 他のテストと重ならないよう、来年 3 月の 2 週目の月曜を使う(申請は即時承認)
-  const { ymd } = nextYearMonday();
-  const secondWeekMonday = new Date(`${ymd}T00:00:00Z`);
-  secondWeekMonday.setUTCDate(secondWeekMonday.getUTCDate() + 7);
-  const day = secondWeekMonday.toISOString().slice(0, 10);
-
-  await page.getByRole('combobox', { name: t.apply.leaveType }).selectOption('SPECIAL');
-  await page.getByLabel(t.apply.startDate).fill(day);
-  await page.getByLabel(t.apply.endDate).fill(day);
-  await page.getByLabel(t.apply.reason).fill('E2E ダッシュボード申請');
-  await page.getByRole('button', { name: t.apply.submit }).click();
-
-  await expect(page.getByText(t.apply.approvedSuccess)).toBeVisible();
-  await expect(dialog).toBeHidden();
-  await expect(page).toHaveURL(/\/dashboard$/);
-});
-
 test('shouldFilterHistoryByStatusAndLeaveTypeToggles', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await loginAsAdmin(page);

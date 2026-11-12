@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { monthRange } from '../../common/time/calendar-rules.js';
 import { Clock } from '../../common/time/clock.js';
 import { japaneseHolidaysInRange } from '../../common/time/japanese-holiday.js';
 import { fromDbDate, toDbDate, toTokyoDate } from '../../common/time/tokyo-date.js';
-import { monthRange } from '../dashboard/leave-calendar-rules.js';
 import { buildSheetDay, summarizeSheet } from './attendance-sheet-rules.js';
 import type { AttendanceSheetResponse, SheetAttendanceInput } from './attendance-sheet-rules.js';
 import { AttendanceRepository } from './attendance.repository.js';

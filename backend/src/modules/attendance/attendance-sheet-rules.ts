@@ -1,6 +1,6 @@
+import { isWeekend } from '../../common/time/calendar-rules.js';
 import { formatTokyoDateTime } from '../../common/time/tokyo-date.js';
 import type { LeaveStatus, LeaveType } from '../../generated/prisma/client.js';
-import { isWeekend } from '../dashboard/leave-calendar-rules.js';
 import { calculateAttendanceStatus, calculateWorkMinutes } from './attendance.mapper.js';
 import type { AttendanceStatus } from './attendance.mapper.js';
 

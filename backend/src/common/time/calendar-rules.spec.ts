@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isWeekend, monthRange, resolveHalfDay } from './leave-calendar-rules.js';
+import { isWeekend, monthRange } from './calendar-rules.js';
 
 describe('monthRange', () => {
   it('shouldReturnFirstAndLastDayWhenMonthGiven', () => {
@@ -26,37 +26,5 @@ describe('isWeekend', () => {
   it('shouldReturnFalseWhenWeekday', () => {
     expect(isWeekend('2026-11-09')).toBe(false);
     expect(isWeekend('2026-11-13')).toBe(false);
-  });
-
-  it('shouldReturnFalseWhenMonday', () => {
-    expect(isWeekend('2026-11-09')).toBe(false);
-  });
-});
-
-describe('resolveHalfDay', () => {
-  it('shouldReturnAmWhenOnlyHalfAm', () => {
-    expect(resolveHalfDay(['HALF_AM'])).toBe('AM');
-  });
-
-  it('shouldReturnPmWhenOnlyHalfPm', () => {
-    expect(resolveHalfDay(['HALF_PM'])).toBe('PM');
-  });
-
-  it('shouldReturnNullWhenBothHalves', () => {
-    expect(resolveHalfDay(['HALF_AM', 'HALF_PM'])).toBeNull();
-  });
-
-  it('shouldReturnNullWhenFullDayLeaveIncluded', () => {
-    expect(resolveHalfDay(['ANNUAL'])).toBeNull();
-    expect(resolveHalfDay(['SPECIAL'])).toBeNull();
-    expect(resolveHalfDay(['HALF_AM', 'OTHER'])).toBeNull();
-  });
-
-  it('shouldReturnNullWhenAnnualWithHalfAm', () => {
-    expect(resolveHalfDay(['ANNUAL', 'HALF_AM'])).toBeNull();
-  });
-
-  it('shouldReturnNullWhenEmpty', () => {
-    expect(resolveHalfDay([])).toBeNull();
   });
 });

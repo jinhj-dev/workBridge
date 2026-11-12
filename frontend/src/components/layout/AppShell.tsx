@@ -9,6 +9,7 @@ import { ApiError, NetworkError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { messages } from '@/messages/ja';
 import { PendingApprovalCountProvider, usePendingApprovalCount } from './PendingApprovalCount';
+import { MobileTabBar } from './MobileTabBar';
 import { SidebarNav } from './Sidebar';
 import { TopBar } from './TopBar';
 
@@ -123,13 +124,7 @@ function ShellLayout({
 
   return (
     <div className="min-h-dvh">
-      <TopBar
-        userName={userName}
-        drawerOpen={drawerOpen}
-        drawerId={DRAWER_ID}
-        onToggleDrawer={() => setDrawerOpen((open) => !open)}
-        onLogout={onLogout}
-      />
+      <TopBar userName={userName} pendingApprovalCount={count} onLogout={onLogout} />
 
       {/* lg 以上: 常に表示する固定サイドバー */}
       <aside className="fixed top-17 bottom-0 left-0 hidden w-62.5 overflow-y-auto border-r border-general-40 bg-white lg:block">
@@ -141,9 +136,9 @@ function ShellLayout({
         <div
           aria-hidden="true"
           onClick={() => setDrawerOpen(false)}
-          className="fixed inset-0 top-17 z-20 bg-general-100/50"
+          className="fixed inset-x-0 top-17 bottom-16 z-20 bg-general-100/50"
         />
-        <aside className="fixed top-17 bottom-0 left-0 z-20 w-62.5 max-w-[80vw] overflow-y-auto bg-white shadow-card">
+        <aside className="fixed top-17 bottom-16 left-0 z-20 w-62.5 max-w-[80vw] overflow-y-auto bg-white shadow-card">
           <SidebarNav
             isAdmin={isAdmin}
             pendingApprovalCount={count}
@@ -152,7 +147,14 @@ function ShellLayout({
         </aside>
       </div>
 
-      <main className="px-4 pt-25 pb-10 sm:px-6 lg:pl-72.5 lg:pr-10">{children}</main>
+      <MobileTabBar
+        drawerOpen={drawerOpen}
+        drawerId={DRAWER_ID}
+        onToggleDrawer={() => setDrawerOpen((open) => !open)}
+        pendingApprovalCount={count}
+      />
+
+      <main className="px-4 pt-25 pb-28 sm:px-6 lg:pb-10 lg:pl-72.5 lg:pr-10">{children}</main>
     </div>
   );
 }

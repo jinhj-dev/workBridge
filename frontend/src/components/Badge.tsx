@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
-export type BadgeVariant = 'neutral' | 'success' | 'warning' | 'danger' | 'dark';
+export type BadgeVariant =
+  'neutral' | 'success' | 'warning' | 'danger' | 'dark' | 'info' | 'positive' | 'caution';
 export type BadgeShape = 'rounded' | 'pill';
 
 // 09 §2.1 のバッジ配色。success・danger の文字色は WCAG AA の対比を満たすため General 100 にする
@@ -10,6 +11,10 @@ export const BADGE_VARIANT_CLASS: Record<BadgeVariant, string> = {
   warning: 'bg-warning-40 text-general-100',
   danger: 'bg-danger-30 text-general-100',
   dark: 'bg-general-80 text-white',
+  info: 'bg-primary-30 text-primary-100',
+  // 参照デザインの淡い緑・橙(文字色も有彩色)。勤務中・承認済み・申請中の表示用
+  positive: 'bg-success-30 text-success-110',
+  caution: 'bg-warning-30 text-warning-110',
 };
 
 const BADGE_SHAPE_CLASS: Record<BadgeShape, string> = {

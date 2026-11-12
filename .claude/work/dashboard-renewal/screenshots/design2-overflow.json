@@ -1,0 +1,286 @@
+{
+  "admin-1440": {
+    "dept": {
+      "found": true,
+      "tableScrollWidth": 328,
+      "tableClientWidth": 328,
+      "tableRight": 981,
+      "cardRight": 1006,
+      "tableExceedsCard": false,
+      "wrapperTag": "DIV overflow-x-auto focus-visible:outline-2 focus-visible:outline-primary-100",
+      "wrapperOverflowX": "auto",
+      "wrapperScrollWidth": 328,
+      "wrapperClientWidth": 328,
+      "headerCells": [
+        "部署",
+        "在籍人数",
+        "出勤（率）",
+        "休暇",
+        "未出勤"
+      ]
+    },
+    "overflow": {
+      "docScrollWidth": 1440,
+      "docClientWidth": 1440
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": false,
+      "tabTop": 0,
+      "tabHeight": 0,
+      "mainLowestBottomAfterScroll": 860,
+      "overlap": false
+    }
+  },
+  "admin-1024": {
+    "dept": {
+      "found": true,
+      "tableScrollWidth": 644,
+      "tableClientWidth": 644,
+      "tableRight": 959,
+      "cardRight": 984,
+      "tableExceedsCard": false,
+      "wrapperTag": "DIV overflow-x-auto focus-visible:outline-2 focus-visible:outline-primary-100",
+      "wrapperOverflowX": "auto",
+      "wrapperScrollWidth": 644,
+      "wrapperClientWidth": 644,
+      "headerCells": [
+        "部署",
+        "在籍人数",
+        "出勤（率）",
+        "休暇",
+        "未出勤"
+      ]
+    },
+    "overflow": {
+      "docScrollWidth": 1024,
+      "docClientWidth": 1024
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": false,
+      "tabTop": 0,
+      "tabHeight": 0,
+      "mainLowestBottomAfterScroll": 860,
+      "overlap": false
+    }
+  },
+  "admin-390": {
+    "dept": {
+      "found": true,
+      "tableScrollWidth": 316,
+      "tableClientWidth": 316,
+      "tableRight": 353,
+      "cardRight": 374,
+      "tableExceedsCard": false,
+      "wrapperTag": "DIV overflow-x-auto focus-visible:outline-2 focus-visible:outline-primary-100",
+      "wrapperOverflowX": "auto",
+      "wrapperScrollWidth": 316,
+      "wrapperClientWidth": 316,
+      "headerCells": [
+        "部署",
+        "在籍人数",
+        "出勤（率）",
+        "休暇",
+        "未出勤"
+      ]
+    },
+    "overflow": {
+      "docScrollWidth": 390,
+      "docClientWidth": 390
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": true,
+      "tabTop": 780,
+      "tabHeight": 64,
+      "mainLowestBottomAfterScroll": 732,
+      "overlap": false
+    }
+  },
+  "admin-390-drawer": {
+    "openButtonVisible": true,
+    "drawerLinkVisibleAfterOpen": true,
+    "drawerAsideVisible": true,
+    "closedByEscape": true
+  },
+  "admin-360": {
+    "dept": {
+      "found": true,
+      "tableScrollWidth": 286,
+      "tableClientWidth": 286,
+      "tableRight": 323,
+      "cardRight": 344,
+      "tableExceedsCard": false,
+      "wrapperTag": "DIV overflow-x-auto focus-visible:outline-2 focus-visible:outline-primary-100",
+      "wrapperOverflowX": "auto",
+      "wrapperScrollWidth": 286,
+      "wrapperClientWidth": 286,
+      "headerCells": [
+        "部署",
+        "在籍人数",
+        "出勤（率）",
+        "休暇",
+        "未出勤"
+      ]
+    },
+    "overflow": {
+      "docScrollWidth": 360,
+      "docClientWidth": 360
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": true,
+      "tabTop": 780,
+      "tabHeight": 64,
+      "mainLowestBottomAfterScroll": 732,
+      "overlap": false
+    }
+  },
+  "employee-1440": {
+    "dept": {
+      "found": true,
+      "tableScrollWidth": 452,
+      "tableClientWidth": 452,
+      "tableRight": 767,
+      "cardRight": 792,
+      "tableExceedsCard": false,
+      "wrapperTag": "DIV overflow-x-auto focus-visible:outline-2 focus-visible:outline-primary-100",
+      "wrapperOverflowX": "auto",
+      "wrapperScrollWidth": 452,
+      "wrapperClientWidth": 452,
+      "headerCells": [
+        "部署",
+        "在籍人数",
+        "出勤（率）",
+        "休暇",
+        "未出勤"
+      ]
+    },
+    "overflow": {
+      "docScrollWidth": 1440,
+      "docClientWidth": 1440
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": false,
+      "tabTop": 0,
+      "tabHeight": 0,
+      "mainLowestBottomAfterScroll": 860,
+      "overlap": false
+    }
+  },
+  "employee-1024": {
+    "dept": {
+      "found": true,
+      "tableScrollWidth": 644,
+      "tableClientWidth": 644,
+      "tableRight": 959,
+      "cardRight": 984,
+      "tableExceedsCard": false,
+      "wrapperTag": "DIV overflow-x-auto focus-visible:outline-2 focus-visible:outline-primary-100",
+      "wrapperOverflowX": "auto",
+      "wrapperScrollWidth": 644,
+      "wrapperClientWidth": 644,
+      "headerCells": [
+        "部署",
+        "在籍人数",
+        "出勤（率）",
+        "休暇",
+        "未出勤"
+      ]
+    },
+    "overflow": {
+      "docScrollWidth": 1024,
+      "docClientWidth": 1024
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": false,
+      "tabTop": 0,
+      "tabHeight": 0,
+      "mainLowestBottomAfterScroll": 860,
+      "overlap": false
+    }
+  },
+  "employee-390": {
+    "dept": {
+      "found": true,
+      "tableScrollWidth": 316,
+      "tableClientWidth": 316,
+      "tableRight": 353,
+      "cardRight": 374,
+      "tableExceedsCard": false,
+      "wrapperTag": "DIV overflow-x-auto focus-visible:outline-2 focus-visible:outline-primary-100",
+      "wrapperOverflowX": "auto",
+      "wrapperScrollWidth": 316,
+      "wrapperClientWidth": 316,
+      "headerCells": [
+        "部署",
+        "在籍人数",
+        "出勤（率）",
+        "休暇",
+        "未出勤"
+      ]
+    },
+    "overflow": {
+      "docScrollWidth": 390,
+      "docClientWidth": 390
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": true,
+      "tabTop": 780,
+      "tabHeight": 64,
+      "mainLowestBottomAfterScroll": 732,
+      "overlap": false
+    }
+  },
+  "employee-390-drawer": {
+    "openButtonVisible": true,
+    "drawerLinkVisibleAfterOpen": true,
+    "drawerAsideVisible": true,
+    "closedByEscape": true
+  },
+  "employee-360": {
+    "dept": {
+      "found": true,
+      "tableScrollWidth": 286,
+      "tableClientWidth": 286,
+      "tableRight": 323,
+      "cardRight": 344,
+      "tableExceedsCard": false,
+      "wrapperTag": "DIV overflow-x-auto focus-visible:outline-2 focus-visible:outline-primary-100",
+      "wrapperOverflowX": "auto",
+      "wrapperScrollWidth": 286,
+      "wrapperClientWidth": 286,
+      "headerCells": [
+        "部署",
+        "在籍人数",
+        "出勤（率）",
+        "休暇",
+        "未出勤"
+      ]
+    },
+    "overflow": {
+      "docScrollWidth": 360,
+      "docClientWidth": 360
+    },
+    "tab": {
+      "tabFound": true,
+      "tabDisplay": "block",
+      "tabVisible": true,
+      "tabTop": 780,
+      "tabHeight": 64,
+      "mainLowestBottomAfterScroll": 732,
+      "overlap": false
+    }
+  }
+}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatDate,
   formatDays,
+  formatHours,
   formatPeriod,
   formatTodayLabel,
   formatTokyoDate,
@@ -78,5 +79,17 @@ describe('format(勤怠表示)', () => {
   it('shouldFormatDateTimeInputInTokyoWallClock', () => {
     expect(toTokyoDateTimeInput('2026-11-09T09:01:00+09:00')).toBe('2026-11-09T09:01');
     expect(toTokyoDateTimeInput('2026-11-08T15:30:00Z')).toBe('2026-11-09T00:30');
+  });
+});
+
+describe('formatHours', () => {
+  it('shouldOmitMinutesWhenZero', () => {
+    expect(formatHours(5760)).toBe('96時間');
+    expect(formatHours(0)).toBe('0時間');
+  });
+
+  it('shouldShowMinutesWhenPresent', () => {
+    expect(formatHours(5790)).toBe('96時間30分');
+    expect(formatHours(59)).toBe('0時間59分');
   });
 });

@@ -329,10 +329,10 @@ describe('AttendanceSheetView(SCR-003 出勤簿)', () => {
     render(<AttendanceSheetView />);
     await screen.findByText('2日（月）');
     expect(
-      screen.queryByRole('button', { name: messages.dashboard.attendance.clockIn }),
+      screen.queryByRole('button', { name: messages.dashboard.attendance.clockInAction }),
     ).toBeNull();
     expect(
-      screen.queryByRole('button', { name: messages.dashboard.attendance.clockOut }),
+      screen.queryByRole('button', { name: messages.dashboard.attendance.clockOutAction }),
     ).toBeNull();
   });
 });
@@ -590,7 +590,10 @@ describe('AttendanceSheetView(UI 改善: 左右分離・Pill・申請表示)', (
     const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(100);
     try {
       await renderLayout();
-      expect(screen.getByRole('region', { name: s.timeline })).toHaveAttribute('tabindex', '0');
+      // あふれ判定は effect 後の state 更新で反映されるため、反映を待ってから確認する
+      await waitFor(() =>
+        expect(screen.getByRole('region', { name: s.timeline })).toHaveAttribute('tabindex', '0'),
+      );
     } finally {
       scrollWidth.mockRestore();
       clientWidth.mockRestore();

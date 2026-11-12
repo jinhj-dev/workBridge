@@ -160,47 +160,48 @@ Response 204
 
 Response 200
 ```json
-{ "date": "2026-11-08", "clockedInCount": 42, "notClockedInCount": 5, "onLeaveCount": 3, "pendingLeaveCount": 7 }
+{
+  "date": "2026-11-08",
+  "isWorkday": true,
+  "totalEmployeeCount": 50,
+  "clockedInCount": 42,
+  "notClockedInCount": 5,
+  "onLeaveCount": 3,
+  "attendanceRate": 84.0,
+  "pendingLeaveCount": 7
+}
 ```
-- 개인 영역은 API-ATT-003, API-LEAVE-006, API-LEAVE-007을 조합하여 표시한다.
+- `date`: Asia/Tokyo 기준 오늘.
+- 대상자: `is_active = true` AND `hire_date <= 오늘`. `totalEmployeeCount`는 대상자 수(비근무일에도 같은 값).
+- 대상자 1명은 정확히 1개 분류로 센다(배타, 우선순위 출근 > 휴가 > 미출근, FR-DASH-001).
+  - `clockedInCount`: 오늘 `work_date` 근태 기록 있음(근무 중·퇴근 완료 무관)
+  - `onLeaveCount`: 출근이 아니고, 오늘을 포함하는 `APPROVED` 휴가 있음(종류 무관, 반차 포함)
+  - `notClockedInCount`: 둘 다 아님
+- 비근무일(토·일, 일본 공휴일. API-ATT-007과 같은 공휴일 데이터)은 `isWorkday: false`이며 `onLeaveCount`·`notClockedInCount`는 0, `clockedInCount`만 센다.
+- `attendanceRate`: 출근 / (출근 + 휴가 + 미출근) × 100, 소수 1자리 반올림. 분모가 0이면 `null`.
+- `pendingLeaveCount`: 전체 `PENDING` 휴가 건수.
+- 개인 영역은 API-ATT-003, API-ATT-007, API-LEAVE-006, API-LEAVE-007을 조합하여 표시한다.
 
-### API-DASH-002: 월간 휴가 캘린더
-- `GET /dashboard/leave-calendar` · USER · FR-DASH-001
-- Query: `month`(선택, `YYYY-MM`, 연도 2000~2100, 월 01~12. 생략 시 Asia/Tokyo 기준 이번 달)
-- 집계: 날짜별로 그 날짜가 기간에 포함된 `APPROVED` 휴가가 있는 활성 사용자 수(사용자 단위 중복 없음, 반차도 1명). 토·일은 제외하고 공휴일은 평일로 취급한다. `PENDING`·`REJECTED`·`CANCELLED`는 세지 않는다.
-
-Response 200 (인원이 1명 이상인 날짜만, 날짜 오름차순. 없는 날짜는 0명)
-```json
-{ "month": "2026-11", "days": [ { "date": "2026-11-10", "count": 3 } ] }
-```
-- 같은 날짜의 `count`는 API-DASH-003의 `items` 건수와 같다.
-
-| HTTP | Code | 설명 |
-|---|---|---|
-| 400 | VALIDATION_ERROR | `month` 형식·범위 오류(`details[].field = month`) |
-
-### API-DASH-003: 날짜별 휴가자 목록
-- `GET /dashboard/leave-calendar/day` · USER · FR-DASH-001
-- Query: `date`(필수, 실재하는 `YYYY-MM-DD`, 연도 2000~2100)
-- 대상은 API-DASH-002와 같다(`APPROVED`, 활성 사용자, 사용자 단위 1행). 토·일이면 항상 `items: []`.
-- 정렬: 사원번호 오름차순, 같으면 `userId` 오름차순. 페이지네이션 없음.
+### API-DASH-004: 부서별 오늘 근무 현황
+- `GET /dashboard/department-status` · USER · FR-DASH-001
+- Query 없음. 집계 대상·배타 분류·비근무일·출근율 규칙은 API-DASH-001과 같다(全社 값은 이 부서별 값의 합계).
 
 Response 200
 ```json
 {
-  "date": "2026-11-10",
-  "items": [
-    { "userId": "uuid", "empId": "100001", "name": "홍길동", "departmentName": "개발팀", "halfDay": null },
-    { "userId": "uuid", "empId": "100002", "name": "김승인", "departmentName": "영업팀", "halfDay": "AM" }
+  "date": "2026-11-08",
+  "isWorkday": true,
+  "departments": [
+    { "departmentId": "uuid", "departmentName": "개발팀", "memberCount": 12, "clockedInCount": 10, "onLeaveCount": 1, "notClockedInCount": 1, "attendanceRate": 83.3 },
+    { "departmentId": null, "departmentName": "未所属", "memberCount": 1, "clockedInCount": 0, "onLeaveCount": 0, "notClockedInCount": 1, "attendanceRate": 0 }
   ]
 }
 ```
-- 응답 필드는 위가 전부다. `reason`, `leaveType`, `startDate`, `endDate`, `status`, 휴가 ID, `approver`, `processedBy`, `rejectReason`은 포함하지 않는다(타인 정보 최소 공개, FR-DASH-001·FR-LEAVE-005). ADMIN에게도 같은 응답이다.
-- `halfDay`: 그 사용자의 그날 `APPROVED` 휴가 종류로 판정한다. `HALF_AM`만 → `"AM"`, `HALF_PM`만 → `"PM"`, `HALF_AM`과 `HALF_PM`이 모두 있거나 종일 휴가(`ANNUAL`·`SPECIAL`·`OTHER`)가 하나라도 있으면 → `null`.
+- 대상자가 0명인 부서는 포함하지 않는다. 정렬은 부서 코드 오름차순이며, 시스템 부서 「未所属」(code `UNASSIGNED`)는 대상자가 있을 때만 `departmentId: null`로 마지막에 둔다.
+- 응답 필드는 위가 전부다(숫자만). 사원 ID·이름·사원번호·부서 코드·휴가 종류는 포함하지 않는다. ADMIN에게도 같은 응답이다.
+- 에러는 공통 규칙(401, 403 `PASSWORD_CHANGE_REQUIRED`)만 있다.
 
-| HTTP | Code | 설명 |
-|---|---|---|
-| 400 | VALIDATION_ERROR | `date` 누락·형식 오류·실재하지 않는 날짜(예: `2026-02-30`)·범위 오류(`details[].field = date`) |
+> API-DASH-002(`GET /dashboard/leave-calendar`)·API-DASH-003(`GET /dashboard/leave-calendar/day`)은 대시보드 휴가 캘린더 삭제와 함께 제거되었다(호출 시 404). 번호는 재사용하지 않는다.
 
 ---
 
@@ -270,7 +271,7 @@ Response 200: `Attendance`
 
 ### API-ATT-007: 출근부 월간 조회
 - `GET /attendance/monthly` · USER · FR-ATT-006
-- Query: `month`(선택, `YYYY-MM`, 연도 2000~2100, 월 01~12. 생략 시 Asia/Tokyo 기준 이번 달). 규칙은 API-DASH-002의 `month`와 같다.
+- Query: `month`(선택, `YYYY-MM`, 연도 2000~2100, 월 01~12. 생략 시 Asia/Tokyo 기준 이번 달). 위반 시 400 `VALIDATION_ERROR`(`details[].field = month`).
 - 대상은 항상 토큰의 본인이다(사용자 지정 파라미터 없음, API-ATT-004와 같음). 조회 전용이다.
 
 Response 200 (그 달 1일~말일 전 일자, 날짜 오름차순)

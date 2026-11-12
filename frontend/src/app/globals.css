@@ -34,11 +34,32 @@
   --color-danger-100: #f0142f;
   --color-danger-30: #fde7ea;
 
+  /* 参照デザイン(ダッシュボード再現)用の追加トークン */
+  --color-success-30: #e6f7ee;
+  --color-success-110: #047a49;
+  --color-warning-30: #fff1e0;
+  --color-warning-110: #b45309;
+  --color-violet-100: #7c5cf0;
+  --color-violet-80: #9b86f5;
+  --color-page-from: #fafbff;
+  --color-page-to: #f1f3fc;
+
   /* 入力枠線(09 §2.1 でパレット外と明記された値) */
   --color-input-border: #d9e1ec;
 
   /* カード影(09 §2.3: 0 1 4 rgba(21,34,50,.08)) */
   --shadow-card: 0 1px 4px rgba(21, 34, 50, 0.08);
+
+  /* 参照デザイン用のカード影(青紫がかった柔らかい影) */
+  --shadow-card-soft: 0 2px 10px rgba(79, 70, 180, 0.08);
+
+  /* 挨拶の見出し(28 / 36 Bold) */
+  --text-greeting: 1.75rem;
+  --text-greeting--line-height: 2.25rem;
+
+  /* 統計・時刻の大きな数値(36 / 44 Bold) */
+  --text-stat: 2.25rem;
+  --text-stat--line-height: 2.75rem;
 
   /* 09 §2.2 Heading 4(32 / 44 Bold、ログイン・パスワード変更の見出し) */
   --text-h4: 2rem;
@@ -61,7 +82,7 @@ html:has(dialog:modal) {
 }
 
 body {
-  background: var(--color-general-30);
+  background: linear-gradient(160deg, var(--color-page-from), var(--color-page-to)) fixed;
   color: var(--color-general-100);
   font-family: var(--font-sans);
 }

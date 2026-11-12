@@ -118,7 +118,7 @@
 | IT-ATT-16 | API-ATT-007 월 경계: 10/31 23:00 출근→11/1 02:00 퇴근 / 10/30~11/2 휴가 | 10월 응답에만 포함(180분·휴게 0·深夜 180) / 10월은 10/30, 11월은 11/2만 |
 | IT-ATT-17 | API-ATT-007 휴가 상태: PENDING·APPROVED / REJECTED·CANCELLED | 포함(`id`·`leaveType`·`status`만) / 제외 |
 | IT-ATT-18 | API-ATT-007 조회 전후 attendance·leaves 행(`updated_at` 포함) | 변화 없음 |
-| IT-ATT-19 | 회귀: API-ATT-004 `workMinutes` / 평일 공휴일 휴가의 API-LEAVE-006 잔여·API-DASH-002 집계 | 拘束 그대로 / 공휴일 = 평일로 차감·집계 |
+| IT-ATT-19 | 회귀: API-ATT-004 `workMinutes` / 평일 공휴일 휴가의 API-LEAVE-006 잔여 | 拘束 그대로 / 공휴일 = 평일로 차감 (API-DASH-002 집계 확인은 API 제거로 삭제) |
 
 ### 5.3 휴가 신청 (FR-LEAVE-001)
 
@@ -172,21 +172,20 @@
 | TC ID | 시나리오 | 기대 결과 |
 |---|---|---|
 | IT-DASH-01 | 일반 사용자가 `/admin/dashboard/summary` | 403 FORBIDDEN |
-| IT-DASH-02 | ADMIN의 오늘 현황 집계 | 출근·미출근·휴가 인원, 전체 PENDING 수가 시드 데이터와 일치 |
-| IT-DASH-03 | 미출근 집계에서 휴가 중인 사용자 제외 | 제외됨 |
-| IT-DASH-04 | 휴가 캘린더 월 집계(API-DASH-002): 평일 1일·월~금 5일·금~월(주말 포함) APPROVED 연차 | 해당 평일만 `count 1`, 토·일은 `days`에 없음 |
-| IT-DASH-05 | 월 경계: 1/29~2/3 APPROVED, `month=YYYY-01` / `YYYY-02` | 각 월에 그 월의 날짜만 반환 |
-| IT-DASH-06 | 사용자 단위 중복 없음: 같은 사용자 같은 날 HALF_AM + HALF_PM / 다른 사용자 2명 같은 날 | `count 1` / `count 2` |
-| IT-DASH-07 | 상태·활성 필터: PENDING·REJECTED·CANCELLED만 있는 날, APPROVED+PENDING+REJECTED 혼재, 비활성 사용자 APPROVED | 비승인·비활성은 집계·목록 모두 제외(혼재 시 `count 1`) |
-| IT-DASH-08 | `month` 생략(Clock 고정, UTC 2026-10-31 15:30 / 2026-11-30 15:00) | Asia/Tokyo 기준 `2026-11` / `2026-12` |
-| IT-DASH-09 | `month` = `2026-13`·`2026-1`·`abcd`·`1999-12`·`2101-01` / `date` 누락·`2026-02-30`·`2026/11/10`·`1999-12-31`·`2101-01-01` | 400 VALIDATION_ERROR, `details[0].field` = `month` / `date` |
-| IT-DASH-10 | 날짜별 목록(API-DASH-003): 다일 연차 중간 날짜, 같은 날 여러 사용자, 과거 날짜 | 해당 사용자 포함, `name`·`departmentName`이 DB와 일치, 사원번호 오름차순 |
-| IT-DASH-11 | `halfDay` 판정: HALF_AM만 / HALF_PM만 / HALF_AM+HALF_PM / ANNUAL·SPECIAL·OTHER / ANNUAL+HALF_PM(직접 INSERT) / 승인 HALF_AM + 대기·반려 HALF_PM | `"AM"` / `"PM"` / `null`(1행) / `null` / `null`(1행) / `"AM"` |
-| IT-DASH-12 | 휴가 없는 평일 / 휴가 기간 안의 토요일 | `items: []` |
-| IT-DASH-13 | 최소 공개: 월 `days[]` 키는 `date`·`count`만, 목록 `items[]` 키는 `userId`·`name`·`departmentName`·`halfDay`만(`reason`·`leaveType`·기간·`status`·`empId`·승인 정보 없음). EMPLOYEE·ADMIN 응답 동일 | 일치 |
-| IT-DASH-14 | 같은 날짜의 월 `count`와 목록 `items` 건수(반차 사용자 포함) | 같음 |
-| IT-DASH-15 | 집계 SQL을 DB 세션 타임존 America/Los_Angeles·Asia/Tokyo·UTC에서 실행 | 결과 동일 |
-| IT-DASH-16 | API-DASH-002·003 권한: 토큰 없음 / mustChangePassword 사용자 / EMPLOYEE·ADMIN | 401 / 403 PASSWORD_CHANGE_REQUIRED / 200 |
+| IT-DASH-02 | ADMIN의 오늘 현황 집계(API-DASH-001), 평일: 출근 A·휴가 B(ANNUAL)·미출근 C | 1/1/1, `totalEmployeeCount` 3, `attendanceRate` 33.3, `pendingLeaveCount` = 전체 PENDING 수, 응답 키 8개만 |
+| IT-DASH-03 | 배타 분류: 반차 APPROVED + 출근 / 반차 APPROVED·출근 없음 / PENDING·REJECTED·CANCELLED 휴가만 | 출근에만 1(합계 = 대상자 수) / 휴가 / 미출근 |
+| IT-DASH-17 | 대상자: 비활성 사용자, `hire_date` > 오늘(출근 기록이 있어도) | 모든 수치·`totalEmployeeCount`에서 제외 |
+| IT-DASH-18 | 비근무일: 토요일(출근 1·휴가 1) / 평일 공휴일(2026-11-03) / 비근무일 출근 0명 | `isWorkday false`, 휴가·미출근 0, 출근만 집계, `totalEmployeeCount` 불변 / `isWorkday false` / `attendanceRate null` |
+| IT-DASH-19 | 도쿄 날짜 경계(UTC 11-19 15:30 = 도쿄 11-20) | `date` = `2026-11-20` |
+| IT-DASH-20 | 부서별 현황(API-DASH-004) 권한: 토큰 없음 / mustChangePassword 사용자 / EMPLOYEE / ADMIN | 401 / 403 PASSWORD_CHANGE_REQUIRED / 200 / 200(같은 본문) |
+| IT-DASH-21 | 부서 2개 + 대상자 0명 부서 / 「未所属」 대상자 있음 | 0명 부서 제외, 부서 코드 오름차순 / 「未所属」 `departmentId null`로 마지막 |
+| IT-DASH-22 | 부서별 3분류·출근율이 IT-DASH-02·03·17 규칙과 같음, 부서 합계 = API-DASH-001(같은 Clock) | 일치 |
+| IT-DASH-23 | 최소 공개: `departments[]` 키 7개만(이름·사원번호·userId·부서 코드 없음), 1명 부서도 숫자만 | 일치 |
+| IT-DASH-24 | 부서별 비근무일 | 휴가·미출근 0, `isWorkday false` |
+| IT-DASH-25 | 집계 SQL을 DB 세션 타임존 America/Los_Angeles·Asia/Tokyo·UTC에서 실행 | 결과 동일 (미구현: 현재 e2e에 세션 TZ 케이스 없음) |
+| IT-DASH-26 | 제거된 API: `GET /dashboard/leave-calendar?month=2026-11`, `/dashboard/leave-calendar/day?date=2026-11-10`(EMPLOYEE·ADMIN) | 404 |
+
+> IT-DASH-04~16(API-DASH-002·003 휴가 캘린더)은 API 제거로 삭제했다. 번호는 재사용하지 않는다.
 
 ### 5.6 부서 관리 (FR-DEPT-001)
 
@@ -233,7 +232,7 @@
 | 부서 관리 `/admin/departments` API | 401 | 403 | 403 | 허용 |
 | 전체 근태 조회·수정 | 401 | 403 | 403 | 허용 |
 | 오늘 전체 현황 | 401 | 403 | 403 | 허용 |
-| 휴가 캘린더 월 집계·날짜별 목록 (API-DASH-002·003) | 401 | 허용 | 허용 | 허용(EMPLOYEE와 같은 응답) |
+| 부서별 오늘 현황 (API-DASH-004) | 401 | 허용 | 허용 | 허용(EMPLOYEE와 같은 응답) |
 
 화면 접근 검증(E2E 또는 라우트 테스트):
 - 비로그인이 `/dashboard` 접근 → `/login?redirect=/dashboard`
@@ -245,9 +244,9 @@
 | 화면 | 검증 항목 |
 |---|---|
 | SCR-001 | 빈 값 제출 시 필드 메시지, 로그인 실패 시 비밀번호 필드 초기화, 로그인 후 redirect 파라미터 이동(내부 경로만 허용: 외부 URL 입력 시 무시), 로그인 상태에서 `/login` 접근 시 대시보드 |
-| SCR-002 | 출근 버튼은 미출근일 때만, 퇴근은 근무 중일 때만 활성. 승인 대기 최대 5건. ADMIN 영역은 EMPLOYEE에게 렌더링되지 않음. 영역별 독립 실패(한 API 실패 시 나머지 표시). 休暇カレンダー: 날짜 배지 「{n}名」·0명 미표시(FS-01), [翌月]/[前月] 월 이동 재조회(FS-02), 월 조회 실패 SectionError·재시도(FS-03), 로딩 스켈레톤(FS-04), 날짜 클릭 시 그 날짜 상세만 1회 조회(FS-05), 모달에 이름·소속 부서만 표시(FS-06), 「午前半休」「午後半休」 라벨·라벨 없음(FS-06a), 0건 「この日の休暇取得者はいません。」(FS-07), 모달 내 실패·재시도(FS-08), 외부 갱신 시 표시 월 유지 재조회(FS-09). 공용 컴포넌트: `lib/calendar` 월 격자·월 이동(FU-01·02), `MonthCalendar` 오늘 `aria-current`·과거 표시·과거 클릭·요일 헤더(FC-01~04). 대시보드: EMPLOYEE·ADMIN 모두 캘린더 표시(FD-01·02), 승인 처리 후 캘린더 재조회(FD-03) |
+| SCR-002 | 출퇴근 단일 버튼(未出勤 [出勤する] / 勤務中 [退勤する] / 退勤済み 비활성), 확인 모달·409 3종 토스트 후 오늘 근태 재조회, 출근 후 (ADMIN) 통계·全社·部署·今月 재조회. 退勤時刻 = 실제 퇴근 시각(퇴근 전 「--:--」, 퇴근 직후 응답으로 즉시 표시), 진행률 0~100 클램프·정수 내림(출근 전 0%, 退勤済み는 퇴근 시각 기준 고정). 承認待ち: ADMIN 항상(`scope=all&limit=5`), 승인자 EMPLOYEE는 배지 건수 > 0일 때만(`scope=mine&limit=5`), 건수 0·null이면 카드 없음. 행 클릭 → 상세 모달의 [承認]·[却下] 노출은 기존 규칙, 승인·반려 후 목록·배지·(ADMIN) 통계·部署 재조회, 409 ALREADY_PROCESSED 시 목록 재조회, 마지막 건 처리 시 카드 사라짐. ADMIN 전용(통계 3개·全社)은 EMPLOYEE에게 렌더링되지 않고 summary를 호출하지 않음. 全社 도넛 출근율·범례 비율, 비근무일 안내, 출근율 null 「—」. 今月 4칸(休日出勤은 시간). 休暇 残日数·承認済み日数, 부여 미등록 안내, 신청 버튼 없음. 部署 5열(アラート 열 없음), ADMIN만 [すべて見る]. 直近 `limit=3`·상세 모달 취소 후 재조회. 영역별 독립 실패·로딩 스켈레톤, `xl` 미만 ADMIN 1열 순서. 캘린더 표시·`/dashboard/leave-calendar` 호출 없음. 인사말 시간대 경계. E2E: `e2e/dashboard-renewal.spec.ts` P-01(ADMIN 1440·1024·390·375 표시·가로 넘침 없음·스크린샷), P-02(EMPLOYEE 같은 4폭, 통계·全社·承認待ち 없음), P-04(EMPLOYEE의 summary·`scope=all` 직접 호출 403, department-status 200), P-05(할당 없는 EMPLOYEE 承認待ち 카드 없음), P-06·P-07(ADMIN 미리보기에서 승인·반려 → 목록·통계 件数 −1, 반려 사유 필수), P-08(ADMIN 출근 → 本日の出勤者·部署 출근 +1, 退勤時刻 「--:--」), P-09(`/leaves`에서 신청 → 대시보드 直近 최상단·残日数 반영), P-10(360px 카드 제목 1줄·가로 넘침 없음). P-03(참조 이미지 대조)은 체크리스트 수동 확인(test-report 기록), P-06의 사이드바 배지 갱신 확인은 미구현. 실행 전제: 테스트 DB 격리 스택, 900001 당일 근태·휴가 정리, 900002→900001 PENDING 2건 fixture, 900002 mustChangePassword false |
 | SCR-003 | 출근부: `?month=` 해석(없음·형식 오류는 이번 달)·[前月][翌月][今月](이번 달이면 disabled), 행 수 = `days` 길이, 勤務パターン 우선순위(승인 종일휴가 > 祝日 > 休日 > 通常), 토·일·공휴일·승인 종일휴가 회색(공휴일은 API `dayType` 기준, `WEEKDAY`로 오면 회색 아님), 승인 반차는 흰 배경+배지, 퇴근 누락 행 강조·툴팁, 備考 `文化の日・管理者修正`, 자정 넘김 퇴근 날짜 표시, 休憩 `計算値` 라벨, 申請 배지 → 휴가 상세 모달, 月間集計 항목·`休日労働時間(土日・祝日)`, 월 이동 중 표·집계 흐림, 화면을 연 채 자정 경과 시 오늘 강조 이동, 현재 일시 카드 1분 갱신·unmount 시 타이머 정리, `WorkTimeline` 구간 %·눈금. 폭별 표시(`AttendanceView`·`useMediaQuery`): md 이상은 출근부만(API-ATT-007·LEAVE-006 호출), md 미만은 근태 이력 목록만(API-ATT-004만 호출), 판정 전(서버 렌더) 스피너만·API 미호출, 경계를 넘는 `change`로 화면 교체(router 호출·API 중복 없음), 혼합 Query는 각 화면이 자기 키만 해석. md 미만 근태 이력: 기간 기본값·검증과 URL Query 반영, 상태 토글 복수 선택 즉시 반영, Empty 문구 2종, 카드 목록·Pagination. E2E: `e2e/attendance-status.spec.ts`(390×844, 카드 목록 기준 상태 필터 결과·40일 전 기록 제외·URL 유지, fixture `db:e2e-attendance-fixture`), `e2e/attendance.spec.ts` 폭 전환(1440 출근부 → 390 이력 목록, 360에서 가로 스크롤 없음), `e2e/attendance-sheet-layout.spec.ts` 출근부 좌우 2표 레이아웃(1920×1080·1440×900·1366×768에서 좌우 행 정렬·구분선 색·時間帯 영역만 가로 스크롤·스크롤 후 왼쪽 불변·페이지 가로 스크롤 없음, 1920에서 그래프 무스크롤·폭 480 이상, 日付 `1日（日）` 형식·일요일 빨강·勤務パターン Pill, 월 일수 28~31 좌우 행 수 일치, 1920→1366→1920 리사이즈 후 정렬, 1024·768 태블릿 안전망) |
-| SCR-004 | [休暇申請] 버튼으로 공통 휴가 신청 모달 열기(SCR-002에서도 같은 모달), 휴가 종류 Radio 미선택 검증, 이력 상태·휴가 종류 토글 복수 선택 필터와 URL Query(쉼표 구분) 반영, 신청 성공 후 모달 닫기·요약·이력 재조회, 반차 선택 시 종료일 자동 고정, 주말 제외 일수 미리보기, 즉시 승인 사용자는 승인자 필드 미표시, 잔여 초과 422 메시지, 중복 클릭 방지(요청 중 버튼 비활성), 취소 버튼 노출 조건 |
+| SCR-004 | [休暇申請] 버튼으로 공통 휴가 신청 모달 열기, 휴가 종류 Radio 미선택 검증, 이력 상태·휴가 종류 토글 복수 선택 필터와 URL Query(쉼표 구분) 반영, 신청 성공 후 모달 닫기·요약·이력 재조회, 반차 선택 시 종료일 자동 고정, 주말 제외 일수 미리보기, 즉시 승인 사용자는 승인자 필드 미표시, 잔여 초과 422 메시지, 중복 클릭 방지(요청 중 버튼 비활성), 취소 버튼 노출 조건 |
 | SCR-005 | 반려 사유 필수, scope 전환(ADMIN만 노출), 본인 신청 건 버튼 비활성, 409 시 목록 재조회 |
 | SCR-006 | 초기 비밀번호 규칙 검증, 입사일 필수 검증, 부서 필수 검증(미선택 시 「部署を選択してください。」), 중복 사원번호 메시지, 등록 후 목록 갱신 |
 | SCR-007 | 입사일 필수 검증, 부서 필수 검증(미선택 시 「部署を選択してください。」), 활성→비활성 전환 시 확인 모달과 대기 건수 경고, 저장하지 않은 변경 있을 때 목록 이동 확인, 404 안내 |

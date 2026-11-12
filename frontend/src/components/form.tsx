@@ -19,6 +19,10 @@ export const primaryButtonClass =
 export const secondaryButtonClass =
   'rounded border border-general-50 bg-white font-bold text-general-100 hover:bg-general-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
 
+// 09 §3 Button の Primary アウトライン(白地 + primary の枠・文字)。主操作の次段階の操作(退勤など)に使う
+export const primaryOutlineButtonClass =
+  'rounded border border-primary-100 bg-white font-bold text-primary-100 hover:bg-primary-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100 disabled:cursor-not-allowed disabled:border-general-50 disabled:text-general-60 disabled:hover:bg-white';
+
 // モーダル footer のボタン(詳細・申請モーダル共通)。高さ 40
 export const modalPrimaryButtonClass = `${primaryButtonClass} flex h-10 items-center justify-center gap-2 px-4 text-sm/5 disabled:cursor-not-allowed disabled:bg-primary-60`;
 export const modalSecondaryButtonClass = `${secondaryButtonClass} h-10 px-4 text-sm/5`;

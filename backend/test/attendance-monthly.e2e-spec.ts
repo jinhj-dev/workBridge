@@ -365,15 +365,5 @@ describe('出勤簿 月間表示 API(e2e)', () => {
         .expect(200);
       expect(res.body).toMatchObject({ approvedDays: 4, pendingDays: 0.5 });
     });
-
-    it('shouldKeepWeekdayHolidayCountedInDashboardCalendar', async () => {
-      // 既存 API-DASH-002: 祝日でも平日として休暇件数に出る
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/dashboard/leave-calendar?month=2026-11')
-        .set('Authorization', `Bearer ${token}`)
-        .expect(200);
-      const days = (res.body as { days: { date: string; count: number }[] }).days;
-      expect(days.find((day) => day.date === '2026-11-03')?.count).toBeGreaterThanOrEqual(1);
-    });
   });
 });
