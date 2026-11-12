@@ -10,6 +10,8 @@ function makeRow(overrides: Partial<DepartmentRow> = {}): DepartmentRow {
     id: ID,
     code: 'DEV',
     name: '開発部',
+    description: null,
+    manager: null,
     createdAt: new Date('2026-11-10T00:00:00Z'),
     updatedAt: new Date('2026-11-10T00:00:00Z'),
     memberCount: 3,
@@ -23,6 +25,9 @@ describe('DepartmentsService', () => {
     findAll: vi.fn(),
     findPage: vi.fn(),
     findById: vi.fn(),
+    countSummary: vi.fn(),
+    findMembersPage: vi.fn(),
+    findManagerCandidates: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
@@ -47,7 +52,7 @@ describe('DepartmentsService', () => {
       items: [makeRow(), makeRow({ code: 'UNASSIGNED' })],
       total: 2,
     });
-    const page = await service.listDetails({ page: 1, limit: 20 });
+    const page = await service.listDetails({ page: 1, limit: 20, sort: 'code', order: 'asc' });
     expect(page.totalCount).toBe(2);
     expect(page.items[0]).toMatchObject({
       isSystem: false,
@@ -60,7 +65,14 @@ describe('DepartmentsService', () => {
 
   it('shouldEscapeLikeWildcardsInSearchKeywords', async () => {
     repository.findPage.mockResolvedValue({ items: [], total: 0 });
-    await service.listDetails({ page: 1, limit: 20, code: 'A%_', name: '100\\%' });
+    await service.listDetails({
+      page: 1,
+      limit: 20,
+      sort: 'code',
+      order: 'asc',
+      code: 'A%_',
+      name: '100\\%',
+    });
     expect(repository.findPage).toHaveBeenCalledWith(
       expect.objectContaining({ code: 'A\\%\\_', name: '100\\\\\\%' }),
     );
@@ -88,12 +100,48 @@ describe('DepartmentsService', () => {
   it.each([
     ['notFound', 404, 'NOT_FOUND', '部署が見つかりません。'],
     ['protected', 409, 'PROTECTED_DEPARTMENT', '未所属部署は変更・削除できません。'],
-    ['hasMembers', 409, 'DEPARTMENT_HAS_MEMBERS', '所属する社員が存在するため、部署を削除できません。'],
+    [
+      'hasMembers',
+      409,
+      'DEPARTMENT_HAS_MEMBERS',
+      '所属する社員が存在するため、部署を削除できません。',
+    ],
   ] as const)('shouldMapDeleteResult_%s', async (result, status, code, message) => {
     repository.delete.mockResolvedValue(result);
     const error = await errorOf(() => service.remove(ID));
     expect(error).toBeInstanceOf(AppException);
     expect((error as AppException).toBody()).toMatchObject({ statusCode: status, code, message });
+  });
+
+  it('shouldThrowInvalidManagerWhenCreateOrUpdateRejectsManager', async () => {
+    repository.create.mockResolvedValue({ status: 'invalidManager' });
+    repository.update.mockResolvedValue({ status: 'invalidManager' });
+    for (const run of [
+      () => service.create({ code: 'DEV', name: '開発部', managerId: ID }),
+      () => service.update(ID, { managerId: ID }),
+    ]) {
+      const error = await errorOf(run);
+      expect((error as AppException).toBody()).toMatchObject({
+        statusCode: 400,
+        code: 'INVALID_MANAGER',
+      });
+    }
+  });
+
+  it('shouldThrowNotFoundWhenListingMembersOfMissingDepartment', async () => {
+    repository.findMembersPage.mockResolvedValue(null);
+    const error = await errorOf(() => service.listMembers(ID, { page: 1, limit: 20 }));
+    expect((error as AppException).toBody()).toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
+  });
+
+  it('shouldMapManagerCandidatesToUserSummary', async () => {
+    repository.findManagerCandidates.mockResolvedValue([
+      { id: ID, name: '山田 太郎', empId: '00001', department: { name: '開発部' } },
+    ]);
+    await expect(service.listManagerCandidates({ keyword: '' })).resolves.toEqual([
+      { id: ID, name: '山田 太郎', empId: '00001', departmentName: '開発部' },
+    ]);
+    expect(repository.findManagerCandidates).toHaveBeenCalledWith(undefined);
   });
 
   it('shouldResolveWhenDeleted', async () => {

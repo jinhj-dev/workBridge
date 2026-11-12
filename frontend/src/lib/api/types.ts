@@ -54,8 +54,23 @@ export interface DepartmentDetail {
   memberCount: number;
   inactiveMemberCount: number;
   isSystem: boolean;
+  description: string | null;
+  manager: { id: string; empId: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
+}
+
+// API-DEPT-007
+export interface DepartmentSummary {
+  departmentCount: number;
+  memberCount: number;
+}
+
+// API-DEPT-008
+export interface DepartmentMember {
+  id: string;
+  empId: string;
+  name: string;
 }
 
 export interface Paginated<T> {

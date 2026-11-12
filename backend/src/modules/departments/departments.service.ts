@@ -2,10 +2,14 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { AppException } from '../../common/exceptions/app.exception.js';
 import { toPage, toSkipTake } from '../../common/pagination/pagination.js';
 import type { Page } from '../../common/pagination/pagination.js';
-import type { DepartmentDetail } from './department.mapper.js';
+import { toUserSummary } from '../../common/mappers/user-summary.js';
+import type { UserSummary } from '../../common/mappers/user-summary.js';
+import type { PaginationQuery } from '../../common/pagination/pagination.js';
+import type { DepartmentDetail, DepartmentMember, DepartmentSummary } from './department.mapper.js';
 import { toDepartmentDetail } from './department.mapper.js';
 import type { AdminDepartmentQueryDto } from './dto/admin-department-query.dto.js';
 import type { CreateDepartmentDto } from './dto/create-department.dto.js';
+import type { ManagerCandidatesQueryDto } from './dto/manager-candidates-query.dto.js';
 import type { UpdateDepartmentDto } from './dto/update-department.dto.js';
 import { DepartmentsRepository } from './departments.repository.js';
 import type { DepartmentWriteResult, DuplicateField } from './departments.repository.js';
@@ -47,9 +51,28 @@ export class DepartmentsService {
     const { items, total } = await this.departmentsRepository.findPage({
       code: query.code && escapeLikePattern(query.code),
       name: query.name && escapeLikePattern(query.name),
+      sort: query.sort,
+      order: query.order,
       ...toSkipTake(query),
     });
     return toPage(items.map(toDepartmentDetail), total, query.page, query.limit);
+  }
+
+  getSummary(): Promise<DepartmentSummary> {
+    return this.departmentsRepository.countSummary();
+  }
+
+  async listMembers(id: string, query: PaginationQuery): Promise<Page<DepartmentMember>> {
+    const result = await this.departmentsRepository.findMembersPage(id, toSkipTake(query));
+    if (!result) {
+      throw notFoundException();
+    }
+    return toPage(result.items, result.total, query.page, query.limit);
+  }
+
+  async listManagerCandidates(query: ManagerCandidatesQueryDto): Promise<UserSummary[]> {
+    const rows = await this.departmentsRepository.findManagerCandidates(query.keyword || undefined);
+    return rows.map(toUserSummary);
   }
 
   async getDetail(id: string): Promise<DepartmentDetail> {
@@ -95,6 +118,12 @@ export class DepartmentsService {
         throw new AppException('PROTECTED_DEPARTMENT', HttpStatus.CONFLICT, PROTECTED_MESSAGE);
       case 'notFound':
         throw notFoundException();
+      case 'invalidManager':
+        throw new AppException(
+          'INVALID_MANAGER',
+          HttpStatus.BAD_REQUEST,
+          '部署責任者には有効な社員を指定してください。',
+        );
     }
   }
 }

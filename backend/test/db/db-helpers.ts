@@ -132,6 +132,11 @@ export class TestDataTracker {
       }),
       this.prisma.leaveGrant.deleteMany({ where: { userId: { in: ids } } }),
       this.prisma.refreshToken.deleteMany({ where: { userId: { in: ids } } }),
+      // 対象の社員を責任者にしている部署(他の部署も含む)は RESTRICT FK のため先に解除する
+      this.prisma.department.updateMany({
+        where: { managerId: { in: ids } },
+        data: { managerId: null },
+      }),
       this.prisma.user.deleteMany({ where: { id: { in: ids } } }),
       this.prisma.department.deleteMany({ where: { id: { in: this.departmentIds } } }),
     ]);

@@ -240,6 +240,22 @@
 | IT-DEPT-18 | 경합: 삭제 트랜잭션 진행 중 소속 비활성 사원 재활성화 | 409 DEPARTMENT_HAS_MEMBERS, 비활성 사원 이동 롤백 |
 | IT-DEPT-19 | 권한: EMPLOYEE의 `/admin/departments` 조회·수정 / 비밀번호 변경 필요 사용자 / 비로그인 | 403 FORBIDDEN / 403 PASSWORD_CHANGE_REQUIRED / 401 |
 | IT-DEPT-20 | 기존 `GET /departments`(회귀) | 200, id·name만 |
+| IT-DEPT-21 | 설명·책임자 지정 등록(`description:" 説明 "`), 이후 `description:"  "`로 수정 | 201, description `説明`(trim), manager `{id,empId,name}` / 200, description null |
+| IT-DEPT-22 | 존재하지 않는 사원·비활성 사원을 managerId로 등록·수정 | 400 INVALID_MANAGER, 부서 생성 안 됨, 기존 책임자 유지 |
+| IT-DEPT-23 | managerId UUID 형식 오류(등록·수정) | 400 VALIDATION_ERROR, `details[0].field` = `managerId`, 부서 생성 안 됨 |
+| IT-DEPT-24 | 책임자 자격: 같은 부서 사원 / 다른 부서 사원 / 요청자 본인(ADMIN) | 모두 200, manager 키는 id·empId·name만 |
+| IT-DEPT-25 | 같은 사원을 2개 부서 책임자로 지정 후 한쪽 `managerId:null` | 겸임 허용, 해제한 부서만 manager null, 다른 부서는 유지 |
+| IT-DEPT-26 | DB 제약: 같은 사원을 2개 부서 manager_id로 직접 UPDATE / 책임자 사원 물리 삭제 / 인덱스 | UNIQUE 없음(2건) / P2003(SQLSTATE 23001 RESTRICT) / `departments_manager_id_idx` 존재 |
+| IT-DEPT-27 | 未所属에 managerId 지정 | 409 PROTECTED_DEPARTMENT(INVALID_MANAGER보다 먼저) |
+| IT-DEPT-28 | 정렬 `sort=memberCount` asc/desc(비활성 사원만 있는 부서 포함) | 활성 사원 수 기준 순서 |
+| IT-DEPT-29 | 정렬 동률: memberCount 같은 부서, asc·desc 모두 + 2페이지 | 동률은 code 오름차순, 페이지 간 순서 연속 |
+| IT-DEPT-30 | `sort=updatedAt&order=desc` / `sort=name&order=desc` / 허용 외 `sort`·`order` | 최근 수정 우선 / 이름 내림차순 / 400 VALIDATION_ERROR(field `sort`) |
+| IT-DEPT-31 | `name` 검색 + `sort=memberCount` + page 2 | totalCount는 검색 결과 수, 항목에 description·manager 포함 |
+| IT-DEPT-32 | 요약(API-DEPT-007), `name` Query 지정 여부 | departmentCount = 未所属 제외 부서 수, memberCount = 전체 활성 사원 수, Query와 무관하게 같은 본문 |
+| IT-DEPT-33 | 소속 사원(API-DEPT-008): 활성 2명·비활성 1명 / 없는 id / 형식 오류 id | 활성 2명만 empId 오름차순, 키 id·empId·name만 / 404 / 400 |
+| IT-DEPT-34 | 책임자 후보(API-DEPT-009): keyword(대소문자 무시)로 활성 ADMIN·비활성 사원 / 사원번호 중간 부분 일치 / 공백만 keyword / 101자 | ADMIN 포함·비활성 제외, 키 id·empId·name·departmentName만 / 일치 / 조건 없음(최대 100건) / 400(field `keyword`) |
+| IT-DEPT-35 | 권한: EMPLOYEE의 summary·members·manager-candidates 조회, managerId 지정 등록·수정 / 비로그인 | 403(부서 생성·책임자 변경 없음) / 401 |
+| IT-DEPT-36 | 책임자가 지정된 부서 삭제 | 204 |
 
 ## 6. 권한 매트릭스 테스트
 
@@ -281,7 +297,7 @@
 | SCR-007 | 입사일 필수 검증, 부서 필수 검증(미선택 시 「部署を選択してください。」), 활성→비활성 전환 시 확인 모달과 대기 건수 경고, 저장하지 않은 변경 있을 때 목록 이동 확인, 404 안내 |
 | SCR-008 | 수정 모달 시간 검증, 기본 정렬(근무일 내림차순, 사원명 오름차순), 페이지 이동 시 검색 조건 유지 |
 | SCR-009 | 확인 비밀번호 불일치, 최초 로그인 시 취소 버튼 미표시, 변경 후 대시보드 이동 |
-| SCR-010 | 등록·수정 모달의 필수·형식·길이 검증과 중복 code·name 서버 메시지 필드 표시, 未所属 행 [編集][削除] 미표시·「システム」 배지, 활성 사원이 있는 부서 삭제 시 API 호출 없이 오류 토스트, 삭제 확인 모달의 비활성 사원 이동 안내(`inactiveMemberCount > 0`일 때만), 409·404 시 모달 닫기·목록 재조회, 검색 조건·페이지 URL 반영·복원, 사이드바 「部署管理」에서 진입 |
+| SCR-010 | 등록·수정 모달의 필수·형식·길이 검증(説明 500자 포함)과 중복 code·name 서버 메시지 필드 표시, 未所属 행 [編集][削除] 미표시·[詳細]만·「システム」 배지, 행 액션 [詳細][編集][削除](削除는 Danger 스타일 `danger-100`)·所属社員数 옆 [確認](0명도 열림), 표(`md` 이상) 5건 이하 스크롤 없음·6건 이상 표 내부 스크롤(높이 304 이하, 보이는 행 5)·스크롤 시 헤더 고정·페이지 스크롤 불변, 카드 목록(`md` 미만)은 내부 스크롤 없음, 「選択中の部署情報」 영역 없음, 部署詳細 모달(항목·책임자 「{name}（{empId}）」/「未設定」·無効の社員数는 1명 이상일 때만·未所属은 [この部署を編集] 없음·[この部署を編集]으로 수정 모달 전환), 활성 사원이 있는 부서 삭제 시 API 호출 없이 오류 토스트, 삭제 확인 모달의 비활성 사원 이동 안내(`inactiveMemberCount > 0`일 때만), 409·404 시 모달 닫기·목록 재조회, 부서명 검색 디바운스·정렬(열 제목 `aria-sort`·같은 열 재클릭 방향 전환·md 미만 select)·페이지 URL 반영·복원(기본값 생략, 잘못된 값은 기본값), [条件をクリア] 조건 없을 때 비활성, 요약 2개(部署数 未所属 제외)·요약 실패 시 「—」, 所属社員確認 모달(제목 「所属社員確認」+배지 「{部署名} / 所属社員 N名」, 社員番号·氏名·部署 3열, `limit=100` 전 페이지 수집, 氏名 클라이언트 검색(대소문자·반각/전각 공백 무시, 서버 재조회 없음)·검색 중에도 인원 수는 전체 기준·검색 결과 없음 문구, 로딩·0건·오류 시 표 헤더 유지, 404 시 닫기·토스트 1회, 닫은 뒤 목록 스크롤·검색어 유지), 部署責任者 서버 검색(300ms)·후보 0건에도 입력란 유지·100건 상한 안내·현재 책임자 표시·미변경 시 PATCH에 managerId 미전송·입력란 비우면 null·입력 후 미선택 blur 시 원래 값 복원, 400 INVALID_MANAGER 필드 표시·후보 재조회, 사이드바 「部署管理」에서 진입. E2E: `e2e/departments.spec.ts`(비로그인 리다이렉트·사이드바 진입·등록/수정/삭제·활성 사원 부서 삭제 토스트·정렬/소속 사원/선택 영역 없음), `e2e/departments-manager.spec.ts`(EMPLOYEE 차단, 다른 부서 사원 책임자 지정·해제, 겸임, 部署数 未所属 제외, 부서명 검색·열 정렬), `e2e/departments-responsive.spec.ts`(1440·1366·390·375 화면·등록/수정 모달 가로 스크롤·버튼 화면 밖 없음, 캡처), `e2e/departments-list-modal.spec.ts`(5건/7건 내부 스크롤·헤더 고정·[確認] 대상 부서 모달·닫은 뒤 스크롤·검색어 유지, 部署詳細→編集 전환·削除 Danger 색, 375px 카드·버튼 수용), `e2e/departments-members-modal.spec.ts`(실데이터 부서 인원·검색·공백 무시·새로고침 없음·결과 없음·Esc, 빈 부서·[閉じる], 375px 수용) |
 | 공통 | Loading 스켈레톤, Error의 [다시 시도], 401 시 Refresh 1회 재시도, 네트워크 오류 토스트 |
 
 ## 8. E2E 핵심 여정

@@ -46,7 +46,7 @@
 ### 2. 데이터베이스 — 완료
 
 - [x] Prisma Schema(테이블 6개, ENUM 3개, FK RESTRICT, 인덱스) — 05 §0~§7
-- [x] 마이그레이션(`init`, `split_leaves_rejected_check`, `add_users_hire_date`, `department_code_and_required_user_department`), CHECK 14개 — 마지막은 departments.code(UNIQUE)·未所属 부서·users.department_id NOT NULL (05 §1·§2)
+- [x] 마이그레이션(`init`, `split_leaves_rejected_check`, `add_users_hire_date`, `department_code_and_required_user_department`, `add_departments_description_manager`), CHECK 14개 — departments.code(UNIQUE)·未所属 부서·users.department_id NOT NULL (05 §1·§2), departments.description·manager_id(FK RESTRICT, UNIQUE 없음)·인덱스 `departments(manager_id)` (05 §1·§7, 개발·테스트 DB 적용)
 - [x] Seed: 부서 5개(未所属 포함, 코드 부여), 초기 ADMIN(활성 ADMIN이 없을 때만, 総務部 소속)
 - [x] DB 통합 테스트: CRUD, UNIQUE, FK, CHECK 14개, DATE·Decimal 왕복, seed 멱등성, departments.code UNIQUE·users.department_id NOT NULL·마이그레이션 후 상태
 - [x] DB 사용 절차 문서화(`backend/README.md`)
@@ -140,15 +140,21 @@
 - [ ] 사원 목록 API-USER-001 (검색 조건, 페이지네이션)
 - [ ] 사원 등록 API-USER-002 (FR-USER-001, 사원번호 정규화·중복)
 - [ ] 사원 상세 API-USER-003
-- [ ] 사원 수정 API-USER-004 (FR-USER-002: 마지막 활성 ADMIN 보호, 비활성화 처리 — PENDING 취소·토큰 무효화)
+- [ ] 사원 수정 API-USER-004 (FR-USER-002: 마지막 활성 ADMIN 보호, 비활성화 처리 — PENDING 취소·토큰 무효화·부서 책임자 자동 해제(겸임 포함). 부서 이동은 책임자 유지)
 - [ ] 부여 연차 등록·수정 API-USER-005 (FR-LEAVE-006, 사용 일수 미만 금지)
 - [x] 부서 목록 API-DEPT-001
 - [x] 부서 관리 API-DEPT-002~006 (FR-DEPT-001: 코드 대문자 정규화·중복, 未所属 보호, 활성 사원 있는 부서 삭제 금지, 비활성 사원 未所属 이동, 부서 행 잠금 — 05 §8)
+- [x] 부서 관리 재설계 백엔드 (FR-DEPT-001): API-DEPT-002 `sort`·`order`(활성 사원 수 기준 memberCount 정렬, 동률 code 오름차순), 002~005 `description`·`manager`, 004·005 `managerId`(활성 사원만, 400 INVALID_MANAGER, 부서 → 사원 잠금 — 05 §8), API-DEPT-007 요약(未所属 제외)·008 소속 사원·009 책임자 후보(최대 100건) 신규 — backend unit 320건, e2e 408건 통과(test-report Run 3)
 
 프론트엔드
 - [ ] 사원 관리 화면 SCR-006
 - [ ] 사원 상세 화면 SCR-007
 - [x] 부서 관리 화면 SCR-010 (등록·수정 모달, 삭제 확인 모달, 사이드바 部署管理) — Vitest 25건, Playwright `e2e/departments.spec.ts` 4건 통과(임시 DB). 개발 DB에는 이 마이그레이션 미적용
+- [x] 부서 관리 화면 SCR-010 재구성: 헤더·요약 2개(部署数 未所属 제외·所属社員数)·부서명 검색(디바운스)·열 정렬(기본 部署名 오름차순, md 미만 select)·部署責任者/説明 열·選択中の部署情報·所属社員確認 모달·등록/수정 모달 説明·部署責任者(서버 검색, `ApproverSelect` `texts`·`onSearch` 추가). 今月の変更·状態 필터는 범위 밖 — frontend Vitest 45파일 634건, Playwright `departments`·`departments-manager`·`departments-responsive` 19건 포함 31건 통과(test-report Run 3, 개발 DB)
+- [x] SCR-010 목록·모달 추가 수정(사용자 요청): 표 5행 높이 내부 스크롤·헤더 고정(모바일 카드는 페이지 스크롤 유지), 所属社員数 옆 [確認], 액션 [詳細][編集][削除](削除 Danger, 未所属은 詳細만), 部署詳細 모달(조회 전용) 신설·選択中の部署情報 삭제, 所属社員確認 모달 재구성(社員番号·氏名·部署 3열, `limit=100` 전 페이지 수집 후 클라이언트 검색, 인원 수는 부서 전체 기준). 공용 `dangerOutlineButtonClass`·`Modal` `subtitle` 추가. API·DB 변경 없음 — frontend Vitest 45파일 642건, Playwright 부서 5개 spec·휴가 포함 37건 통과(test-report Run 4, 개발 DB). 리뷰 Round 4 APPROVE
+
+후속 과제
+- [ ] 사원 役職·連絡先 DB 추가(별도 작업): 현재 users에 컬럼이 없어 SCR-010 所属社員確認 모달에서 제외. 추가 시 API-DEPT-008 응답·모달 열 함께 반영(入社日 열은 사용자 결정으로 제외)
 
 ### 9. 대시보드 — 진행 중
 
@@ -176,7 +182,7 @@
 - [ ] API 통합 테스트 (08 §5) — 각 도메인 구현과 함께
 - [ ] 권한 매트릭스 테스트 (08 §6)
 - [ ] 동시성 테스트: 휴가 신청 잠금, 조건부 UPDATE (NFR-004)
-- [ ] 화면 테스트 (08 §7) — SCR-001 완료(Vitest 51건 — 화면 25·redirect 검증 26, Playwright 7건), SCR-009 완료(Vitest 17건, Playwright 3건), SCR-002 개편 진행 중(test-report Run 4: Vitest 40파일 556건 전체 통과, Playwright `e2e/dashboard-renewal.spec.ts` 9건(P-01·02·04~10)·`dashboard.spec` 포함 통과. 休暇カレンダー 테스트는 기능 삭제로 제거. 디자인 재현 3차 반영분은 tester 재실행 전, §2 #9), SCR-008 완료(Vitest — 전체 근태 8·수정 모달 9·Tooltip 7·관리자 가드 3 외, Playwright 3건), SCR-003 출근부 진행 중(Vitest — AttendanceSheetView·CurrentDateTimeCard·WorkTimeline·`lib/attendance-sheet`·AttendanceView(폭 전환)·`useMediaQuery`·AttendanceHistoryView·StatusFilterButtons 통과, Playwright `e2e/attendance-sheet-layout.spec.ts` 8건·`e2e/attendance.spec.ts` 4건·`e2e/attendance-status.spec.ts` 6건 통과(Fix 1 반영 전), §2 #5 후속 과제 미해결), SCR-005·승인 대기 배지 완료(Vitest — 화면 19·Tabs 3·휴가 상세 모달·공통 셸 추가분 외, Playwright 5건), SCR-004 완료(2026-11-12 휴가관리 통합, test-report Run 4: Vitest 44파일 605건, Playwright 휴가 관련 61건 통과. `LeaveFilterButtons`는 삭제), SCR-010 완료(Vitest 25건, Playwright 4건)
+- [ ] 화면 테스트 (08 §7) — SCR-001 완료(Vitest 51건 — 화면 25·redirect 검증 26, Playwright 7건), SCR-009 완료(Vitest 17건, Playwright 3건), SCR-002 개편 진행 중(test-report Run 4: Vitest 40파일 556건 전체 통과, Playwright `e2e/dashboard-renewal.spec.ts` 9건(P-01·02·04~10)·`dashboard.spec` 포함 통과. 休暇カレンダー 테스트는 기능 삭제로 제거. 디자인 재현 3차 반영분은 tester 재실행 전, §2 #9), SCR-008 완료(Vitest — 전체 근태 8·수정 모달 9·Tooltip 7·관리자 가드 3 외, Playwright 3건), SCR-003 출근부 진행 중(Vitest — AttendanceSheetView·CurrentDateTimeCard·WorkTimeline·`lib/attendance-sheet`·AttendanceView(폭 전환)·`useMediaQuery`·AttendanceHistoryView·StatusFilterButtons 통과, Playwright `e2e/attendance-sheet-layout.spec.ts` 8건·`e2e/attendance.spec.ts` 4건·`e2e/attendance-status.spec.ts` 6건 통과(Fix 1 반영 전), §2 #5 후속 과제 미해결), SCR-005·승인 대기 배지 완료(Vitest — 화면 19·Tabs 3·휴가 상세 모달·공통 셸 추가분 외, Playwright 5건), SCR-004 완료(2026-11-12 휴가관리 통합, test-report Run 4: Vitest 44파일 605건, Playwright 휴가 관련 61건 통과. `LeaveFilterButtons`는 삭제), SCR-010 완료(Vitest 25건, Playwright 4건. 2026-11-12 재구성 후 test-report Run 3: Vitest 634건 전체 통과, Playwright 부서 3개 spec 19건 통과. 목록·모달 추가 수정 후 test-report Run 4: Vitest 642건, Playwright 부서 5개 spec 포함 37건 통과)
 - [ ] E2E 하네스 정비(`PLAYWRIGHT_BASE_URL` 지정·임시 DB 실행): `e2e/attendance-status.spec.ts` 6건은 이전 실행에서 실패 이력이 있었으나(2026-11-10 이력) 2026-11-11 개발 DB 실행에서 통과(해소). `e2e/leaves.spec.ts`는 `db:e2e-leaves-reset` 스크립트 추가 후 2026-11-12 개발 DB 실행에서 통과(해소). `e2e/dashboard-renewal.spec.ts` 8건은 900002 PENDING 2건 부재·globalSetup의 mustChangePassword 초기화 충돌로 미해결(2026-11-12 휴가관리 통합 test-report Run 2~4)
 - [ ] E2E 핵심 여정 E2E-01~05 (08 §8, Playwright)
 - [ ] CI(GitHub Actions): lint, 타입 검사, unit, e2e(postgres 서비스 컨테이너), build
@@ -215,3 +221,5 @@
 | 2026-11-12 | 대시보드 UI 수정(SCR-002, 사용자 요청): 今日の出勤状況의 退勤予定（目安）(출근 + 9시간)을 폐기하고 退勤時刻(실제 퇴근 시각, 퇴근 전 `--:--`)으로 변경(진행률은 유지). 承認待ち 0건 시 표 헤더 유지 + 빈 문구, 直近の申請履歴 상단 구분선·행 전체 포인터, 공용 `Card` 패딩(좌우 20·상하 16, `sm` 이상 24·20)·본문 간격 12·본문 `flex-1`, `lib/work-progress.ts` `expectedClockOut` 삭제. 02·SCR-002·08·09 반영. API·DB 변경 없음(frontend tsc·eslint 오류 없음, Vitest 40파일 560건 통과. Playwright 미실행) |
 | 2026-11-12 | 휴가관리 통합: SCR-004를 경로 기반 탭 3개(自分の休暇 `/leaves`·休暇カレンダー `/leaves/calendar`·承認 `/leaves/approvals`)로 개편하고 SCR-005를 承認 탭으로 흡수. 공유 휴가 캘린더 API-LEAVE-010 신규(APPROVED·활성 사원만, 공개 7필드, 페이지네이션 없음 = NFR-002 예외), API-LEAVE-007 `status`, API-LEAVE-003 `appliedFrom`·`appliedTo`(연도 필터 UI 폐지). 사이드바·하단 탭 休暇承認 삭제(하단 탭 4개, 社員情報·各種設定 미추가). 참조 이미지 재현(Primary 유지, 컨트롤 radius 8, 휴가 분류·요일 색·타이포 토큰), 공용 `PageHeader`·`NavTabs`·`SearchInput`·`LeaveCategoryBadge`·`MonthNavigator`·`LeaveDayModal`·`cardFrameClass`·band 표 클래스 추가, `LeaveFilterButtons`·`yearOptions` 삭제. 02·03·SCR-004·SCR-005·06·08·09 반영. DB 변경 없음(test-report Run 4: backend unit 312건, e2e 385건, frontend Vitest 605건 통과, Playwright 휴가 관련 61건 통과(1차 flake 2건 단독 재실행 통과). 리뷰 Round 2 낮음 중 코드·테스트 3건은 §2 #6 후속 과제) |
 | 2026-11-12 | 휴가 관리 사이드바 하위 메뉴: SCR-004 페이지 안 탭 UI 삭제, 사이드바(`lg` 미만 드로어) 休暇管理를 개폐 하위 메뉴(自分の休暇·休暇カレンダー·承認[표시 대상만])로 변경, 승인 대기 배지는 부모 행. 하단 탭 休暇管理는 `/leaves` 링크 유지. 공용 `SidebarSubmenu`·`ApprovalsAccessProvider`/`useApprovalsVisible` 추가, `NavTabs`·`messages.leaveManagement.tabsLabel` 삭제. 03·SCR-004·09 반영. API·DB 변경 없음(frontend tsc·eslint 오류 없음, Vitest 44파일 612건 통과, Playwright 신규 2건 포함 22건 통과. 비승인자 사원의 사이드바는 단위 테스트로만 확인) |
+| 2026-11-12 | 부서 관리 재설계(SCR-010): departments에 `description`(VARCHAR 500)·`manager_id`(FK users RESTRICT, UNIQUE 없음 = 겸임 허용, 인덱스) 추가(마이그레이션 `add_departments_description_manager`, 기존 행 NULL). 부서 책임자 = 임의의 활성 사원(소속·권한 무관, 未所属 지정 불가, 400 INVALID_MANAGER), 사원 비활성화 시 자동 해제·부서 이동은 영향 없음(API-USER-004 미구현으로 문서만). API-DEPT-002 정렬, 007 요약·008 소속 사원·009 책임자 후보 신규. 화면은 헤더·요약·정렬 목록·선택 상세·所属社員 모달로 재구성(今月の変更·状態 범위 밖). 02·05·06·SCR-010·08·09 §6 반영(test-report Run 3: backend unit 320건, e2e 408건, frontend Vitest 634건, Playwright 31건 통과. 리뷰 APPROVE·보안 PASS. 리뷰 Round 2 낮음 2건(책임자 후보 100건 상한 실측 테스트, 책임자 입력 Escape 시 이전 값 미복원)은 미반영) |
+| 2026-11-12 | SCR-010 목록·모달 추가 수정(사용자 요청): 표 5행 내부 스크롤·헤더 고정, 所属社員数 [確認], 행 액션 [詳細][編集][削除], 部署詳細 모달 신설·選択中の部署情報 삭제, 所属社員確認 모달 3열·전 페이지 수집 후 클라이언트 검색. 공용 `dangerOutlineButtonClass`(09 §3 Danger 구현)·`Modal` `subtitle` 추가(토큰 변경 없음). SCR-010·08·09 §6 반영. API·DB 변경 없음(test-report Run 4: backend unit 320건, e2e 408건, frontend Vitest 642건, Playwright 37건 통과, 리뷰 Round 4 APPROVE). 役職·連絡先 DB 추가는 §2 #8 후속 과제 |

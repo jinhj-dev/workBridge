@@ -520,6 +520,8 @@ Request
 - `departmentId: null`은 허용하지 않는다(400 VALIDATION_ERROR)
 - Response 200: 사원 상세
 - `isActive`를 false로 바꾸면 FR-USER-002의 비활성화 처리를 같은 트랜잭션에서 수행한다.
+  - 비활성화 처리에는 그 사원이 책임자인 모든 부서(겸임 포함)의 `manager_id`를 NULL로 해제하는 것이 포함된다(05 §8 「부서 등록·수정의 책임자 지정」). 이 API 미구현으로 아직 구현되지 않았다.
+  - `departmentId` 변경(부서 이동)은 부서 책임자 지정에 영향을 주지 않는다.
 
 | HTTP | Code | 설명 |
 |---|---|---|
@@ -542,24 +544,32 @@ Request
 
 `DepartmentDetail` (API-DEPT-002~005 공통)
 ```json
-{ "id": "uuid", "code": "DEV", "name": "開発部", "memberCount": 12, "inactiveMemberCount": 2,
+{ "id": "uuid", "code": "DEV", "name": "開発部", "description": "社内システムの開発",
+  "manager": { "id": "uuid", "empId": "00001", "name": "山田 太郎" },
+  "memberCount": 12, "inactiveMemberCount": 2,
   "isSystem": false, "createdAt": "2026-11-10T09:00:00+09:00", "updatedAt": "2026-11-10T09:00:00+09:00" }
 ```
+- `description`: 부서 설명. 없으면 `null`
+- `manager`: 부서 책임자 `{ id, empId, name }`. 없으면 `null`. 그 외 사원 정보(role·isActive 등)는 넣지 않는다
 - `memberCount`: 소속 **활성** 사원 수. 삭제 가능 판단 기준(FR-DEPT-001)
 - `inactiveMemberCount`: 소속 비활성 사원 수. 삭제 시 未所属 부서로 이동되는 인원
 - `isSystem`: 시스템 부서 未所属(code `UNASSIGNED`)이면 `true`(05 §1)
-- 응답에 사원 개인정보는 넣지 않는다(건수만)
+- 응답에 소속 사원 개인정보는 넣지 않는다(건수만. 책임자는 위 3항목만)
 
 입력 규칙(등록·수정 공통)
 - code: 앞뒤 공백 제거 후 영숫자·하이픈 1~20자. 대문자로 정규화하여 저장·중복 비교한다(`dev` → `DEV`)
 - name: 앞뒤 공백 제거 후 1~100자
 - code `UNASSIGNED`는 이미 사용 중이므로 등록·수정 시 409 DUPLICATE_DEPARTMENT_CODE가 된다
+- description: 문자열 또는 null. 앞뒤 공백 제거 후 0~500자, 빈 문자열은 null로 저장. 줄바꿈 허용. 초과 시 400 VALIDATION_ERROR 「説明は 500 文字以内で入力してください。」(field `description`)
+- managerId: 사원 ID(UUID) 또는 null(null = 미지정·해제). 형식 오류 시 400 VALIDATION_ERROR 「部署責任者の形式が正しくありません。」(field `managerId`). 지정한 사원이 없거나 비활성이면 400 INVALID_MANAGER 「部署責任者には有効な社員を指定してください。」. 소속 부서·권한은 묻지 않고(본인·ADMIN 포함), 다른 부서 책임자와의 겸임도 허용한다(FR-DEPT-001). 검사는 사원 행을 잠근 뒤 다시 읽은 값으로 한다(05 §8)
 
 ### API-DEPT-002: 부서 관리 목록
 - `GET /admin/departments` · ADMIN · FR-DEPT-001
-- Query: `code`(앞뒤 공백 제거 후 최대 20자), `name`(앞뒤 공백 제거 후 최대 100자), `page`, `limit`. 둘 다 대소문자 무시 부분 일치. `%`·`_`·`\`도 와일드카드가 아닌 문자 그대로 일치한다
-- Response 200: 페이지네이션(`DepartmentDetail[]`), code 오름차순. 未所属 부서도 포함한다
-- 400 VALIDATION_ERROR: `code`·`name` 길이, `page`·`limit` 범위 오류
+- Query: `code`(앞뒤 공백 제거 후 최대 20자), `name`(앞뒤 공백 제거 후 최대 100자), `page`, `limit`, `sort`, `order`. `code`·`name`은 대소문자 무시 부분 일치. `%`·`_`·`\`도 와일드카드가 아닌 문자 그대로 일치한다
+  - `sort`: `code` | `name` | `memberCount` | `updatedAt`(기본 `code`), `order`: `asc` | `desc`(기본 `asc`)
+  - 동률은 code 오름차순. `memberCount`는 활성 사원 수 기준
+- Response 200: 페이지네이션(`DepartmentDetail[]`), 기본 code 오름차순. 未所属 부서도 포함한다
+- 400 VALIDATION_ERROR: `code`·`name` 길이, `page`·`limit` 범위 오류, 허용 외 `sort`·`order`(field `sort`·`order`)
 
 ### API-DEPT-003: 부서 상세
 - `GET /admin/departments/:id` · ADMIN · FR-DEPT-001
@@ -567,32 +577,36 @@ Request
 - 400 VALIDATION_ERROR: `:id`가 UUID 형식이 아님
 - 404 NOT_FOUND 「部署が見つかりません。」
 
-`:id` 형식 오류 응답(API-DEPT-003·005·006 공통): code `VALIDATION_ERROR`, message 「入力内容に誤りがあります。」, `details: [{ "field": "id", "message": "部署 ID の形式が正しくありません。" }]`
+`:id` 형식 오류 응답(API-DEPT-003·005·006·008 공통): code `VALIDATION_ERROR`, message 「入力内容に誤りがあります。」, `details: [{ "field": "id", "message": "部署 ID の形式が正しくありません。" }]`
 
 ### API-DEPT-004: 부서 등록
 - `POST /admin/departments` · ADMIN · FR-DEPT-001
 
 Request
 ```json
-{ "code": "DEV", "name": "開発部" }
+{ "code": "DEV", "name": "開発部", "description": "社内システムの開発", "managerId": "uuid" }
 ```
-- code, name 필수
+- code, name 필수. description·managerId는 선택(생략·null이면 null)
 - Response 201: `DepartmentDetail`(`memberCount`·`inactiveMemberCount`는 0)
+- 판정 순서: 입력 검증(400 VALIDATION_ERROR) → 책임자 검사(400 INVALID_MANAGER) → INSERT(409 중복)
 
 | HTTP | Code | 설명 |
 |---|---|---|
 | 400 | VALIDATION_ERROR | 필수값 누락, 형식·길이 오류 |
+| 400 | INVALID_MANAGER | 책임자로 지정한 사원이 없거나 비활성 |
 | 409 | DUPLICATE_DEPARTMENT_CODE | 부서 코드 중복(대문자 정규화 후 비교) |
 | 409 | DUPLICATE_DEPARTMENT_NAME | 부서명 중복 |
 
 ### API-DEPT-005: 부서 수정
 - `PATCH /admin/departments/:id` · ADMIN · FR-DEPT-001
-- Request(변경할 필드만, 최소 1개): `code`, `name`
+- Request(변경할 필드만, 최소 1개): `code`, `name`, `description`, `managerId`. null도 지정으로 본다(`managerId: null` = 책임자 해제, 생략 = 변경 없음)
 - Response 200: `DepartmentDetail`
+- 未所属 부서는 책임자 검사보다 먼저 409 PROTECTED_DEPARTMENT가 된다
 
 | HTTP | Code | 설명 |
 |---|---|---|
 | 400 | VALIDATION_ERROR | `:id`가 UUID 형식이 아님, 형식·길이 오류, 변경할 필드가 없음(빈 객체) |
+| 400 | INVALID_MANAGER | 책임자로 지정한 사원이 없거나 비활성 |
 | 404 | NOT_FOUND | 부서 없음 |
 | 409 | DUPLICATE_DEPARTMENT_CODE | 부서 코드 중복 |
 | 409 | DUPLICATE_DEPARTMENT_NAME | 부서명 중복 |
@@ -600,7 +614,7 @@ Request
 
 ### API-DEPT-006: 부서 삭제
 - `DELETE /admin/departments/:id` · ADMIN · FR-DEPT-001
-- Response 204. 소속 비활성 사원을 未所属 부서로 이동한 뒤 물리 삭제한다(같은 트랜잭션, 05 §8)
+- Response 204. 소속 비활성 사원을 未所属 부서로 이동한 뒤 물리 삭제한다(같은 트랜잭션, 05 §8). 책임자가 지정되어 있어도 삭제할 수 있다
 
 | HTTP | Code | 설명 |
 |---|---|---|
@@ -609,3 +623,23 @@ Request
 | 409 | DEPARTMENT_HAS_MEMBERS | 소속 활성 사원이 1명 이상(삭제 처리 중 사원이 배정·재활성화된 경우 포함) |
 | 409 | PROTECTED_DEPARTMENT | 未所属 부서는 삭제할 수 없음 |
 | 500 | INTERNAL_SERVER_ERROR | 未所属(`UNASSIGNED`) 부서가 없음(서버 구성 오류). 「サーバーでエラーが発生しました。」, 트랜잭션 롤백 |
+
+### API-DEPT-007: 부서 요약
+- `GET /admin/departments/summary` · ADMIN · FR-DEPT-001
+- Response 200: `{ "departmentCount": 7, "memberCount": 120 }`
+  - `departmentCount`: 未所属을 **제외한** 부서 수. 검색 조건과 무관
+  - `memberCount`: 전체 활성 사원 수(未所属 소속 포함)
+
+### API-DEPT-008: 부서 소속 사원 목록
+- `GET /admin/departments/:id/members` · ADMIN · FR-DEPT-001
+- Query: `page`, `limit`(공통 페이지네이션)
+- Response 200: 페이지네이션(`[{ "id": "uuid", "empId": "00001", "name": "山田 太郎" }]`). 소속 **활성** 사원만, 사원번호 오름차순
+- 400 VALIDATION_ERROR: `:id`가 UUID 형식이 아님, `page`·`limit` 범위 오류
+- 404 NOT_FOUND 「部署が見つかりません。」
+
+### API-DEPT-009: 부서 책임자 후보
+- `GET /admin/departments/manager-candidates` · ADMIN · FR-DEPT-001
+- Query: `keyword`(선택, 앞뒤 공백 제거 후 최대 100자. 이름은 대소문자 무시 부분 일치, 사원번호는 부분 일치. 빈 값이면 조건 없음 — API-LEAVE-002와 같은 규칙)
+- Response 200: `UserSummary[]` — 활성 사원 전체(요청자 본인·ADMIN 포함, 소속 무관), 사원번호 오름차순, **최대 100건**(고정, Query로 변경 불가)
+- 400 VALIDATION_ERROR: `keyword`가 100자 초과
+- API-LEAVE-002는 USER 권한·본인 제외라 쓰지 않는다

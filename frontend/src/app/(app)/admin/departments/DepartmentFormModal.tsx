@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
   FieldError,
@@ -8,18 +8,26 @@ import {
   labelClass,
   primaryButtonClass,
   secondaryButtonClass,
+  textareaClass,
 } from '@/components/form';
+import { ApproverSelect } from '@/components/leave/ApproverSelect';
 import { Modal } from '@/components/Modal';
 import { Spinner } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
 import { ApiError, NetworkError, apiFetch } from '@/lib/api/client';
-import type { DepartmentDetail } from '@/lib/api/types';
+import type { DepartmentDetail, UserSummary } from '@/lib/api/types';
+import { useApiQuery } from '@/lib/api/useApiQuery';
 import { messages } from '@/messages/ja';
 
 const t = messages.departments.form;
 
 const CODE_PATTERN = /^[A-Za-z0-9-]{1,20}$/;
 const NAME_MAX_LENGTH = 100;
+const DESCRIPTION_MAX_LENGTH = 500;
+// API-DEPT-009 の返却上限
+const CANDIDATE_LIMIT = 100;
+// 責任者の検索はこの時間入力が止まってからサーバーへ問い合わせる
+const SEARCH_DEBOUNCE_MS = 300;
 const FORM_ID = 'department-form';
 
 interface DepartmentFormModalProps {
@@ -34,6 +42,16 @@ interface DepartmentFormModalProps {
 interface FieldErrors {
   code?: string;
   name?: string;
+  description?: string;
+  manager?: string;
+}
+
+// 編集対象の現在の責任者を選択済みの値にする(候補に含まれなくても表示できる。部署名は不明なので出さない)
+function toManagerValue(department: DepartmentDetail | null): UserSummary | null {
+  const manager = department?.manager;
+  return manager
+    ? { id: manager.id, empId: manager.empId, name: manager.name, departmentName: null }
+    : null;
 }
 
 // SCR-010 部署の登録・編集モーダル。親が開くたびに key を変えて作り直すので、入力値は開くたびに初期化される。
@@ -46,17 +64,43 @@ export function DepartmentFormModal({
   const { showToast } = useToast();
   const [code, setCode] = useState(department?.code ?? '');
   const [name, setName] = useState(department?.name ?? '');
+  const [description, setDescription] = useState(department?.description ?? '');
+  const [manager, setManager] = useState<UserSummary | null>(toManagerValue(department));
+  // 入力中の検索語(searchKeyword はデバウンス後にサーバーへ送る値)
+  const [rawKeyword, setRawKeyword] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   // state の更新は非同期なので、連続した送信は ref で確実に止める
   const submittingRef = useRef(false);
 
-  function validate(trimmedCode: string, trimmedName: string): FieldErrors {
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchKeyword(rawKeyword.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [rawKeyword]);
+
+  const candidates = useApiQuery<UserSummary[]>(
+    open
+      ? `/admin/departments/manager-candidates${
+          searchKeyword ? `?keyword=${encodeURIComponent(searchKeyword)}` : ''
+        }`
+      : null,
+    { keepPreviousData: true },
+  );
+
+  function validate(
+    trimmedCode: string,
+    trimmedName: string,
+    trimmedDescription: string,
+  ): FieldErrors {
     const next: FieldErrors = {};
     if (trimmedCode === '') next.code = t.validation.codeRequired;
     else if (!CODE_PATTERN.test(trimmedCode)) next.code = t.validation.codeFormat;
     if (trimmedName === '') next.name = t.validation.nameRequired;
     else if (trimmedName.length > NAME_MAX_LENGTH) next.name = t.validation.nameLength;
+    if (trimmedDescription.length > DESCRIPTION_MAX_LENGTH) {
+      next.description = t.validation.descriptionLength;
+    }
     return next;
   }
 
@@ -65,18 +109,27 @@ export function DepartmentFormModal({
     if (submittingRef.current) return;
     const trimmedCode = code.trim();
     const trimmedName = name.trim();
-    const found = validate(trimmedCode, trimmedName);
+    const trimmedDescription = description.trim();
+    const found = validate(trimmedCode, trimmedName, trimmedDescription);
     setErrors(found);
     if (Object.keys(found).length > 0) return;
 
     submittingRef.current = true;
     setSubmitting(true);
+    // 編集で責任者を変えていなければ送らない(候補の取得状況や責任者の状態変化に左右されないため)
+    const managerUnchanged =
+      department !== null && (manager?.id ?? null) === (department.manager?.id ?? null);
     try {
       await apiFetch<DepartmentDetail>(
         department ? `/admin/departments/${department.id}` : '/admin/departments',
         {
           method: department ? 'PATCH' : 'POST',
-          body: JSON.stringify({ code: trimmedCode, name: trimmedName }),
+          body: JSON.stringify({
+            code: trimmedCode,
+            name: trimmedName,
+            description: trimmedDescription === '' ? null : trimmedDescription,
+            ...(managerUnchanged ? {} : { managerId: manager?.id ?? null }),
+          }),
         },
       );
       showToast(department ? t.updated : t.created, 'success');
@@ -96,6 +149,9 @@ export function DepartmentFormModal({
         setErrors({ code: error.message });
       } else if (error.code === 'DUPLICATE_DEPARTMENT_NAME') {
         setErrors({ name: error.message });
+      } else if (error.code === 'INVALID_MANAGER') {
+        setErrors({ manager: error.message });
+        candidates.reload();
       } else if (
         error.statusCode === 403 ||
         error.statusCode === 404 ||
@@ -123,6 +179,7 @@ export function DepartmentFormModal({
     <Modal
       open={open}
       title={department ? t.editTitle : t.createTitle}
+      size="lg"
       onClose={onClose}
       footer={
         <>
@@ -186,6 +243,46 @@ export function DepartmentFormModal({
             className={inputClass}
           />
           {errors.name && <FieldError id="department-name-error" message={errors.name} />}
+        </div>
+        <div>
+          <label htmlFor="department-description" className={labelClass}>
+            {t.description}
+          </label>
+          <textarea
+            id="department-description"
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            aria-invalid={errors.description ? true : undefined}
+            aria-describedby={errors.description ? 'department-description-error' : undefined}
+            className={textareaClass}
+          />
+          {errors.description && (
+            <FieldError id="department-description-error" message={errors.description} />
+          )}
+        </div>
+        <div>
+          <label htmlFor="department-manager" className={labelClass}>
+            {t.manager}
+          </label>
+          <ApproverSelect
+            id="department-manager"
+            value={manager}
+            onChange={(next) => {
+              setManager(next);
+              setErrors((prev) => ({ ...prev, manager: undefined }));
+            }}
+            error={errors.manager}
+            candidates={candidates.data ?? []}
+            status={candidates.status}
+            onRetry={candidates.reload}
+            texts={t.managerSelect}
+            onSearch={setRawKeyword}
+          />
+          <p className="mt-1 text-xs/4 text-general-80">{t.managerHint}</p>
+          {(candidates.data?.length ?? 0) >= CANDIDATE_LIMIT && (
+            <p className="mt-1 text-xs/4 text-general-80">{t.managerLimitHint}</p>
+          )}
         </div>
       </form>
     </Modal>

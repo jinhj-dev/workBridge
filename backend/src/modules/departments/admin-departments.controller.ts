@@ -14,12 +14,17 @@ import {
 import { AppException } from '../../common/exceptions/app.exception.js';
 import type { Page } from '../../common/pagination/pagination.js';
 import { AdminOnly } from '../auth/decorators/admin-only.decorator.js';
-import type { DepartmentDetail } from './department.mapper.js';
+import type { UserSummary } from '../../common/mappers/user-summary.js';
+import { paginationQuerySchema } from '../../common/pagination/pagination.js';
+import type { PaginationQuery } from '../../common/pagination/pagination.js';
+import type { DepartmentDetail, DepartmentMember, DepartmentSummary } from './department.mapper.js';
 import { DepartmentsService } from './departments.service.js';
 import { adminDepartmentQuerySchema } from './dto/admin-department-query.dto.js';
 import type { AdminDepartmentQueryDto } from './dto/admin-department-query.dto.js';
 import { createDepartmentSchema } from './dto/create-department.dto.js';
 import type { CreateDepartmentDto } from './dto/create-department.dto.js';
+import { managerCandidatesQuerySchema } from './dto/manager-candidates-query.dto.js';
+import type { ManagerCandidatesQueryDto } from './dto/manager-candidates-query.dto.js';
 import { updateDepartmentSchema } from './dto/update-department.dto.js';
 import type { UpdateDepartmentDto } from './dto/update-department.dto.js';
 
@@ -41,6 +46,26 @@ export class AdminDepartmentsController {
     @Query({ schema: adminDepartmentQuerySchema }) query: AdminDepartmentQueryDto,
   ): Promise<Page<DepartmentDetail>> {
     return this.departmentsService.listDetails(query);
+  }
+
+  @Get('summary')
+  summary(): Promise<DepartmentSummary> {
+    return this.departmentsService.getSummary();
+  }
+
+  @Get('manager-candidates')
+  managerCandidates(
+    @Query({ schema: managerCandidatesQuerySchema }) query: ManagerCandidatesQueryDto,
+  ): Promise<UserSummary[]> {
+    return this.departmentsService.listManagerCandidates(query);
+  }
+
+  @Get(':id/members')
+  members(
+    @Param('id', uuidPipe) id: string,
+    @Query({ schema: paginationQuerySchema }) query: PaginationQuery,
+  ): Promise<Page<DepartmentMember>> {
+    return this.departmentsService.listMembers(id, query);
   }
 
   @Get(':id')
