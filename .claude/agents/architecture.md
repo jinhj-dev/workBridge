@@ -10,6 +10,11 @@ tools: Read, Grep, Glob, Write, Edit
 
 파이프라인에서 코드베이스와 `docs/`를 넓게 탐색하는 것, 그리고 `docs/`의 프로젝트 문서를 수정하는 것은 너 하나뿐이다.
 
+## 실행 모드 (feature-dev)
+- 설계 모드는 **FULL에서만** 호출된다 (프롬프트의 `MODE: FULL` 또는 MODE 없음). FAST·STANDARD에서는 설계를 메인이 하고, 너는 문서 반영 모드로만 호출된다.
+- 문서 반영 모드는 모든 모드에서 같다. STANDARD·FAST에서 만든 backend.md/frontend.md(FAST는 간이 형식)의 "문서 갱신 예정"도 같은 방식으로 반영한다.
+- 프롬프트에 "승격"이 있으면: 이전 모드 산출물(plan.md, frontend.md, backend.md)과 이미 변경된 파일을 먼저 읽고 재사용한다. 이미 결정·구현된 내용을 다시 설계하지 말고, 설계 문서에 "이미 변경된 파일"로 적은 뒤 남은 부분만 설계한다. 기존 plan.md는 FULL 형식으로 덮어쓴다.
+
 ---
 
 # 설계 모드
@@ -39,8 +44,11 @@ tools: Read, Grep, Glob, Write, Edit
 
 **plan.md** — 메인 에이전트가 읽고 사용자 승인에 쓰는 문서. 25줄 이내.
 ```
+MODE: FULL
+BACKEND: REQUIRED 또는 SKIP
 FRONTEND: REQUIRED 또는 SKIP
 SECURITY_REVIEW: REQUIRED 또는 SKIP
+PARALLEL: YES 또는 NO (NO면 이유 한 줄)
 DOC_ISSUES: NONE 또는 한 줄씩 나열
 SUMMARY: 한 줄 요약
 
@@ -51,16 +59,22 @@ SUMMARY: 한 줄 요약
 - 화면: 화면 ID·이름 목록
 - 변경 파일 수: 백엔드 N개 / 프론트 N개 (신규 N개)
 - 프로젝트 문서 갱신 예정: 있으면 문서 이름만
+
+## 파일 소유 (PARALLEL: YES일 때)
+- backend: 파일 목록 / frontend: 파일 목록 / tester: 테스트 파일 목록
+- 기본 소유 범위(feature-dev SKILL.md "병렬 실행 규칙")의 예외, 루트 공용 파일의 담당 — 없으면 "예외 없음"
 ```
-- 승인용 요약은 사용자가 1분 안에 읽고 판단할 수 있게 쓴다. 세부 내용은 design-*.md에 둔다.
+- 승인용 요약은 사용자가 1분 안에 읽고 판단할 수 있게 쓴다 (25줄 제한은 "파일 소유" 섹션 제외). 세부 내용은 design-*.md에 둔다.
+- **PARALLEL: YES** 조건 (모두): design-backend.md의 API 계약이 frontend·tester가 backend.md 없이 구현·테스트를 쓸 수 있을 만큼 확정됨 / 바뀔 파일이 모두 한 에이전트에만 배정됨 / 두 에이전트가 함께 바꿔야 하는 파일이 없음 / 구현해 봐야 계약을 정할 수 있는 탐색적 작업이 아님. 하나라도 아니면 NO. BACKEND·FRONTEND 중 하나만 REQUIRED여도 tester 준비와 병렬로 갈 수 있으므로 YES일 수 있다.
 - SECURITY_REVIEW는 인증, 권한, 세션/토큰, 비밀번호, 결제, 개인정보, 파일 업로드가 관련되면 REQUIRED.
-- 백엔드만 바뀌는 기능이면 FRONTEND: SKIP.
+- 백엔드만 바뀌는 기능이면 FRONTEND: SKIP. 프론트엔드만 바뀌는 기능이면 BACKEND: SKIP.
+- SKIP한 쪽의 design-*.md는 만들지 않는다 ("변경 없음"만 적힌 파일을 만들지 않는다).
 - DOC_ISSUES: 프로젝트 문서에 없는 내용을 새로 정해야 하는 경우, 문서끼리 충돌, 문서와 코드 불일치.
 
-**design-backend.md** — backend 에이전트용
+**design-backend.md** — backend 에이전트용 (BACKEND: SKIP이면 생략)
 - 참조 문서: API 설계 문서의 해당 섹션 경로 (예: `docs/05_API.md#인증`)
 - 데이터 모델 / 스키마·마이그레이션
-- API 계약 (엔드포인트, 메서드, 요청·응답 JSON, 상태 코드, 에러 코드) — **API 설계 문서와 일치해야 한다**. 문서에 없는 엔드포인트는 "신규"로 표시
+- API 계약 (엔드포인트, 메서드, 요청·응답 JSON, 상태 코드, 에러 코드) — **API 설계 문서와 일치해야 한다**. 문서에 없는 엔드포인트는 "신규"로 표시. `## API 계약` 제목의 독립 섹션으로 쓴다 — 병렬 실행 시 frontend·tester가 이 섹션만 읽고 구현·테스트한다 (필드 이름·타입·null 여부·정렬·페이지네이션까지 확정)
 - 처리 로직과 보안 요구사항
 - 생성·수정할 파일 목록 (경로) + 참고해야 할 기존 파일 경로
 
@@ -70,7 +84,8 @@ SUMMARY: 한 줄 요약
 - 화면별 구성과 **사용할 시스템 컴포넌트** (09_DESIGN_SYSTEM.md의 컴포넌트 이름 그대로)
 - 시스템에 없어서 새로 만들어야 할 컴포넌트 (있으면, 이유 포함)
 - 상태 흐름, 입력 검증, 로딩·에러 처리
-- 호출할 API 목록 (계약 요약만, 상세는 backend.md 참조)
+- 호출할 API 목록 (계약 요약만, 상세는 design-backend.md의 "API 계약" 섹션 참조)
+- 테스트가 근거로 쓸 화면 문구·접근 가능한 이름(label, 버튼 문구, 에러 문구) — tester가 구현을 보기 전에 테스트를 쓸 수 있게
 - 생성·수정할 파일 목록 + 재사용할 기존 컴포넌트 경로
 
 **test-plan.md** — tester 에이전트용
@@ -80,6 +95,9 @@ SUMMARY: 한 줄 요약
 
 ## 사용자 피드백 반영
 메인이 "승인 피드백 반영"으로 재호출하면, 프롬프트에 담긴 사용자 피드백대로 plan.md와 해당 design-*.md, test-plan.md만 고친다. context.md는 피드백과 관련 있을 때만 고친다.
+
+## 계약 재확정
+메인이 "계약 재확정"으로 재호출하면 (병렬 구현 중 `CONTRACT_CHANGE:`가 보고된 경우), 프롬프트의 변경 요청과 backend.md/frontend.md의 해당 항목을 읽고 design-backend.md의 "API 계약", design-frontend.md의 API 목록, test-plan.md의 관련 시나리오를 고친다. 각 문서 끝에 "계약 변경 Round N: 바뀐 점" 한 줄을 남긴다. 승인된 범위가 바뀌면 마지막 응답 첫 줄에 `SCOPE_CHANGED: 내용`을 쓴다 (메인이 사용자 승인을 다시 받는다).
 
 ## 설계 모드 규칙
 - 구현 코드는 쓰지 않는다.
