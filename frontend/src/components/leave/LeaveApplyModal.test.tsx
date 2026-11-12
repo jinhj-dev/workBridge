@@ -428,6 +428,6 @@ describe('LeaveApplyModal の表示(SCR-004 §3.2 表レイアウト・必須表
   it('shouldNotShowStatusLabelInsideModal', () => {
     mockApi(() => createdLeave());
     renderForm();
-    expect(screen.queryByText(messages.leaves.history.status)).not.toBeInTheDocument();
+    expect(screen.queryByText(messages.leaves.history.statusColumn)).not.toBeInTheDocument();
   });
 });

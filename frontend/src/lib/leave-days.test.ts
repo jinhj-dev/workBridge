@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countLeaveDays, parseLeavesQuery, yearOptions } from './leave-days';
+import { countLeaveDays, parseLeavesQuery } from './leave-days';
 
 describe('countLeaveDays', () => {
   it.each([
@@ -23,18 +23,13 @@ describe('countLeaveDays', () => {
   });
 });
 
-describe('yearOptions', () => {
-  it('shouldListNextYearDownToFourYearsAgo', () => {
-    expect(yearOptions(2026)).toEqual([2027, 2026, 2025, 2024, 2023, 2022]);
-  });
-});
-
 describe('parseLeavesQuery', () => {
   it('shouldUseDefaultsWhenEmpty', () => {
-    expect(parseLeavesQuery(new URLSearchParams(''), 2026)).toEqual({
-      year: 2026,
-      statuses: [],
-      leaveTypes: [],
+    expect(parseLeavesQuery(new URLSearchParams(''))).toEqual({
+      appliedFrom: '',
+      appliedTo: '',
+      leaveType: '',
+      status: '',
       page: 1,
     });
   });
@@ -42,54 +37,60 @@ describe('parseLeavesQuery', () => {
   it('shouldParseValidValues', () => {
     expect(
       parseLeavesQuery(
-        new URLSearchParams('year=2025&status=PENDING&leaveType=HALF_AM&page=3'),
-        2026,
+        new URLSearchParams(
+          'appliedFrom=2026-01-05&appliedTo=2026-03-31&status=PENDING&leaveType=HALF_AM&page=3',
+        ),
       ),
-    ).toEqual({ year: 2025, statuses: ['PENDING'], leaveTypes: ['HALF_AM'], page: 3 });
+    ).toEqual({
+      appliedFrom: '2026-01-05',
+      appliedTo: '2026-03-31',
+      leaveType: 'HALF_AM',
+      status: 'PENDING',
+      page: 3,
+    });
   });
 
-  it('shouldParseCommaSeparatedListsInDisplayOrderWithoutDuplicatesOrUnknown', () => {
-    expect(
-      parseLeavesQuery(
-        new URLSearchParams('status=CANCELLED,PENDING,FOO,PENDING&leaveType=OTHER,ANNUAL,'),
-        2026,
-      ),
-    ).toMatchObject({ statuses: ['PENDING', 'CANCELLED'], leaveTypes: ['ANNUAL', 'OTHER'] });
+  it('shouldUseFirstValueWhenCommaSeparatedAndIgnoreUnknown', () => {
+    expect(parseLeavesQuery(new URLSearchParams('status=FOO,APPROVED&leaveType=OTHER,ANNUAL'))).toMatchObject({
+      status: '',
+      leaveType: 'OTHER',
+    });
   });
 
-  it('shouldRestoreSingleLegacyStatusValue', () => {
-    expect(parseLeavesQuery(new URLSearchParams('status=APPROVED'), 2026).statuses).toEqual([
-      'APPROVED',
-    ]);
-  });
-
-  it('shouldIgnoreTabParam', () => {
-    expect(parseLeavesQuery(new URLSearchParams('tab=apply'), 2026)).toEqual({
-      year: 2026,
-      statuses: [],
-      leaveTypes: [],
+  it('shouldIgnoreLegacyYearAndTabParams', () => {
+    expect(parseLeavesQuery(new URLSearchParams('year=2025&tab=apply'))).toEqual({
+      appliedFrom: '',
+      appliedTo: '',
+      leaveType: '',
+      status: '',
       page: 1,
     });
   });
 
   it.each([
-    ['year=1999', 'year', 2026],
-    ['year=2030', 'year', 2026],
-    ['year=abc', 'year', 2026],
-    ['page=0', 'page', 1],
-    ['page=1.5', 'page', 1],
-  ])('shouldFallbackWhenInvalid(%s)', (search, key, expected) => {
-    expect(parseLeavesQuery(new URLSearchParams(search), 2026)[key as 'year' | 'page']).toBe(
-      expected,
+    ['appliedFrom=2026-02-30', 'appliedFrom'],
+    ['appliedFrom=abc', 'appliedFrom'],
+    ['appliedTo=2026-13-01', 'appliedTo'],
+  ])('shouldClearWhenInvalidDate(%s)', (search, key) => {
+    expect(parseLeavesQuery(new URLSearchParams(search))[key as 'appliedFrom' | 'appliedTo']).toBe(
+      '',
     );
   });
 
+  it.each([
+    ['page=0', 1],
+    ['page=1.5', 1],
+    ['page=abc', 1],
+  ])('shouldFallbackPageWhenInvalid(%s)', (search, expected) => {
+    expect(parseLeavesQuery(new URLSearchParams(search)).page).toBe(expected);
+  });
+
   it.each([['status=FOO'], ['leaveType=FOO'], ['status='], ['leaveType=']])(
-    'shouldReturnEmptyListsWhenUnknown(%s)',
+    'shouldReturnEmptyWhenUnknown(%s)',
     (search) => {
-      const query = parseLeavesQuery(new URLSearchParams(search), 2026);
-      expect(query.statuses).toEqual([]);
-      expect(query.leaveTypes).toEqual([]);
+      const query = parseLeavesQuery(new URLSearchParams(search));
+      expect(query.status).toBe('');
+      expect(query.leaveType).toBe('');
     },
   );
 });

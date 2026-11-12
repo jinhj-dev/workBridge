@@ -1,82 +1,70 @@
 'use client';
 
+import { cardFrameClass } from '@/components/Card';
+
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
-import { primaryButtonClass } from '@/components/form';
-import { LeaveApplyModal } from '@/components/leave/LeaveApplyModal';
+import { useEffect, useRef, useState } from 'react';
+import { CalendarSmallIcon } from '@/components/leave/leaveIcons';
 import { LeaveDetailModal } from '@/components/leave/LeaveDetailModal';
 import { SectionError } from '@/components/SectionError';
 import { Skeleton } from '@/components/Skeleton';
-import { StatCard } from '@/components/StatCard';
 import type { Leave, LeaveBalance, Paginated } from '@/lib/api/types';
 import { useApiQuery } from '@/lib/api/useApiQuery';
-import { tokyoToday, toQueryString } from '@/lib/date-range';
+import { toQueryString } from '@/lib/date-range';
 import { formatDays } from '@/lib/format';
 import { parseLeavesQuery } from '@/lib/leave-days';
 import type { LeavesQuery } from '@/lib/leave-days';
 import { messages } from '@/messages/ja';
 import { LeaveHistoryList } from './LeaveHistoryList';
+import { useLeaveDataVersion } from './LeaveDataVersion';
 
 const t = messages.leaves;
 const LIMIT = 20;
 
 function buildHistoryPath(q: LeavesQuery): string {
   return `/leaves/me?${toQueryString({
-    year: q.year,
-    status: q.statuses.join(','),
-    leaveType: q.leaveTypes.join(','),
+    appliedFrom: q.appliedFrom,
+    appliedTo: q.appliedTo,
+    leaveType: q.leaveType,
+    status: q.status,
     page: q.page,
     limit: LIMIT,
   })}`;
 }
 
-// SCR-004 休暇管理。絞り込み・ページは URL Query に持つ(03 共通規則)。既定値は URL に出さない
+// SCR-004 自分の休暇タブ。検索条件・ページは URL Query に持つ(03 共通規則)。既定値は URL に出さない
 export function LeavesView() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const currentYear = Number(tokyoToday(new Date()).slice(0, 4));
-  const { year, statuses, leaveTypes, page } = parseLeavesQuery(searchParams, currentYear);
+  const filters = parseLeavesQuery(searchParams);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [applyOpen, setApplyOpen] = useState(false);
-  // 開くたびに入力を初期状態に戻すため、モーダルの key を更新する
-  const [applyKey, setApplyKey] = useState(0);
+  const { version } = useLeaveDataVersion();
 
   const balance = useApiQuery<LeaveBalance>('/leaves/balance');
-  const historyPath = buildHistoryPath({ year, statuses, leaveTypes, page });
-  // 状態・種別で絞り込むとき、結果が届くまで前の一覧を残す(読み込み表示に置き換えない)
-  const history = useApiQuery<Paginated<Leave>>(historyPath, { keepPreviousData: true });
+  // 条件・ページを変えるとき、結果が届くまで前の一覧を残す(読み込み表示に置き換えない)
+  const history = useApiQuery<Paginated<Leave>>(buildHistoryPath(filters), {
+    keepPreviousData: true,
+  });
 
-  function buildUrl(next: LeavesQuery): string {
+  // 申請が成功したら(layout が version を進める)残高と一覧を取り直す。検索条件はそのまま
+  const handledVersion = useRef(version);
+  useEffect(() => {
+    if (handledVersion.current === version) return;
+    handledVersion.current = version;
+    balance.reload();
+    history.reload();
+  }, [version, balance, history]);
+
+  function go(next: LeavesQuery) {
     const queryString = toQueryString({
-      year: next.year === currentYear ? '' : next.year,
-      status: next.statuses.join(','),
-      leaveType: next.leaveTypes.join(','),
+      appliedFrom: next.appliedFrom,
+      appliedTo: next.appliedTo,
+      leaveType: next.leaveType,
+      status: next.status,
       page: next.page > 1 ? next.page : '',
     });
-    return queryString ? `${pathname}?${queryString}` : pathname;
-  }
-
-  function openApply() {
-    setApplyKey((key) => key + 1);
-    setApplyOpen(true);
-  }
-
-  function handleApplied(leave: Leave) {
-    setApplyOpen(false);
-    balance.reload();
-    // 来年など別の年の申請でも新しい申請が一覧に見えるように、年を合わせて絞り込みを解除する
-    const next = buildUrl({
-      year: Number(leave.startDate.slice(0, 4)),
-      statuses: [],
-      leaveTypes: [],
-      page: 1,
-    });
-    const nextQuery = parseLeavesQuery(new URLSearchParams(next.split('?')[1] ?? ''), currentYear);
-    // 移動しても一覧の取得先が変わらない場合(旧 URL・範囲外の年など)は、再取得して新しい申請を見せる
-    if (buildHistoryPath(nextQuery) === historyPath) history.reload();
-    const query = searchParams.toString();
-    if (next !== (query ? `${pathname}?${query}` : pathname)) router.push(next);
+    router.push(queryString ? `${pathname}?${queryString}` : pathname);
   }
 
   function handleProcessed() {
@@ -87,54 +75,61 @@ export function LeavesView() {
   function renderSummary() {
     if (balance.status === 'loading') {
       return (
-        <div role="status" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-23 rounded-md" />
+        <div role="status" className="grid gap-4 md:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-16 rounded-lg" />
           ))}
           <span className="sr-only">{messages.common.loading}</span>
         </div>
       );
     }
-    if (balance.status === 'error' || !balance.data) {
-      return (
-        <div className="rounded-md bg-white p-5 shadow-card sm:p-7">
-          <SectionError onRetry={balance.reload} />
-        </div>
-      );
-    }
+    if (balance.status === 'error' || !balance.data) return <SectionError onRetry={balance.reload} />;
     const b = balance.data;
+    const valueClass = 'text-stat font-bold text-general-100 tabular-nums';
     return (
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label={t.granted} value={formatDays(b.grantedDays)} />
-        <StatCard label={t.approved} value={formatDays(b.approvedDays)} />
-        <StatCard label={t.pending} value={formatDays(b.pendingDays)} />
-        <StatCard label={t.remaining} value={formatDays(b.remainingDays)} />
+      <div className="grid gap-5 md:grid-cols-3 md:gap-0 md:divide-x md:divide-general-40">
+        <div className="flex items-center gap-4 md:pr-6">
+          <span
+            aria-hidden="true"
+            className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary-30 text-primary-100"
+          >
+            <span className="size-7">
+              <CalendarSmallIcon />
+            </span>
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm/5 text-general-80">{t.summary.remaining}</p>
+            <p className={valueClass}>{formatDays(b.remainingDays)}</p>
+          </div>
+        </div>
+        <div className="md:px-6">
+          <p className="text-sm/5 text-general-80">{t.summary.taken}</p>
+          <p className="flex flex-wrap items-baseline gap-x-3">
+            <span className={valueClass}>{formatDays(b.approvedDays)}</span>
+            <span className="text-sm/5 text-general-80">
+              {t.summary.granted(formatDays(b.grantedDays))}
+            </span>
+          </p>
+        </div>
+        <div className="md:pl-6">
+          <p className="text-sm/5 text-general-80">{t.summary.pending}</p>
+          <p className={valueClass}>{formatDays(b.pendingDays)}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-h5 font-bold text-general-100">{t.title}</h1>
-        <button
-          type="button"
-          onClick={openApply}
-          className={`${primaryButtonClass} h-12 px-6 text-base/6 sm:h-10 sm:px-5 sm:text-sm/5`}
-        >
-          {t.applyButton}
-        </button>
-      </div>
-
-      <section aria-label={t.summaryTitle}>{renderSummary()}</section>
+    <div className="flex flex-col gap-4 md:gap-6">
+      <section aria-label={t.summaryTitle} className={`${cardFrameClass} px-5 py-5 md:px-8 md:py-6`}>
+        {renderSummary()}
+      </section>
 
       <LeaveHistoryList
         query={history}
-        filters={{ year, statuses, leaveTypes, page }}
-        currentYear={currentYear}
-        onChange={(next, options) =>
-          options ? router.push(buildUrl(next), options) : router.push(buildUrl(next))
-        }
+        filters={filters}
+        onSearch={(next) => go({ ...next, page: 1 })}
+        onPageChange={(page) => go({ ...filters, page })}
         onOpenDetail={setSelectedId}
       />
 
@@ -143,14 +138,6 @@ export function LeavesView() {
         leaveId={selectedId}
         onClose={() => setSelectedId(null)}
         onProcessed={handleProcessed}
-      />
-
-      <LeaveApplyModal
-        key={applyKey}
-        open={applyOpen}
-        onClose={() => setApplyOpen(false)}
-        onApplied={handleApplied}
-        onBalanceStale={balance.reload}
       />
     </div>
   );

@@ -75,24 +75,28 @@ beforeEach(() => {
 });
 
 describe('AppShell 承認待ちバッジ', () => {
-  function approvalsLink(): HTMLElement {
-    return within(fixedSidebar()).getByRole('link', { name: new RegExp(nav.approvals) });
+  // 承認メニューは休暇管理に統合され、承認待ち件数のバッジは休暇管理の項目に付く
+  function leavesLink(): HTMLElement {
+    return within(fixedSidebar()).getByRole('link', { name: new RegExp(nav.leaves) });
   }
 
-  it('shouldShowCountBadgeOnApprovalsMenu', async () => {
+  it('shouldShowCountBadgeOnLeaveManagementMenu', async () => {
     apiFetch.mockResolvedValue({ items: [], page: 1, limit: 1, totalCount: 3, totalPages: 3 });
     renderShell('authenticated', EMPLOYEE);
-    await waitFor(() => expect(approvalsLink()).toHaveTextContent(nav.pendingCount(3)));
+    await waitFor(() => expect(leavesLink()).toHaveTextContent(nav.pendingCount(3)));
     expect(apiFetch).toHaveBeenCalledWith('/leaves/pending-approval?scope=mine&limit=1');
-    expect(within(fixedSidebar()).getByRole('link', { name: nav.leaves })).not.toHaveTextContent(
-      '3',
-    );
+  });
+
+  it('shouldNotShowApprovalsMenuInSidebar', () => {
+    apiFetch.mockResolvedValue({ items: [], page: 1, limit: 1, totalCount: 3, totalPages: 3 });
+    renderShell('authenticated', ADMIN);
+    expect(within(fixedSidebar()).queryByRole('link', { name: /休暇承認/ })).not.toBeInTheDocument();
   });
 
   it('shouldShow99PlusWhenCountExceeds99', async () => {
     apiFetch.mockResolvedValue({ items: [], page: 1, limit: 1, totalCount: 120, totalPages: 120 });
     renderShell('authenticated', EMPLOYEE);
-    await waitFor(() => expect(approvalsLink()).toHaveTextContent('99+'));
+    await waitFor(() => expect(leavesLink()).toHaveTextContent('99+'));
   });
 
   it('shouldHideBadgeWhenRefreshReturnsZero', async () => {
@@ -104,13 +108,13 @@ describe('AppShell 承認待ちバッジ', () => {
         <RefreshProbe />
       </AppShell>,
     );
-    await waitFor(() => expect(approvalsLink()).toHaveTextContent(nav.pendingCount(2)));
+    await waitFor(() => expect(leavesLink()).toHaveTextContent(nav.pendingCount(2)));
 
     apiFetch.mockResolvedValueOnce({ items: [], page: 1, limit: 1, totalCount: 0, totalPages: 0 });
     await userEvent.click(screen.getByRole('button', { name: 'refresh-probe' }));
     // 0 件になったらバッジは出さない
-    await waitFor(() => expect(approvalsLink()).toHaveTextContent(/^休暇承認$/));
-    expect(approvalsLink()).not.toHaveTextContent(nav.pendingCount(0));
+    await waitFor(() => expect(leavesLink()).toHaveTextContent(/^休暇管理$/));
+    expect(leavesLink()).not.toHaveTextContent(nav.pendingCount(0));
   });
 
   it('shouldHideBadgeWithoutToastWhenRefreshFails', async () => {
@@ -122,12 +126,12 @@ describe('AppShell 承認待ちバッジ', () => {
         <RefreshProbe />
       </AppShell>,
     );
-    await waitFor(() => expect(approvalsLink()).toHaveTextContent(nav.pendingCount(3)));
+    await waitFor(() => expect(leavesLink()).toHaveTextContent(nav.pendingCount(3)));
 
     // 成功後に再取得が失敗したら、前回の件数を残さずバッジを隠す。サーバーの文言もトーストに出さない
     apiFetch.mockRejectedValueOnce(new ApiError(500, 'INTERNAL_ERROR', 'エラー'));
     await userEvent.click(screen.getByRole('button', { name: 'refresh-probe' }));
-    await waitFor(() => expect(approvalsLink()).toHaveTextContent(/^休暇承認$/));
+    await waitFor(() => expect(leavesLink()).toHaveTextContent(/^休暇管理$/));
     expect(screen.queryByText('エラー')).not.toBeInTheDocument();
   });
 
@@ -151,7 +155,7 @@ describe('AppShell 承認待ちバッジ', () => {
         <RefreshProbe />
       </AppShell>,
     );
-    await waitFor(() => expect(approvalsLink()).toHaveTextContent(nav.pendingCount(2)));
+    await waitFor(() => expect(leavesLink()).toHaveTextContent(nav.pendingCount(2)));
     expect(badgeLoads()).toHaveLength(1);
 
     // 画面遷移で再取得する
@@ -170,10 +174,10 @@ describe('AppShell 承認待ちバッジ', () => {
     apiFetch.mockImplementationOnce(() => new Promise((resolve) => (resolveRefresh = resolve)));
     await userEvent.click(screen.getByRole('button', { name: 'refresh-probe' }));
     await waitFor(() => expect(badgeLoads()).toHaveLength(3));
-    expect(approvalsLink()).toHaveTextContent(nav.pendingCount(2));
+    expect(leavesLink()).toHaveTextContent(nav.pendingCount(2));
 
     resolveRefresh({ items: [], page: 1, limit: 1, totalCount: 5, totalPages: 5 });
-    await waitFor(() => expect(approvalsLink()).toHaveTextContent(nav.pendingCount(5)));
+    await waitFor(() => expect(leavesLink()).toHaveTextContent(nav.pendingCount(5)));
   });
 });
 
@@ -239,7 +243,6 @@ describe('AppShell メニュー', () => {
       '/dashboard',
       '/attendance',
       '/leaves',
-      '/leaves/approvals',
     ]);
     expect(within(fixedSidebar()).getByRole('link', { name: nav.dashboard })).toHaveAttribute(
       'aria-current',
@@ -259,7 +262,6 @@ describe('AppShell メニュー', () => {
       '/dashboard',
       '/attendance',
       '/leaves',
-      '/leaves/approvals',
       '/admin/users',
       '/admin/departments',
       '/admin/attendance',

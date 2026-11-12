@@ -20,12 +20,12 @@ async function loginAsAdmin(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/dashboard$/);
 }
 
-async function openApprovalsFromSidebar(page: Page): Promise<void> {
+// 承認は休暇管理の「承認」タブから開く(サイドバーに承認メニューは無い)
+async function openApprovalsFromLeaveTabs(page: Page): Promise<void> {
+  await page.goto('/leaves');
   await page
-    .getByRole('navigation', { name: messages.nav.mainLabel })
-    .getByRole('link', {
-      name: new RegExp(messages.nav.approvals),
-    })
+    .getByRole('navigation', { name: messages.leaveManagement.tabsLabel })
+    .getByRole('link', { name: messages.leaveManagement.tabApprovals })
     .click();
   await expect(page).toHaveURL(/\/leaves\/approvals$/);
 }
@@ -35,24 +35,27 @@ test('shouldRedirectToLoginWithReturnPathWhenNotAuthenticated', async ({ page })
   await expect(page).toHaveURL(/\/login\?redirect=%2Fleaves%2Fapprovals$/);
 });
 
-test('shouldShowApprovalsPageFromSidebarWithoutLoadError', async ({ page }) => {
+test('shouldShowApprovalsTabWithoutLoadError', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await loginAsAdmin(page);
-  await openApprovalsFromSidebar(page);
+  await openApprovalsFromLeaveTabs(page);
 
-  await expect(page.getByRole('heading', { name: t.title })).toBeVisible();
   await expect(
-    page.getByRole('navigation', { name: messages.nav.mainLabel }).getByRole('link', {
-      name: new RegExp(messages.nav.approvals),
+    page.getByRole('navigation', { name: messages.leaveManagement.tabsLabel }).getByRole('link', {
+      name: messages.leaveManagement.tabApprovals,
     }),
   ).toHaveAttribute('aria-current', 'page');
+  // サイドバーに「休暇承認」メニューが無いこと(「承認」の一致は承認待ち件数の文言でも起きるため語句を固定する)
+  await expect(page.getByRole('navigation', { name: messages.nav.mainLabel })).not.toContainText(
+    '休暇承認',
+  );
   await expect(page.getByText(messages.common.loadError)).toHaveCount(0);
 });
 
 test('shouldSwitchBetweenMineAndAllScopeForAdmin', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await loginAsAdmin(page);
-  await openApprovalsFromSidebar(page);
+  await openApprovalsFromLeaveTabs(page);
   await expect(page.getByRole('tab', { name: t.scopeMine })).toHaveAttribute(
     'aria-selected',
     'true',

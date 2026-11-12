@@ -7,3 +7,7 @@ export const cardThClass = 'bg-general-30 text-left font-medium whitespace-nowra
 // 文字色を呼び出し側で決めるセル(日付の色分けなど)は Base を使う
 export const compactTdBaseClass = 'h-9 border-b border-general-40 px-2 text-sm/5';
 export const compactTdClass = `${compactTdBaseClass} text-general-100`;
+// 休暇管理の表(帯見出し: general-30 の帯・角丸 8、行 56・下線 1px)
+export const bandThClass =
+  'h-11 bg-general-30 px-3 text-left text-sm/5 font-medium whitespace-nowrap text-general-80 first:rounded-l-lg last:rounded-r-lg';
+export const bandTdClass = 'h-14 border-b border-general-40 px-3 text-sm/5 text-general-100';

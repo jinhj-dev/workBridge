@@ -9,6 +9,8 @@ import { E2E_ADMIN } from './accounts';
 // 開始時に E2E 管理者(900001)が申請者の休暇だけを backend で削除し、前回実行の申請と重複しないようにする。
 // E2E 管理者は承認不要のため、申請は即時承認になる。控除のない特別休暇を使い、残日数に依存しない。
 const t = messages.leaves;
+// 申請モーダル内の入力だけを対象にする(申請履歴の絞り込みと同じラベルがあるため)
+const applyDialog = (page: Page) => page.getByRole('dialog', { name: t.apply.title });
 const MISSING_ENV_MESSAGE =
   'E2E_ADMIN_PASSWORD と E2E_INITIAL_PASSWORD が必要です(backend の E2E アカウントを初期化するため)';
 
@@ -67,18 +69,18 @@ test('shouldApplyLeaveAutoApprovedThenCancelFromDetail', async ({ page }) => {
   await page.goto('/leaves');
   await page.getByRole('button', { name: t.applyButton }).click();
 
-  const { year, ymd } = nextYearMonday();
+  const { ymd } = nextYearMonday();
   await expect(page.getByText(t.apply.autoApprove)).toBeVisible();
-  await page.getByRole('combobox', { name: t.apply.leaveType }).selectOption('SPECIAL');
-  await page.getByLabel(t.apply.startDate).fill(ymd);
-  await page.getByLabel(t.apply.endDate).fill(ymd);
-  await page.getByLabel(t.apply.reason).fill('E2E 休暇申請');
+  await applyDialog(page).getByRole('combobox', { name: t.apply.leaveType }).selectOption('SPECIAL');
+  await applyDialog(page).getByLabel(t.apply.startDate).fill(ymd);
+  await applyDialog(page).getByLabel(t.apply.endDate).fill(ymd);
+  await applyDialog(page).getByLabel(t.apply.reason).fill('E2E 休暇申請');
   await page.getByRole('button', { name: t.apply.submit }).click();
 
   await expect(page.getByText(t.apply.approvedSuccess)).toBeVisible();
-  await expect(page).toHaveURL(new RegExp(`/leaves\\?year=${year}$`));
+  // 申請後も検索条件(URL)は変えず、履歴を再取得する
+  await expect(page).toHaveURL(/\/leaves$/);
   const row = page.getByRole('row', { name: new RegExp(ymd.replaceAll('-', '/')) });
-  await expect(row).toContainText(messages.leave.detail.autoApproved);
   await expect(row).toContainText(messages.leave.statuses.APPROVED);
 
   await row.getByRole('button', { name: t.history.detail }).click();
@@ -98,25 +100,27 @@ test('shouldFilterHistoryByStatusAndLeaveTypeToggles', async ({ page }) => {
   await loginAsAdmin(page);
   await page.goto('/leaves');
 
-  const statusGroup = page.getByRole('group', { name: t.history.status });
-  await statusGroup.getByRole('button', { name: messages.leave.statuses.PENDING }).click();
-  await statusGroup.getByRole('button', { name: messages.leave.statuses.APPROVED }).click();
-  // 表示順(PENDING → APPROVED)で URL に入る
-  await expect(page).toHaveURL(/status=PENDING%2CAPPROVED/);
-  await expect(
-    statusGroup.getByRole('button', { name: messages.leave.statuses.REJECTED }),
-  ).toHaveAttribute('aria-pressed', 'false');
+  // 状態は単一選択。選んで [検索] を押すと URL に反映される
+  await page
+    .getByLabel(t.history.statusFilter)
+    .selectOption('PENDING');
+  // 検索後の再取得を待ってから行を読む(待たないと直前の一覧を読んでしまう)
+  const statusResponse = page.waitForResponse((r) => r.url().includes('/api/v1/leaves/me') && r.url().includes('status=PENDING'));
+  await page.getByRole('button', { name: t.history.search }).click();
+  await statusResponse;
+  await expect(page).toHaveURL(/status=PENDING/);
 
   // 一覧に表示された行はすべて選択した状態のもの(0 件なら空表示)
   const rows = page.locator('table tbody tr');
   await expect(rows.first().or(page.getByText(t.history.empty))).toBeVisible();
   for (const row of await rows.all()) {
-    await expect(row).not.toContainText(messages.leave.statuses.REJECTED);
-    await expect(row).not.toContainText(messages.leave.statuses.CANCELLED);
+    await expect(row).toContainText(messages.leave.statuses.PENDING);
   }
 
-  const typeGroup = page.getByRole('group', { name: t.history.leaveType });
-  await typeGroup.getByRole('button', { name: messages.leave.types.SPECIAL }).click();
+  await page.getByRole('form', { name: t.history.title }).getByLabel(t.history.leaveTypeFilter).selectOption('SPECIAL');
+  const typeResponse = page.waitForResponse((r) => r.url().includes('/api/v1/leaves/me') && r.url().includes('leaveType=SPECIAL'));
+  await page.getByRole('button', { name: t.history.search }).click();
+  await typeResponse;
   await expect(page).toHaveURL(/leaveType=SPECIAL/);
   for (const row of await rows.all()) {
     await expect(row).toContainText(messages.leave.types.SPECIAL);
@@ -135,10 +139,10 @@ test('shouldShowLeaveConflictToastWhenSameDateAppliedAgain', async ({ page }) =>
   const apply = async (): Promise<void> => {
     await page.goto('/leaves');
     await page.getByRole('button', { name: t.applyButton }).click();
-    await page.getByRole('combobox', { name: t.apply.leaveType }).selectOption('SPECIAL');
-    await page.getByLabel(t.apply.startDate).fill(day);
-    await page.getByLabel(t.apply.endDate).fill(day);
-    await page.getByLabel(t.apply.reason).fill('E2E 重複申請');
+    await applyDialog(page).getByRole('combobox', { name: t.apply.leaveType }).selectOption('SPECIAL');
+    await applyDialog(page).getByLabel(t.apply.startDate).fill(day);
+    await applyDialog(page).getByLabel(t.apply.endDate).fill(day);
+    await applyDialog(page).getByLabel(t.apply.reason).fill('E2E 重複申請');
     await page.getByRole('button', { name: t.apply.submit }).click();
   };
 

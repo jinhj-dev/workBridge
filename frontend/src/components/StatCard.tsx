@@ -14,6 +14,8 @@ interface StatCardProps {
   tone?: StatCardTone;
   // 指定するとカード全体がリンクになる
   href?: string;
+  // 絞り込みの選択中(リンクのカードのみ。primary-100 の枠で示し、aria-current で伝える)
+  selected?: boolean;
 }
 
 const plainClass = 'flex flex-col gap-1 rounded-md bg-white p-5 shadow-card';
@@ -22,10 +24,18 @@ const TONE_CLASS: Record<StatCardTone, string> = {
   danger: 'bg-linear-to-br from-white to-danger-30',
 };
 const iconCardClass =
-  'grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1 rounded-2xl border border-general-40 p-3 shadow-card-soft sm:gap-x-4 sm:px-6 sm:py-4';
+  'grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1 rounded-2xl border p-3 shadow-card-soft sm:gap-x-4 sm:px-6 sm:py-4';
 
 // 09 §4 の stats カード: 項目名 + 数値。icon を渡すとダッシュボードの色付きカード(参照デザイン)になる
-export function StatCard({ label, value, unit, icon, tone = 'primary', href }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  unit,
+  icon,
+  tone = 'primary',
+  href,
+  selected = false,
+}: StatCardProps) {
   const valueNode = (
     <span className="tabular-nums">
       {value}
@@ -51,7 +61,7 @@ export function StatCard({ label, value, unit, icon, tone = 'primary', href }: S
     );
   }
 
-  const className = `${iconCardClass} ${TONE_CLASS[tone]}`;
+  const className = `${iconCardClass} ${TONE_CLASS[tone]} ${selected ? 'border-primary-100 ring-1 ring-primary-100' : 'border-general-40'}`;
   const content = (
     <>
       <span
@@ -71,6 +81,7 @@ export function StatCard({ label, value, unit, icon, tone = 'primary', href }: S
   return (
     <Link
       href={href}
+      aria-current={selected ? 'true' : undefined}
       className={`${className} transition-shadow hover:shadow-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100`}
     >
       {content}

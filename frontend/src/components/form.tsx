@@ -1,27 +1,27 @@
 // ログイン・パスワード変更などのカード型フォームで共通に使う見た目
 // フォーカスリングは内側に描く(外側の box-shadow は小数倍率でフォーカス解除後に残像が残るため)
 export const inputClass =
-  'h-12 w-full rounded border border-input-border bg-white px-4 text-base/6 text-general-100 outline-none focus-visible:border-primary-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-100 aria-invalid:border-danger-100 aria-invalid:focus-visible:ring-danger-100';
+  'h-12 w-full rounded-lg border border-input-border bg-white px-4 text-base/6 text-general-100 outline-none focus-visible:border-primary-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-100 aria-invalid:border-danger-100 aria-invalid:focus-visible:ring-danger-100';
 
 // 09 §3 Dropdown(Regular)。Input と同じ高さ・枠線
 export const selectClass = `${inputClass} cursor-pointer`;
 
 // 複数行入力(理由など)。Input と同じ枠線・フォーカス表示
 export const textareaClass =
-  'w-full resize-y rounded border border-input-border bg-white px-4 py-3 text-base/6 text-general-100 outline-none focus-visible:border-primary-100 focus-visible:ring-2 focus-visible:ring-primary-100 focus-visible:ring-inset aria-invalid:border-danger-100 aria-invalid:focus-visible:ring-danger-100';
+  'w-full resize-y rounded-lg border border-input-border bg-white px-4 py-3 text-base/6 text-general-100 outline-none focus-visible:border-primary-100 focus-visible:ring-2 focus-visible:ring-primary-100 focus-visible:ring-inset aria-invalid:border-danger-100 aria-invalid:focus-visible:ring-danger-100';
 
 export const labelClass = 'mb-1 block text-sm/5 font-medium text-general-80';
 
 export const primaryButtonClass =
-  'rounded bg-primary-100 font-bold text-white hover:bg-primary-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
+  'rounded-lg bg-primary-100 font-bold text-white hover:bg-primary-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
 
 // 09 §3 Button の White(アウトライン)。キャンセルなど主操作の隣に置く操作に使う
 export const secondaryButtonClass =
-  'rounded border border-general-50 bg-white font-bold text-general-100 hover:bg-general-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
+  'rounded-lg border border-general-50 bg-white font-bold text-general-100 hover:bg-general-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
 
 // 09 §3 Button の Primary アウトライン(白地 + primary の枠・文字)。主操作の次段階の操作(退勤など)に使う
 export const primaryOutlineButtonClass =
-  'rounded border border-primary-100 bg-white font-bold text-primary-100 hover:bg-primary-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100 disabled:cursor-not-allowed disabled:border-general-50 disabled:text-general-60 disabled:hover:bg-white';
+  'rounded-lg border border-primary-100 bg-white font-bold text-primary-100 hover:bg-primary-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100 disabled:cursor-not-allowed disabled:border-general-50 disabled:text-general-60 disabled:hover:bg-white';
 
 // モーダル footer のボタン(詳細・申請モーダル共通)。高さ 40
 export const modalPrimaryButtonClass = `${primaryButtonClass} flex h-10 items-center justify-center gap-2 px-4 text-sm/5 disabled:cursor-not-allowed disabled:bg-primary-60`;
