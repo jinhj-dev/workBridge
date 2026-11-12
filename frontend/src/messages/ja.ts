@@ -520,7 +520,6 @@ export const messages = {
     edit: '編集',
     delete: '削除',
     system: 'システム',
-    memberCountNote: '所属社員数は有効な社員のみを数えます。',
     members: (n: number) => `${n}名`,
     empty: '条件に一致する部署がありません。',
     editLabel: (name: string) => `部署「${name}」を編集`,
@@ -557,6 +556,7 @@ export const messages = {
       '※ 社員は1つの部署にのみ所属します。',
       '※ 所属社員がいる部署は削除できません。',
       '※ 部署の階層（親子関係）は使用しません。',
+      '※ 所属社員数は有効な社員のみを数えます。',
     ],
     membersModal: {
       title: '所属社員確認',
