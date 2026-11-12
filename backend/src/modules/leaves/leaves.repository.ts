@@ -26,6 +26,16 @@ const LEAVE_SELECT = {
 
 export type LeaveRow = Prisma.LeaveGetPayload<{ select: typeof LEAVE_SELECT }>;
 
+// 共有カレンダーに公開する項目だけ(id・事由・承認情報は含めない)
+const CALENDAR_LEAVE_SELECT = {
+  leaveType: true,
+  startDate: true,
+  endDate: true,
+  user: { select: { name: true, empId: true, department: { select: { name: true } } } },
+} as const satisfies Prisma.LeaveSelect;
+
+export type CalendarLeaveRow = Prisma.LeaveGetPayload<{ select: typeof CALENDAR_LEAVE_SELECT }>;
+
 // 開始日が指定期間内の差し引き対象休暇について、APPROVED / PENDING ごとの日数合計を返す(通常・トランザクション共用)
 async function groupDeductibleDays(
   client: Prisma.TransactionClient,
@@ -151,12 +161,32 @@ export class LeavesRepository {
     startDateTo?: Date;
     statuses?: LeaveStatus[];
     leaveTypes?: LeaveType[];
+    createdAtFrom?: Date;
+    createdAtTo?: Date;
     skip: number;
     take: number;
   }): Promise<{ items: LeaveRow[]; totalCount: number }> {
-    const { userId, startDateFrom, startDateTo, statuses, leaveTypes, skip, take } = params;
+    const {
+      userId,
+      startDateFrom,
+      startDateTo,
+      statuses,
+      leaveTypes,
+      createdAtFrom,
+      createdAtTo,
+      skip,
+      take,
+    } = params;
     const where: Prisma.LeaveWhereInput = {
       userId,
+      ...(createdAtFrom || createdAtTo
+        ? {
+            createdAt: {
+              ...(createdAtFrom ? { gte: createdAtFrom } : {}),
+              ...(createdAtTo ? { lt: createdAtTo } : {}),
+            },
+          }
+        : {}),
       ...(statuses && statuses.length > 0 ? { status: { in: statuses } } : {}),
       ...(leaveTypes && leaveTypes.length > 0 ? { leaveType: { in: leaveTypes } } : {}),
       ...(startDateFrom && startDateTo
@@ -199,21 +229,54 @@ export class LeavesRepository {
     return result.count;
   }
 
+  // 共有カレンダー用: 期間が [start, end] と重なる承認済みの休暇(有効な社員のみ)。
+  // 公開してよい項目だけを SELECT する(事由・承認情報は読まない)
+  findApprovedInRange(params: {
+    start: Date;
+    end: Date;
+    departmentId?: string;
+    name?: string;
+    empId?: string;
+  }): Promise<CalendarLeaveRow[]> {
+    const { start, end, departmentId, name, empId } = params;
+    return this.prisma.leave.findMany({
+      where: {
+        status: 'APPROVED',
+        startDate: { lte: end },
+        endDate: { gte: start },
+        user: {
+          isActive: true,
+          ...(departmentId ? { departmentId } : {}),
+          ...(name ? { name: { contains: name, mode: 'insensitive' } } : {}),
+          ...(empId ? { empId: { contains: empId } } : {}),
+        },
+      },
+      select: CALENDAR_LEAVE_SELECT,
+      orderBy: [
+        { startDate: 'asc' },
+        { user: { empId: 'asc' } },
+        { endDate: 'asc' },
+        { leaveType: 'asc' },
+      ],
+    });
+  }
+
   findById(id: string): Promise<LeaveRow | null> {
     return this.prisma.leave.findUnique({ where: { id }, select: LEAVE_SELECT });
   }
 
-  // 承認待ちの一覧。approverId を指定するとその承認者に割り当てられたものだけ。
-  // 申請日の降順(同順位は id の降順)
+  // 承認者が関わる申請の一覧(状態で絞り込み)。approverId を指定するとその承認者に割り当てられたものだけ。
+  // 指定しない場合は承認者のいるもの(即時承認は除く)。申請日の降順(同順位は id の降順)
   async findPending(params: {
     approverId?: string;
+    statuses: LeaveStatus[];
     skip: number;
     take: number;
   }): Promise<{ items: LeaveRow[]; totalCount: number }> {
-    const { approverId, skip, take } = params;
+    const { approverId, statuses, skip, take } = params;
     const where: Prisma.LeaveWhereInput = {
-      status: 'PENDING',
-      ...(approverId ? { approverId } : {}),
+      status: { in: statuses },
+      approverId: approverId ?? { not: null },
     };
     const [items, totalCount] = await this.prisma.$transaction([
       this.prisma.leave.findMany({

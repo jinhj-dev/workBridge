@@ -44,6 +44,16 @@
   --color-page-from: #fafbff;
   --color-page-to: #f1f3fc;
 
+  /* 休暇分類色(休暇カレンダー・休暇種別バッジ。PAID・OTHER / SPECIAL) */
+  --color-leave-paid-bg: #e7e3fc;
+  --color-leave-paid-fg: #3a28b5;
+  --color-leave-special-bg: #e2f5e7;
+  --color-leave-special-fg: #1d7a3c;
+
+  /* カレンダーの曜日色(日曜は danger-100 と同値) */
+  --color-calendar-sunday: #f0142f;
+  --color-calendar-saturday: #2f5bea;
+
   /* 入力枠線(09 §2.1 でパレット外と明記された値) */
   --color-input-border: #d9e1ec;
 
@@ -60,6 +70,20 @@
   /* 統計・時刻の大きな数値(36 / 44 Bold) */
   --text-stat: 2.25rem;
   --text-stat--line-height: 2.75rem;
+
+  /* ページ見出し(28 / 36 Bold。md 未満は page-title-sm の 22 / 30) */
+  --text-page-title: 1.75rem;
+  --text-page-title--line-height: 2.25rem;
+  --text-page-title-sm: 1.375rem;
+  --text-page-title-sm--line-height: 1.875rem;
+
+  /* カレンダーの祝日名(10 / 14)・凡例など(11 / 14)・日付内の予定チップ(10 / 20) */
+  --text-cal-holiday: 0.625rem;
+  --text-cal-holiday--line-height: 0.875rem;
+  --text-cal-note: 0.6875rem;
+  --text-cal-note--line-height: 0.875rem;
+  --text-cal-chip: 0.625rem;
+  --text-cal-chip--line-height: 1.25rem;
 
   /* 09 §2.2 Heading 4(32 / 44 Bold、ログイン・パスワード変更の見出し) */
   --text-h4: 2rem;

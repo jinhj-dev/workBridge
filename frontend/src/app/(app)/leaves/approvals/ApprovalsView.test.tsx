@@ -68,7 +68,8 @@ function pageOf(items: Leave[], overrides: Partial<Paginated<Leave>> = {}): Pagi
 function listCalls(): string[] {
   return apiFetch.mock.calls
     .map(([path]) => String(path))
-    .filter((path) => path.startsWith('/leaves/pending-approval'));
+    // 一覧(limit=20)だけを数える。件数カードとバッジは limit=1
+    .filter((path) => path.startsWith('/leaves/pending-approval') && path.includes('limit=20'));
 }
 
 function mockApi(list: Paginated<Leave> | Error, detail: Leave = leave()) {
@@ -116,15 +117,23 @@ beforeEach(() => {
 
 describe('parseApprovalsQuery', () => {
   it.each([
-    ['scope=all', true, 'all', 1],
-    ['scope=all', false, 'mine', 1],
-    ['scope=foo', true, 'mine', 1],
-    ['page=3', false, 'mine', 3],
-    ['page=0', false, 'mine', 1],
-    ['page=abc', false, 'mine', 1],
-    ['page=1.5', false, 'mine', 1],
-  ])('shouldParse(%s, admin=%s)', (search, isAdmin, scope, page) => {
-    expect(parseApprovalsQuery(new URLSearchParams(search), isAdmin)).toEqual({ scope, page });
+    ['scope=all', true, 'all', 'PENDING', 1],
+    ['scope=all', false, 'mine', 'PENDING', 1],
+    ['scope=foo', true, 'mine', 'PENDING', 1],
+    ['page=3', false, 'mine', 'PENDING', 3],
+    ['page=0', false, 'mine', 'PENDING', 1],
+    ['page=abc', false, 'mine', 'PENDING', 1],
+    ['page=1.5', false, 'mine', 'PENDING', 1],
+    ['status=APPROVED', false, 'mine', 'APPROVED', 1],
+    ['status=REJECTED&scope=all', true, 'all', 'REJECTED', 1],
+    ['status=CANCELLED', false, 'mine', 'PENDING', 1],
+    ['status=', false, 'mine', 'PENDING', 1],
+  ])('shouldParse(%s, admin=%s)', (search, isAdmin, scope, status, page) => {
+    expect(parseApprovalsQuery(new URLSearchParams(search), isAdmin)).toEqual({
+      scope,
+      status,
+      page,
+    });
   });
 });
 
@@ -136,26 +145,29 @@ describe('ApprovalsView(SCR-005 休暇承認)', () => {
     renderView(EMPLOYEE);
 
     const table = await screen.findByRole('table');
-    expect(listCalls()).toEqual(['/leaves/pending-approval?scope=mine&page=1&limit=20']);
+    expect(listCalls()).toEqual(['/leaves/pending-approval?scope=mine&status=PENDING&page=1&limit=20']);
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: t.approver })).not.toBeInTheDocument();
     expect(columnHeaders(table)).toEqual([
+      t.createdAt,
+      t.empId,
       t.applicant,
       t.department,
-      t.leaveType,
       t.period,
+      t.leaveType,
       t.days,
-      t.createdAt,
+      t.statusColumn,
       t.actions,
     ]);
     // 値の列対応を確認する(操作列は除く)
-    expect(rowCells(table, 0).slice(0, 6)).toEqual([
+    expect(rowCells(table, 0).slice(0, 7)).toEqual([
+      '2026/11/08',
+      '10001',
       '佐藤花子',
       '営業部',
-      messages.leave.types.ANNUAL,
       '2026/11/20 ～ 2026/11/21',
+      messages.leave.types.ANNUAL,
       '2日',
-      '2026/11/08',
     ]);
   });
 
@@ -164,7 +176,7 @@ describe('ApprovalsView(SCR-005 休暇承認)', () => {
     const ui = renderView(ADMIN);
     await screen.findAllByText('申請者');
 
-    expect(listCalls()).toEqual(['/leaves/pending-approval?scope=mine&page=1&limit=20']);
+    expect(listCalls()).toEqual(['/leaves/pending-approval?scope=mine&status=PENDING&page=1&limit=20']);
     expect(screen.getByRole('tab', { name: t.scopeMine })).toHaveAttribute('aria-selected', 'true');
     await ui.click(screen.getByRole('tab', { name: t.scopeAll }));
     expect(router.push).toHaveBeenCalledWith('/leaves/approvals?scope=all');
@@ -283,6 +295,55 @@ describe('ApprovalsView(SCR-005 休暇承認)', () => {
 
     await ui.click(screen.getByRole('button', { name: messages.pagination.page(2) }));
     expect(router.push).toHaveBeenCalledWith('/leaves/approvals?scope=all&page=2');
+  });
+});
+
+describe('ApprovalsView 状態カードと処理ボタン', () => {
+  // 状態ごとの件数を返す(limit=1 の件数取得と一覧取得の両方に応答する)
+  function mockByStatus(counts: Record<string, number>, rows: Leave[]) {
+    apiFetch.mockImplementation(async (path: string) => {
+      if (!path.startsWith('/leaves/pending-approval')) throw new Error(`想定外: ${path}`);
+      if (path.includes('limit=1')) {
+        const status = /status=(\w+)/.exec(path)?.[1] ?? 'PENDING';
+        const total = counts[status] ?? 0;
+        return pageOf([], { totalCount: total, totalPages: total > 0 ? 1 : 0 });
+      }
+      return pageOf(rows);
+    });
+  }
+
+  it('shouldShowStatusCountsAndLinkEachCardToStatusUrl', async () => {
+    mockByStatus({ PENDING: 4, APPROVED: 7, REJECTED: 2 }, [leave()]);
+    renderView(EMPLOYEE);
+
+    const pending = await screen.findByRole('link', { name: new RegExp(t.statusPending) });
+    await waitFor(() => expect(pending).toHaveTextContent('4'));
+    expect(pending).toHaveAttribute('href', '/leaves/approvals');
+    expect(screen.getByRole('link', { name: new RegExp(t.statusApproved) })).toHaveAttribute(
+      'href',
+      '/leaves/approvals?status=APPROVED',
+    );
+    expect(screen.getByRole('link', { name: new RegExp(t.statusRejected) })).toHaveAttribute(
+      'href',
+      '/leaves/approvals?status=REJECTED',
+    );
+  });
+
+  it('shouldShowApproveAndRejectOnlyForPendingRows', async () => {
+    mockByStatus({ PENDING: 1, APPROVED: 1 }, [leave({ status: 'APPROVED' })]);
+    renderView(EMPLOYEE);
+
+    await screen.findAllByRole('button', { name: t.detailLabel('申請者') });
+    // 表とカード(md 未満)の両方に出るため、件数で判定する
+    expect(screen.queryAllByRole('button', { name: t.approveLabel('申請者') })).toHaveLength(0);
+    expect(screen.queryAllByRole('button', { name: t.rejectLabel('申請者') })).toHaveLength(0);
+  });
+
+  it('shouldShowEmptyApprovedMessageWhenStatusApprovedAndNoRows', async () => {
+    nav.search = 'status=APPROVED';
+    mockByStatus({ APPROVED: 0 }, []);
+    renderView(EMPLOYEE);
+    expect(await screen.findByText(t.emptyApproved)).toBeInTheDocument();
   });
 });
 

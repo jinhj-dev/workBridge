@@ -4,7 +4,6 @@ import type { LeaveStatus, LeaveType } from '@/lib/api/types';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const YMD_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const YEARS_BACK = 4;
 
 // 状態の一覧(表示順)。絞り込みの選択肢と URL Query の解釈で共通に使う
 export const LEAVE_STATUSES: readonly LeaveStatus[] = [
@@ -24,9 +23,10 @@ export const LEAVE_TYPES: readonly LeaveType[] = [
 ];
 
 export interface LeavesQuery {
-  year: number;
-  statuses: LeaveStatus[]; // 空は「すべて」
-  leaveTypes: LeaveType[]; // 空は「すべて」
+  appliedFrom: string; // 空は指定なし(YYYY-MM-DD)
+  appliedTo: string; // 空は指定なし(YYYY-MM-DD)
+  leaveType: LeaveType | ''; // 空は「すべて」
+  status: LeaveStatus | ''; // 空は「すべて」
   page: number;
 }
 
@@ -60,27 +60,23 @@ export function countLeaveDays(
   return isHalfDay(leaveType) ? (weekdays > 0 ? 0.5 : 0) : weekdays;
 }
 
-// 履歴の年の選択肢: 来年 〜 4 年前(降順)
-export function yearOptions(currentYear: number): number[] {
-  return Array.from({ length: YEARS_BACK + 2 }, (_, i) => currentYear + 1 - i);
-}
-
-// カンマ区切りの値から、未知の値と重複を捨てて表示順に並べる
-function parseList<T extends string>(value: string | null, known: readonly T[]): T[] {
-  const requested = (value ?? '').split(',');
-  return known.filter((item) => requested.includes(item));
-}
-
-// 不正・欠落した値は既定値(今年・すべて・1 ページ)に置き換える
-export function parseLeavesQuery(params: ParamsLike, currentYear: number): LeavesQuery {
-  const rawYear = params.get('year') ?? '';
-  const year = /^\d{4}$/.test(rawYear) ? Number(rawYear) : currentYear;
+// 不正・欠落した値は既定値(指定なし・すべて・1 ページ)に置き換える。
+// 種別・ステータスは単一値のみ有効(カンマ区切りの複数値は先頭を使う)。旧 year は無視する
+export function parseLeavesQuery(params: ParamsLike): LeavesQuery {
   const rawPage = params.get('page') ?? '';
   const page = /^\d+$/.test(rawPage) && Number(rawPage) >= 1 ? Number(rawPage) : 1;
+  const from = params.get('appliedFrom') ?? '';
+  const to = params.get('appliedTo') ?? '';
+  const firstOf = (value: string | null): string => (value ?? '').split(',')[0];
+  const validFrom = isRealDate(from) ? from : '';
+  const validTo = isRealDate(to) ? to : '';
+  // 開始日が終了日より後(URL の直接編集)の範囲は API が 400 を返すため捨てる
+  const reversed = validFrom !== '' && validTo !== '' && validFrom > validTo;
   return {
-    year: yearOptions(currentYear).includes(year) ? year : currentYear,
-    statuses: parseList(params.get('status'), LEAVE_STATUSES),
-    leaveTypes: parseList(params.get('leaveType'), LEAVE_TYPES),
+    appliedFrom: reversed ? '' : validFrom,
+    appliedTo: reversed ? '' : validTo,
+    leaveType: LEAVE_TYPES.find((type) => type === firstOf(params.get('leaveType'))) ?? '',
+    status: LEAVE_STATUSES.find((status) => status === firstOf(params.get('status'))) ?? '',
     page,
   };
 }

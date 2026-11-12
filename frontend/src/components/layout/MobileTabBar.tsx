@@ -4,13 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { messages } from '@/messages/ja';
-import {
-  CalendarCheckIcon,
-  ClipboardCheckIcon,
-  HomeIcon,
-  MenuIcon,
-  UmbrellaIcon,
-} from './navIcons';
+import { CalendarCheckIcon, HomeIcon, MenuIcon, UmbrellaIcon } from './navIcons';
 
 interface MobileTabBarProps {
   drawerOpen: boolean;
@@ -31,7 +25,6 @@ const TABS: TabItem[] = [
   { href: '/dashboard', label: messages.nav.home, icon: <HomeIcon /> },
   { href: '/attendance', label: messages.nav.attendance, icon: <CalendarCheckIcon /> },
   { href: '/leaves', label: messages.nav.leaves, icon: <UmbrellaIcon /> },
-  { href: '/leaves/approvals', label: messages.nav.approvals, icon: <ClipboardCheckIcon /> },
 ];
 
 const tabClass =
@@ -51,8 +44,8 @@ export function MobileTabBar({
       <nav aria-label={messages.nav.tabLabel}>
         <ul className="flex gap-1 px-2 py-2">
           {TABS.map((tab) => {
-            const active = pathname === tab.href;
-            const showBadge = tab.href === '/leaves/approvals' && (pendingApprovalCount ?? 0) > 0;
+            const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+            const showBadge = tab.href === '/leaves' && (pendingApprovalCount ?? 0) > 0;
             return (
               <li key={tab.href} className="flex flex-1">
                 <Link

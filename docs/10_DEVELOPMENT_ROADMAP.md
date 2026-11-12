@@ -25,7 +25,7 @@
 | 3 | 인증 | FR-AUTH-001~003, NFR-001 | 완료 | 완료 | 완료 |
 | 4 | 권한·접근 제어 | NFR-001, 03 Screen Access Rules | 진행 중 | 완료 | 진행 중 |
 | 5 | 근태 | FR-ATT-001~006 | 완료 | 진행 중 | 진행 중 |
-| 6 | 휴가 신청·조회·취소 | FR-LEAVE-001, 004, 005, 006 | 완료 | 진행 중 | 진행 중 |
+| 6 | 휴가 신청·조회·취소 | FR-LEAVE-001, 004, 005, 006 | 완료 | 완료 | 진행 중 |
 | 7 | 휴가 승인 | FR-LEAVE-002, 003 | 완료 | 완료 | 완료 |
 | 8 | 사원 관리 | FR-USER-001, 002, FR-LEAVE-006, FR-DEPT-001 | 진행 중 | 진행 중 | 진행 중 |
 | 9 | 대시보드 | FR-DASH-001 | 완료 | 진행 중 | 진행 중 |
@@ -108,24 +108,30 @@
 백엔드
 - [x] 휴가 신청 API-LEAVE-001 (일수 계산, 날짜 중복, 잔여 연차, 즉시 승인, 사용자 단위 잠금 — FR-LEAVE-001, NFR-004, 05 §8)
 - [x] 승인자 후보 목록 API-LEAVE-002
-- [x] 내 휴가 이력 API-LEAVE-003 (FR-LEAVE-005, `status`·`leaveType` 쉼표 구분 복수 필터)
+- [x] 내 휴가 이력 API-LEAVE-003 (FR-LEAVE-005, `status`·`leaveType` 쉼표 구분 복수 필터, 신청일 범위 `appliedFrom`·`appliedTo` — 2026-11-12, e2e IT-HIS-01~03)
 - [x] 휴가 상세 API-LEAVE-004 (조회 권한 — FR-LEAVE-005)
 - [x] 휴가 취소 API-LEAVE-005 (FR-LEAVE-004, 조건부 UPDATE)
 - [x] 내 휴가 현황(잔여 연차) API-LEAVE-006 (FR-LEAVE-001, 006)
+- [x] 공유 휴가 캘린더 API-LEAVE-010 (FR-LEAVE-005 공유 캘린더 공개 규칙: APPROVED·활성 사원만, 공개 7필드, NFR-002 페이지네이션 예외) — `leaves/leave-calendar-rules.ts`, e2e IT-CAL-01~12, 개발 DB 픽스처 `db:e2e-leave-calendar-fixture`
 
 프론트엔드
-- [ ] 휴가 관리 화면 SCR-004 (공통 휴가 신청 모달, 이력 상태·휴가 종류 토글 필터, 공통 휴가 상세 모달) — 공통 휴가 상세 모달(`LeaveDetailModal`, 승인·반려 포함)은 대시보드 작업에서 완료. 탭을 없애고 신청을 공통 모달(`LeaveApplyModal`)로 변경(SCR-002 휴가 카드의 신청 진입은 2026-11-12 삭제). 화면·[취소] 단계 구현과 Vitest는 완료, Playwright `e2e/leaves.spec.ts` 8건(대시보드 신청 모달 포함)은 미실행(E2E 환경변수 미설정)
+- [x] 휴가 관리 화면 SCR-004 (경로 기반 탭 3개 自分の休暇·休暇カレンダー·承認, 공통 휴가 신청 모달, 신청일 범위·휴가 종류·상태 필터, 공통 휴가 상세 모달, 공유 캘린더 PC·모바일) — 2026-11-12 휴가관리 통합으로 SCR-005를 承認 탭으로 흡수, 참조 이미지 재현(Primary 유지). Vitest, Playwright `e2e/leave-management.spec.ts`·`leaves.spec.ts`·`approvals.spec.ts`·`leave-visual.spec.ts` 61건 통과(test-report Run 4)
+
+후속 과제
+- [ ] IT-CAL-04 같은 사원·같은 날 HALF_AM/HALF_PM 동률 정렬(「AM 먼저」) e2e 미검증(리뷰 Round 2 낮음)
+- [ ] `lib/leave-days.ts` `parseLeavesQuery`의 `appliedFrom > appliedTo` 역전 범위 폐기에 단위 테스트 없음(리뷰 Round 2 낮음)
+- [ ] `LeaveCalendarView.tsx`의 `cardClass = cardFrameClass` 별칭 정리(리뷰 Round 2 낮음)
 
 ### 7. 휴가 승인 — 완료
 
 백엔드
-- [x] 승인 대기 목록 API-LEAVE-007 (`scope=mine` / `all`, FR-LEAVE-003)
+- [x] 승인 대기 목록 API-LEAVE-007 (`scope=mine` / `all`, FR-LEAVE-003. 2026-11-12 `status`(PENDING 기본·APPROVED·REJECTED) 추가, `scope=all`은 즉시 승인 제외 — e2e IT-APR-01~05)
 - [x] 휴가 승인 API-LEAVE-008 (FR-LEAVE-002, 조건부 UPDATE)
 - [x] 휴가 반려 API-LEAVE-009 (FR-LEAVE-002)
 
 프론트엔드
-- [x] 휴가 승인 화면 SCR-005
-- [x] 사이드바 승인 대기 배지 (03 전역 내비게이션)
+- [x] 휴가 승인 화면 SCR-005 — 2026-11-12 SCR-004 承認 탭으로 통합(상태 요약 카드·상태별 목록, 표시 판정 ADMIN 항상 / 본인 할당 1건 이상)
+- [x] 사이드바 승인 대기 배지 (03 전역 내비게이션) — 2026-11-12 사이드바 休暇承認 메뉴·하단 탭 休暇承認 삭제, 배지·빨간 점은 休暇管理로 이동(하단 탭 4개)
 
 ### 8. 사원 관리 — 진행 중
 
@@ -157,7 +163,7 @@
 
 확인 대기
 - [ ] 참조 이미지(8~11) 차이 최종 확인 — P-03은 체크리스트 수동 대조. 남은 차이(お知らせ 없음, アラート 열 없음, 休日出勤 시간 단위, 월간 4지표, 사원 모바일 部署 카드 노출, 모바일 헤더 소제목·일러스트 없음)는 사용자 결정으로 유지
-- [ ] 사용자 확인: 하단 탭 참조의 社員情報·各種設定을 休暇承認·メニュー로 대체한 구성
+- [x] 사용자 확인: 하단 탭 참조의 社員情報·各種設定 — 추가하지 않음으로 확정(2026-11-12 휴가관리 통합 승인 시), 하단 탭은 ホーム·出勤簿·休暇管理·メニュー 4개
 - [ ] 사용자 확인: 휴가 카드 라벨 「承認済み日数」
 - [ ] 백엔드 `approvedDays` 정의 확인: 해당 연도 시작일 기준 APPROVED 합계로 미래 날짜 승인분도 포함(test-report Run 4 §5)
 - [ ] 미구현 테스트: P-06 사이드바 승인 배지 갱신 확인, IT-DASH-25 DB 세션 TZ 3종(08 §5.5)
@@ -169,8 +175,8 @@
 - [ ] API 통합 테스트 (08 §5) — 각 도메인 구현과 함께
 - [ ] 권한 매트릭스 테스트 (08 §6)
 - [ ] 동시성 테스트: 휴가 신청 잠금, 조건부 UPDATE (NFR-004)
-- [ ] 화면 테스트 (08 §7) — SCR-001 완료(Vitest 51건 — 화면 25·redirect 검증 26, Playwright 7건), SCR-009 완료(Vitest 17건, Playwright 3건), SCR-002 개편 진행 중(test-report Run 4: Vitest 40파일 556건 전체 통과, Playwright `e2e/dashboard-renewal.spec.ts` 9건(P-01·02·04~10)·`dashboard.spec` 포함 통과. 休暇カレンダー 테스트는 기능 삭제로 제거. 디자인 재현 3차 반영분은 tester 재실행 전, §2 #9), SCR-008 완료(Vitest — 전체 근태 8·수정 모달 9·Tooltip 7·관리자 가드 3 외, Playwright 3건), SCR-003 출근부 진행 중(Vitest — AttendanceSheetView·CurrentDateTimeCard·WorkTimeline·`lib/attendance-sheet`·AttendanceView(폭 전환)·`useMediaQuery`·AttendanceHistoryView·StatusFilterButtons 통과, Playwright `e2e/attendance-sheet-layout.spec.ts` 8건·`e2e/attendance.spec.ts` 4건·`e2e/attendance-status.spec.ts` 6건 통과(Fix 1 반영 전), §2 #5 후속 과제 미해결), SCR-005·승인 대기 배지 완료(Vitest — 화면 19·Tabs 3·휴가 상세 모달·공통 셸 추가분 외, Playwright 5건), SCR-004 진행 중(Vitest — 화면·신청 모달·LeaveFilterButtons·ApproverSelect·휴가 상세 모달 취소·`leave-days` 외 통과, Playwright 8건 미실행), SCR-010 완료(Vitest 25건, Playwright 4건)
-- [ ] E2E 하네스 정비(`PLAYWRIGHT_BASE_URL` 지정·임시 DB 실행): `e2e/attendance-status.spec.ts` 6건은 이전 실행에서 실패 이력이 있었으나(2026-11-10 이력) 2026-11-11 개발 DB 실행에서 통과(해소). `e2e/leaves.spec.ts` `shouldShowSummaryAndHistoryWithoutLoadError`는 이전 실행 이력에 의존해 실패. `backend/package.json`에 `db:e2e-leaves-reset` 스크립트가 없어(main에도 없음) `leaves.spec.ts`의 `beforeAll`은 기본 실행에서도 실패(2026-11-11 확인, 미실행)
+- [ ] 화면 테스트 (08 §7) — SCR-001 완료(Vitest 51건 — 화면 25·redirect 검증 26, Playwright 7건), SCR-009 완료(Vitest 17건, Playwright 3건), SCR-002 개편 진행 중(test-report Run 4: Vitest 40파일 556건 전체 통과, Playwright `e2e/dashboard-renewal.spec.ts` 9건(P-01·02·04~10)·`dashboard.spec` 포함 통과. 休暇カレンダー 테스트는 기능 삭제로 제거. 디자인 재현 3차 반영분은 tester 재실행 전, §2 #9), SCR-008 완료(Vitest — 전체 근태 8·수정 모달 9·Tooltip 7·관리자 가드 3 외, Playwright 3건), SCR-003 출근부 진행 중(Vitest — AttendanceSheetView·CurrentDateTimeCard·WorkTimeline·`lib/attendance-sheet`·AttendanceView(폭 전환)·`useMediaQuery`·AttendanceHistoryView·StatusFilterButtons 통과, Playwright `e2e/attendance-sheet-layout.spec.ts` 8건·`e2e/attendance.spec.ts` 4건·`e2e/attendance-status.spec.ts` 6건 통과(Fix 1 반영 전), §2 #5 후속 과제 미해결), SCR-005·승인 대기 배지 완료(Vitest — 화면 19·Tabs 3·휴가 상세 모달·공통 셸 추가분 외, Playwright 5건), SCR-004 완료(2026-11-12 휴가관리 통합, test-report Run 4: Vitest 44파일 605건, Playwright 휴가 관련 61건 통과. `LeaveFilterButtons`는 삭제), SCR-010 완료(Vitest 25건, Playwright 4건)
+- [ ] E2E 하네스 정비(`PLAYWRIGHT_BASE_URL` 지정·임시 DB 실행): `e2e/attendance-status.spec.ts` 6건은 이전 실행에서 실패 이력이 있었으나(2026-11-10 이력) 2026-11-11 개발 DB 실행에서 통과(해소). `e2e/leaves.spec.ts`는 `db:e2e-leaves-reset` 스크립트 추가 후 2026-11-12 개발 DB 실행에서 통과(해소). `e2e/dashboard-renewal.spec.ts` 8건은 900002 PENDING 2건 부재·globalSetup의 mustChangePassword 초기화 충돌로 미해결(2026-11-12 휴가관리 통합 test-report Run 2~4)
 - [ ] E2E 핵심 여정 E2E-01~05 (08 §8, Playwright)
 - [ ] CI(GitHub Actions): lint, 타입 검사, unit, e2e(postgres 서비스 컨테이너), build
 
@@ -206,3 +212,4 @@
 | 2026-11-11 | 출근부 UI 개편: SCR-003 月間表를 좌우 2표(왼쪽 8열 고정 + 時間帯 영역만 가로 스크롤, 2px 구분선)로 분리, 행 36, 勤務パターン Pill, 日付 `1日（日）`, 申請 `休暇 {상태}`, 1024px 2단 스크롤 명시(SCR-003 §4). 공용 `Badge` `shape`·`table.ts` `compactTdClass`/`compactTdBaseClass`·`attendance/workPattern.ts`·`lib/useHorizontalOverflow.ts`·`workPatternOf`(09 §2.3·§6), 08 §7 레이아웃 E2E. API·DB 변경 없음(frontend 498건, backend unit 294건, e2e 385건 통과. Playwright 8개 spec 42건 2회 연속 통과 — 단 Fix 1(nowrap·판별 유니온·조건부 tabIndex) 반영 후 E2E·리뷰 재확인 없음. 리뷰 CHANGES_REQUESTED의 tester 항목(스크린샷 경로·768 시각 확인·E3/E7 보강)은 사용자 지시로 미수정 종료 → §2 #5 후속 과제, SCR-003은 진행 중 유지). 개발 백엔드 표준 포트 4000 → 6000(bad port 주의는 context.md) |
 | 2026-11-12 | 대시보드 개편(SCR-002): API-DASH-001 집계 규칙 개편(배타 3분류·입사일·비근무일·출근율), API-DASH-004 부서별 현황 신규(USER, 숫자만), 월간 휴가 캘린더(API-DASH-002·003, SCR-002 §3-6) 삭제. 승인자·ADMIN 대시보드 승인·반려, 退勤予定 目安(9시간, 표시 전용), 정적 SVG 도넛. 참조 디자인 재현으로 공용 `Card`·`body` 배경·토큰 추가, 셸(사이드바 아이콘·벨·아바타·모바일 하단 탭) 변경(D16 변경, 09 §5 6). 대시보드 휴가 신청 버튼 삭제. 02·03·SCR-002·SCR-004·06·08·09 반영. DB 변경 없음(test-report Run 4: frontend Vitest 40파일 556건, Playwright 55건 통과, 백엔드는 변경 없음으로 생략. 디자인 재현 3차 반영분 테스트 최종 확인·참조 이미지 차이·사용자 확인 항목 대기로 진행 중) |
 | 2026-11-12 | 대시보드 UI 수정(SCR-002, 사용자 요청): 今日の出勤状況의 退勤予定（目安）(출근 + 9시간)을 폐기하고 退勤時刻(실제 퇴근 시각, 퇴근 전 `--:--`)으로 변경(진행률은 유지). 承認待ち 0건 시 표 헤더 유지 + 빈 문구, 直近の申請履歴 상단 구분선·행 전체 포인터, 공용 `Card` 패딩(좌우 20·상하 16, `sm` 이상 24·20)·본문 간격 12·본문 `flex-1`, `lib/work-progress.ts` `expectedClockOut` 삭제. 02·SCR-002·08·09 반영. API·DB 변경 없음(frontend tsc·eslint 오류 없음, Vitest 40파일 560건 통과. Playwright 미실행) |
+| 2026-11-12 | 휴가관리 통합: SCR-004를 경로 기반 탭 3개(自分の休暇 `/leaves`·休暇カレンダー `/leaves/calendar`·承認 `/leaves/approvals`)로 개편하고 SCR-005를 承認 탭으로 흡수. 공유 휴가 캘린더 API-LEAVE-010 신규(APPROVED·활성 사원만, 공개 7필드, 페이지네이션 없음 = NFR-002 예외), API-LEAVE-007 `status`, API-LEAVE-003 `appliedFrom`·`appliedTo`(연도 필터 UI 폐지). 사이드바·하단 탭 休暇承認 삭제(하단 탭 4개, 社員情報·各種設定 미추가). 참조 이미지 재현(Primary 유지, 컨트롤 radius 8, 휴가 분류·요일 색·타이포 토큰), 공용 `PageHeader`·`NavTabs`·`SearchInput`·`LeaveCategoryBadge`·`MonthNavigator`·`LeaveDayModal`·`cardFrameClass`·band 표 클래스 추가, `LeaveFilterButtons`·`yearOptions` 삭제. 02·03·SCR-004·SCR-005·06·08·09 반영. DB 변경 없음(test-report Run 4: backend unit 312건, e2e 385건, frontend Vitest 605건 통과, Playwright 휴가 관련 61건 통과(1차 flake 2건 단독 재실행 통과). 리뷰 Round 2 낮음 중 코드·테스트 3건은 §2 #6 후속 과제) |

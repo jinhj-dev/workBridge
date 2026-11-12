@@ -374,12 +374,14 @@ Response 201: `Leave`
 
 ### API-LEAVE-003: 내 휴가 이력
 - `GET /leaves/me` · USER · FR-LEAVE-005
-- Query: `year`(선택, 휴가 시작일의 연도, 2000~2100 정수. 생략하면 전체 연도), `status`, `leaveType`, `page`, `limit`
+- Query: `year`(선택, 휴가 시작일의 연도, 2000~2100 정수. 생략하면 전체 연도), `status`, `leaveType`, `appliedFrom`, `appliedTo`, `page`, `limit`
 - `status`: `PENDING` / `APPROVED` / `REJECTED` / `CANCELLED`를 쉼표로 구분해 여러 개 지정할 수 있다. 지정한 상태 중 하나라도 일치하는 휴가를 반환하고, 생략하면 전체 상태를 반환한다. 중복 값은 하나로 본다
 - `leaveType`: `ANNUAL` / `HALF_AM` / `HALF_PM` / `SPECIAL` / `OTHER`를 쉼표로 구분해 여러 개 지정할 수 있다. 규칙은 `status`와 같다
-- 조건 결합: `year` AND `status`(그룹 내 OR) AND `leaveType`(그룹 내 OR). 예: `?year=2026&status=PENDING,APPROVED&leaveType=HALF_AM,HALF_PM`
+- `appliedFrom`, `appliedTo`: 선택, 실재하는 `YYYY-MM-DD`. 신청일(`created_at`)의 Asia/Tokyo 날짜 기준이며 양끝을 포함한다(`created_at >= appliedFrom 00:00+09:00 AND created_at < (appliedTo + 1일) 00:00+09:00`). 한쪽만 지정할 수 있다
+- 조건 결합: `year` AND `status`(그룹 내 OR) AND `leaveType`(그룹 내 OR) AND 신청일 범위. 예: `?appliedFrom=2026-01-01&appliedTo=2026-03-31&status=PENDING,APPROVED&leaveType=HALF_AM,HALF_PM`
+- `year`는 호환을 위해 유지한다. SCR-004 화면은 더 이상 `year`를 보내지 않는다(신청일 범위 필터로 대체)
 - Response 200: 페이지네이션(`Leave[]`), 신청일 내림차순(동순위는 id 내림차순)
-- 400 VALIDATION_ERROR: `year`·`page`·`limit` 값 오류, `status`·`leaveType` 값 오류(허용 값이 아니거나 빈 값. 예: `status=`, `status=PENDING,`). `status`·`leaveType` 오류의 `details[].field`는 배열 요소 위치가 붙은 `status.N`·`leaveType.N` 형식(예: `PENDING,X` → `status.1`, 빈 값 → `status.0`)
+- 400 VALIDATION_ERROR: `year`·`page`·`limit` 값 오류, `status`·`leaveType` 값 오류(허용 값이 아니거나 빈 값. 예: `status=`, `status=PENDING,`). `status`·`leaveType` 오류의 `details[].field`는 배열 요소 위치가 붙은 `status.N`·`leaveType.N` 형식(예: `PENDING,X` → `status.1`, 빈 값 → `status.0`). `appliedFrom`·`appliedTo` 형식 오류 또는 실재하지 않는 날짜, `appliedFrom > appliedTo`(`details[].field = appliedTo`)
 
 ### API-LEAVE-004: 휴가 상세
 - `GET /leaves/:id` · USER(신청자, 할당된 승인자, ADMIN만) · FR-LEAVE-005
@@ -407,11 +409,13 @@ Response 200
 
 ### API-LEAVE-007: 승인 대기 목록
 - `GET /leaves/pending-approval` · USER · FR-LEAVE-003
-- Query: `scope`(`mine` 기본 / `all`은 ADMIN만), `page`, `limit`
+- Query: `scope`(`mine` 기본 / `all`은 ADMIN만), `status`, `page`, `limit`
+- `status`: `PENDING` / `APPROVED` / `REJECTED`를 쉼표로 구분해 여러 개 지정할 수 있다. **생략하면 `PENDING`**(기존 호출과 같은 결과). 규칙은 API-LEAVE-003의 `status`와 같다
 - Response 200: 페이지네이션(`Leave[]`), 신청일 내림차순(동순위는 id 내림차순)
-- `scope=mine`: approverId = 로그인 사용자, status = PENDING
-- `scope=all`: 모든 PENDING (ADMIN이 아니면 403)
-- `scope`가 `mine` / `all` 외이면 400 VALIDATION_ERROR
+- `scope=mine`: approverId = 로그인 사용자 AND status IN (`status`)
+- `scope=all`: approverId IS NOT NULL(즉시 승인 건 제외) AND status IN (`status`) (ADMIN이 아니면 403). `status`가 PENDING만이면 모든 PENDING과 같다
+- SCR-004 承認 탭은 상태별 건수를 `status=X&limit=1`의 `totalCount`로, 탭 표시 판정을 `scope=mine&status=PENDING,APPROVED,REJECTED&limit=1`의 `totalCount > 0`으로 조회한다(별도 집계 API 없음)
+- 400 VALIDATION_ERROR: `scope`가 `mine` / `all` 외, `status`가 허용 값이 아니거나 빈 값(`CANCELLED` 포함, `details[].field = status.N`)
 
 ### API-LEAVE-008: 휴가 승인
 - `PATCH /leaves/:id/approve` · USER(할당된 승인자 또는 ADMIN) · FR-LEAVE-002
@@ -434,6 +438,42 @@ Request
 - rejectReason: 필수, 앞뒤 공백 제거 후 1~500자(공백 제거한 값을 저장)
 - Response 200: `Leave`
 - 에러는 API-LEAVE-008과 같고, 추가로 400 VALIDATION_ERROR가 있다.
+
+### API-LEAVE-010: 공유 휴가 캘린더
+- `GET /leaves/calendar` · USER(ADMIN·EMPLOYEE 동일 응답) · FR-LEAVE-005
+- Query
+  - `month`: 선택, `YYYY-MM`(연도 2000~2100, 월 01~12). 생략 시 Asia/Tokyo 기준 이번 달
+  - `departmentId`: 선택, UUID 형식. 존재하지 않는 부서면 `items: []`(에러 아님)
+  - `name`: 선택, 앞뒤 공백 제거 후 최대 100자. 이름 대소문자 무시 부분 일치. 빈 값이면 조건 없음
+  - `empId`: 선택, 앞뒤 공백 제거 후 최대 50자. 사원번호 부분 일치. 빈 값이면 조건 없음
+  - 조건 결합: 모두 AND
+- 대상: `status = APPROVED` AND 신청자 `is_active = true` AND 휴가 기간이 해당 월과 겹침(`start_date <= 월말 AND end_date >= 월초`). 휴가 종류 전부(반차 포함)
+- **페이지네이션 없음**: 월 캘린더와 목록이 그 달 전체를 필요로 하므로 해당 월의 대상 전체를 반환한다(NFR-002 예외)
+
+Response 200
+```json
+{
+  "month": "2026-11",
+  "holidays": [{ "date": "2026-11-03", "name": "文化の日" }],
+  "items": [
+    {
+      "name": "山田 太郎", "empId": "00001", "departmentName": "開発部",
+      "startDate": "2026-11-13", "endDate": "2026-11-15",
+      "category": "PAID", "halfDay": null
+    }
+  ]
+}
+```
+- `items`의 필드는 위 7개가 전부다. leave·user `id`, `reason`, `days`, `leaveType` 원값, `status`, 승인자·처리자, `rejectReason`, `createdAt`은 포함하지 않는다(SELECT 단계에서 읽지 않음)
+- `category`: `ANNUAL`·`HALF_AM`·`HALF_PM` → `PAID` / `SPECIAL` → `SPECIAL` / `OTHER` → `OTHER`(화면은 「休暇」로만 표시하는 공개용 분류)
+- `halfDay`: `HALF_AM` → `"AM"`, `HALF_PM` → `"PM"`, 그 외 `null`
+- `startDate`·`endDate`: 신청 기간 그대로다. 월을 걸치는 휴가는 월 밖 날짜일 수 있다
+- `holidays`: 해당 월의 일본 공휴일(API-ATT-007과 같은 데이터), 날짜 오름차순. 필터·0건과 무관하게 항상 포함
+- 정렬: `startDate` 오름차순 → `empId` 오름차순 → `endDate` 오름차순 → 휴가 종류(같은 날 반차는 AM 먼저)
+
+| HTTP | Code | 설명 |
+|---|---|---|
+| 400 | VALIDATION_ERROR | `month`·`departmentId`·`name`·`empId` 형식·길이 오류(`details[].field`는 해당 Query 이름) |
 
 ---
 

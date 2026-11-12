@@ -5,8 +5,8 @@
 | SCR-001 | 로그인 | /login | 비로그인 | 로그인 | FR-AUTH-001, FR-AUTH-002 |
 | SCR-002 | 대시보드 | /dashboard | 공통 | 출퇴근 등록·근무 진행(目安), 이번 달 근무 집계, 휴가 잔여, 최근 휴가 신청, 부서별 출근 현황(공통), 승인 대기 확인·승인·반려(승인자·ADMIN), (ADMIN) 전사 통계·출근 현황 | FR-DASH-001, FR-ATT-001, FR-ATT-002, FR-ATT-006, FR-LEAVE-001, FR-LEAVE-005, FR-LEAVE-002, FR-LEAVE-003, FR-LEAVE-006 |
 | SCR-003 | 출근부 | /attendance | 공통 | 개인 월간 출근부(일별 근태·계산 휴게·실근무 시간, 월간 집계) 조회. md 미만은 기간별 근태 이력 목록(기간·상태 검색) | FR-ATT-006, FR-ATT-003 |
-| SCR-004 | 휴가 관리 | /leaves | 공통 | 휴가 신청(공통 모달), 내 신청 이력 조회(상태·종류 필터)·상세·취소 | FR-LEAVE-001, 004, 005, 006 |
-| SCR-005 | 휴가 승인 | /leaves/approvals | 공통 | 승인 대기 목록 조회, 승인·반려 | FR-LEAVE-002, 003, 005 |
+| SCR-004 | 휴가 관리 | /leaves, /leaves/calendar, /leaves/approvals | 공통 | 경로 기반 탭 3개. 自分の休暇(/leaves): 휴가 신청(공통 모달), 잔여 요약, 내 신청 이력 조회(신청일 범위·종류·상태 필터)·상세·취소 / 休暇カレンダー(/leaves/calendar): 승인 완료 휴가 공유 캘린더(월, 부서·이름·사원번호 검색) / 承認(/leaves/approvals): SCR-005 통합 | FR-LEAVE-001~006 |
+| SCR-005 | 휴가 승인 | /leaves/approvals | 공통(承認 탭 표시 대상만) | SCR-004의 承認 탭으로 통합(2026-11). 상태별(承認待ち·承認済み·却下) 목록 조회, 승인·반려 | FR-LEAVE-002, 003, 005 |
 | SCR-006 | 사원 관리 | /admin/users | 관리자 | 사원 목록 조회 및 신규 등록 | FR-USER-001 |
 | SCR-007 | 사원 상세 | /admin/users/:id | 관리자 | 사원 정보 수정, 승인 정책·계정 상태·부여 연차 관리 | FR-USER-002, FR-LEAVE-006 |
 | SCR-008 | 전체 근태 관리 | /admin/attendance | 관리자 | 전체 근태 조회·검색, 근태 수정 | FR-ATT-004, FR-ATT-005 |
@@ -18,7 +18,8 @@
 - 비로그인: 로그인하지 않은 사용자. 로그인한 사용자가 접근하면 `/dashboard`로 이동한다.
 - 공통: 로그인한 모든 사용자(ADMIN, EMPLOYEE)
 - 관리자: `role = ADMIN`인 사용자만. `/admin/*` 경로는 모두 관리자 전용이다.
-- 승인자는 별도 권한이 아니다. SCR-005에서 본인에게 할당된 승인 요청만 조회·처리한다(ADMIN은 전체, FR-LEAVE-002·003).
+- 승인자는 별도 권한이 아니다. SCR-005(SCR-004 承認 탭)에서 본인에게 할당된 승인 요청만 조회·처리한다(ADMIN은 전체, FR-LEAVE-002·003).
+- 承認 탭 표시 판정: ADMIN은 항상 표시. 그 외는 본인에게 할당된 신청(`PENDING`·`APPROVED`·`REJECTED`)이 1건 이상일 때만 표시한다(`GET /leaves/pending-approval?scope=mine&status=PENDING,APPROVED,REJECTED&limit=1`의 `totalCount > 0`, 조회 실패 시 숨김). `/leaves/approvals`에 직접 접근하면 판정 전에는 본문 대신 스켈레톤을 표시하고, 표시 대상이 아니면 `/leaves`로 replace한다(토스트 없음).
 - 화면 접근 권한과 데이터 조회 권한은 서버에서도 검증한다(NFR-001).
 
 ## Common UI Rules
@@ -70,8 +71,7 @@
 |---|---|---|
 | 대시보드 | /dashboard | 공통 |
 | 출근부(`出勤簿`) | /attendance | 공통 |
-| 휴가 관리 | /leaves | 공통 |
-| 휴가 승인 | /leaves/approvals | 공통 (배지: 본인에게 할당된 승인 대기 건수, `GET /leaves/pending-approval?scope=mine&limit=1`의 `totalCount`. ADMIN도 동일 기준) |
+| 휴가 관리 | /leaves | 공통 (배지: 본인에게 할당된 승인 대기 건수, `GET /leaves/pending-approval?scope=mine&limit=1`의 `totalCount`. ADMIN도 동일 기준). `/leaves/*`(캘린더·承認 탭)에서도 활성 |
 | 사원 관리 | /admin/users | 관리자 |
 | 부서 관리 | /admin/departments | 관리자 |
 | 전체 근태 | /admin/attendance | 관리자 |
@@ -79,7 +79,8 @@
 
 - 승인 대기 배지: 셸 표시 시, 화면 이동 시, 승인·반려 성공 후(SCR-005·대시보드) 다시 조회한다. 0건이면 숨기고, 100건 이상은 "99+"로 표시한다. 조회 실패 시 배지를 숨기며 토스트는 표시하지 않는다.
 - 알림 벨: 알림 기능은 없다. 벨은 `/leaves/approvals` 링크이며, 승인 대기 배지와 같은 건수가 1건 이상이면 빨간 점을 표시한다(건수 숫자는 표시하지 않음).
-- 좁은 폭(`lg` 미만): 사이드바를 숨기고 화면 하단에 탭을 고정 표시한다. 탭은 ホーム(/dashboard)·出勤簿(/attendance)·休暇管理(/leaves)·休暇承認(/leaves/approvals, 승인 대기 1건 이상이면 빨간 점)·メニュー 5개이며 모든 사용자에게 같다. 「メニュー」는 사이드바와 같은 메뉴(관리자 메뉴 포함)를 담은 드로어를 연다. 드로어는 배경 클릭, Esc, 메뉴 선택 시 닫힌다. 상단바에 햄버거 버튼은 없다.
+- 사이드바의 별도 「休暇承認」 메뉴는 SCR-005의 SCR-004 통합(2026-11)으로 삭제했다. 승인 화면은 휴가 관리의 承認 탭으로 들어간다. 社員情報·各種設定 메뉴는 해당 화면이 없어 추가하지 않는다(사용자 결정).
+- 좁은 폭(`lg` 미만): 사이드바를 숨기고 화면 하단에 탭을 고정 표시한다. 탭은 ホーム(/dashboard)·出勤簿(/attendance)·休暇管理(/leaves, `/leaves/*` 포함 활성, 승인 대기 1건 이상이면 빨간 점)·メニュー 4개이며 모든 사용자에게 같다. 「メニュー」는 사이드바와 같은 메뉴(관리자 메뉴 포함)를 담은 드로어를 연다. 드로어는 배경 클릭, Esc, 메뉴 선택 시 닫힌다. 상단바에 햄버거 버튼은 없다.
 - 로그아웃: `POST /auth/logout` 호출 후 `/login`으로 이동한다(API 실패 시에도 로컬 인증 정보를 지우고 이동).
 - `mustChangePassword = true`인 사용자: 상단바에 로그아웃만 표시하고 사이드바 메뉴는 숨긴다(SCR-009).
 
@@ -99,7 +100,9 @@
 ```
 /login ──(성공)──> mustChangePassword ? /password : (redirect 또는 /dashboard)
 /password ──(변경 완료)──> /dashboard
-/leaves ──[休暇申請]──> 공통 휴가 신청 모달 (대시보드에는 신청 버튼 없음)
+/leaves ──[탭]──> /leaves(自分の休暇) | /leaves/calendar(休暇カレンダー) | /leaves/approvals(承認, 표시 대상만)
+/leaves/* ──[休暇申請]──> 공통 휴가 신청 모달 (세 탭 공통 헤더. 대시보드에는 신청 버튼 없음)
+/leaves/calendar ──[막대·+N件]──> 휴가자 모달(PC) / ──[날짜 셀]──> 선택일 휴가자 목록(모바일)
 /dashboard ──[승인 대기 すべて見る]──> /leaves/approvals (ADMIN은 ?scope=all)
 /dashboard ──[승인 대기 항목]──> 휴가 상세 모달(승인·반려, 승인자·ADMIN)
 /dashboard ──[최근 신청 항목]──> 휴가 상세 모달(취소)

@@ -152,3 +152,23 @@ export interface AttendanceSheet {
   days: SheetDay[];
   summary: SheetSummary;
 }
+
+// API-LEAVE-010(休暇カレンダー。承認済みの休暇だけ。種別は PAID / SPECIAL / OTHER に丸めて公開)
+export type LeaveCategory = 'PAID' | 'SPECIAL' | 'OTHER';
+export type HalfDay = 'AM' | 'PM';
+
+export interface LeaveCalendarItem {
+  name: string;
+  empId: string;
+  departmentName: string | null;
+  startDate: string; // YYYY-MM-DD(月の外のことがある)
+  endDate: string; // YYYY-MM-DD(月の外のことがある)
+  category: LeaveCategory;
+  halfDay: HalfDay | null;
+}
+
+export interface LeaveCalendarResponse {
+  month: string; // YYYY-MM
+  holidays: { date: string; name: string }[];
+  items: LeaveCalendarItem[];
+}

@@ -12,10 +12,22 @@ import type { UserSummary } from '../../common/mappers/user-summary.js';
 import { toPage, toSkipTake } from '../../common/pagination/pagination.js';
 import type { Page } from '../../common/pagination/pagination.js';
 import { Clock } from '../../common/time/clock.js';
-import { fromDbDate, toDbDate, toTokyoDate, tokyoYear } from '../../common/time/tokyo-date.js';
+import { monthRange } from '../../common/time/calendar-rules.js';
+import { japaneseHolidaysInRange } from '../../common/time/japanese-holiday.js';
+import {
+  fromDbDate,
+  toDbDate,
+  toTokyoDate,
+  tokyoDayStart,
+  tokyoNextDayStart,
+  tokyoYear,
+} from '../../common/time/tokyo-date.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import type { ApproversQueryDto } from './dto/approvers-query.dto.js';
 import type { CreateLeaveDto } from './dto/create-leave.dto.js';
+import type { LeaveCalendarQueryDto } from './dto/leave-calendar-query.dto.js';
+import { toCalendarCategory, toHalfDay } from './leave-calendar-rules.js';
+import type { CalendarResponse } from './leave-calendar-rules.js';
 import type { MyLeavesQueryDto } from './dto/my-leaves-query.dto.js';
 import type { PendingApprovalQueryDto } from './dto/pending-approval-query.dto.js';
 import {
@@ -197,9 +209,42 @@ export class LeavesService {
             startDateTo: toDbDate(`${query.year}-12-31`),
           }
         : {}),
+      // 申請日は東京の日付で比較する(終了日は翌日 0 時を排他的な終端にする)
+      ...(query.appliedFrom ? { createdAtFrom: tokyoDayStart(query.appliedFrom) } : {}),
+      ...(query.appliedTo ? { createdAtTo: tokyoNextDayStart(query.appliedTo) } : {}),
       ...toSkipTake(query),
     });
     return toPage(items.map(toLeaveResponse), totalCount, query.page, query.limit);
+  }
+
+  // 共有休暇カレンダー(API-LEAVE-010, FR-LEAVE-005)。承認済み・有効な社員の休暇を公開項目だけで返す
+  async getCalendar(query: LeaveCalendarQueryDto): Promise<CalendarResponse> {
+    const month = query.month ?? toTokyoDate(this.clock.now()).slice(0, 7);
+    const { start, end } = monthRange(month);
+    const rows = await this.leavesRepository.findApprovedInRange({
+      start: toDbDate(start),
+      end: toDbDate(end),
+      departmentId: query.departmentId,
+      name: query.name,
+      empId: query.empId,
+    });
+    const holidays = [...japaneseHolidaysInRange(start, end)].map(([date, name]) => ({
+      date,
+      name,
+    }));
+    return {
+      month,
+      holidays,
+      items: rows.map((row) => ({
+        name: row.user.name,
+        empId: row.user.empId,
+        departmentName: row.user.department.name,
+        startDate: fromDbDate(row.startDate),
+        endDate: fromDbDate(row.endDate),
+        category: toCalendarCategory(row.leaveType),
+        halfDay: toHalfDay(row.leaveType),
+      })),
+    };
   }
 
   // 取消(API-LEAVE-005): 取得(404)→ 申請者確認(403)→ 条件付き UPDATE(0 件なら 409)→ 再取得
@@ -231,6 +276,7 @@ export class LeavesService {
     }
     const { items, totalCount } = await this.leavesRepository.findPending({
       approverId: query.scope === 'mine' ? user.id : undefined,
+      statuses: query.status ?? ['PENDING'],
       ...toSkipTake(query),
     });
     return toPage(items.map(toLeaveResponse), totalCount, query.page, query.limit);

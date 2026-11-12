@@ -11,8 +11,9 @@ interface CardProps {
 }
 
 // カードの外枠(AdminStatsSection のエラー表示など、Card を使えない箇所でも共通に使う)
-export const cardSurfaceClass =
-  'rounded-2xl border border-general-40 bg-white px-5 py-4 shadow-card-soft sm:px-6 sm:py-5';
+// 外枠のみ(パディングなし)。パディングが Card と異なる箇所はこれに自前のパディングを足す
+export const cardFrameClass = 'rounded-2xl border border-general-40 bg-white shadow-card-soft';
+export const cardSurfaceClass = `${cardFrameClass} px-5 py-4 sm:px-6 sm:py-5`;
 
 // Card Panel: 白背景 + 枠線 + 見出し(任意のアイコン付き)+ 本文(radius 16, padding 横24・縦20, shadow-card-soft。本文は残りの高さを受ける)
 export function Card({ title, icon, action, children }: CardProps) {

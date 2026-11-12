@@ -7,6 +7,9 @@ import { approversQuerySchema } from './dto/approvers-query.dto.js';
 import type { ApproversQueryDto } from './dto/approvers-query.dto.js';
 import { createLeaveSchema } from './dto/create-leave.dto.js';
 import type { CreateLeaveDto } from './dto/create-leave.dto.js';
+import { leaveCalendarQuerySchema } from './dto/leave-calendar-query.dto.js';
+import type { LeaveCalendarQueryDto } from './dto/leave-calendar-query.dto.js';
+import type { CalendarResponse } from './leave-calendar-rules.js';
 import { myLeavesQuerySchema } from './dto/my-leaves-query.dto.js';
 import type { MyLeavesQueryDto } from './dto/my-leaves-query.dto.js';
 import { leaveBalanceQuerySchema } from './dto/leave-balance-query.dto.js';
@@ -19,7 +22,7 @@ import type { LeaveBalance } from './leave-rules.js';
 import type { LeaveResponse } from './leave.mapper.js';
 import { LeavesService } from './leaves.service.js';
 
-// 固定パス(balance, pending-approval, approvers, me)は :id より先に宣言する
+// 固定パス(balance, calendar, pending-approval, approvers, me)は :id より先に宣言する
 @Controller('leaves')
 export class LeavesController {
   constructor(private readonly leavesService: LeavesService) {}
@@ -30,6 +33,13 @@ export class LeavesController {
     @Query({ schema: leaveBalanceQuerySchema }) query: LeaveBalanceQueryDto,
   ): Promise<LeaveBalance> {
     return this.leavesService.getBalance(user.id, query.year);
+  }
+
+  @Get('calendar')
+  getCalendar(
+    @Query({ schema: leaveCalendarQuerySchema }) query: LeaveCalendarQueryDto,
+  ): Promise<CalendarResponse> {
+    return this.leavesService.getCalendar(query);
   }
 
   @Get('pending-approval')

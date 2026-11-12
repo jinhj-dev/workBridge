@@ -1,53 +1,77 @@
 'use client';
 
-import { Card } from '@/components/Card';
-import { labelClass, secondaryButtonClass, selectClass } from '@/components/form';
-import { LeaveFilterButtons } from '@/components/leave/LeaveFilterButtons';
-import { LEAVE_STATUS_BADGE, LeaveStatusBadge } from '@/components/leave/LeaveStatusBadge';
+import { cardFrameClass } from '@/components/Card';
+
+import { useId } from 'react';
+import { FieldError, inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '@/components/form';
+import { LeaveStatusBadge } from '@/components/leave/LeaveStatusBadge';
+import { SearchIcon } from '@/components/leave/leaveIcons';
 import { Pagination } from '@/components/Pagination';
 import { SectionError } from '@/components/SectionError';
+import { Select } from '@/components/Select';
 import { SkeletonLines } from '@/components/Skeleton';
-import { tdClass, thClass } from '@/components/table';
+import { bandTdClass, bandThClass } from '@/components/table';
 import type { ApiQuery } from '@/lib/api/useApiQuery';
-import type { Leave, Paginated } from '@/lib/api/types';
+import type { Leave, LeaveStatus, LeaveType, Paginated } from '@/lib/api/types';
 import { formatDays, formatPeriod, formatTokyoDate } from '@/lib/format';
-import { LEAVE_STATUSES, LEAVE_TYPES, yearOptions } from '@/lib/leave-days';
+import { LEAVE_STATUSES, LEAVE_TYPES } from '@/lib/leave-days';
 import type { LeavesQuery } from '@/lib/leave-days';
 import { useSyncedState } from '@/lib/useSyncedState';
 import { messages } from '@/messages/ja';
 
 const t = messages.leaves.history;
 const leaveTypes = messages.leave.types;
-const FILTER_HINT_ID = 'leaves-filter-hint';
+const ALL = 'ALL';
+type TypeFilter = LeaveType | typeof ALL;
+type StatusFilter = LeaveStatus | typeof ALL;
+
+const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
+  { value: ALL, label: t.all },
+  ...LEAVE_TYPES.map((type) => ({ value: type, label: leaveTypes[type] })),
+];
+const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: ALL, label: t.all },
+  ...LEAVE_STATUSES.map((status) => ({ value: status, label: messages.leave.statuses[status] })),
+];
+
 const detailButtonClass = `${secondaryButtonClass} h-9 px-4 text-sm/5`;
+const dateInputClass = `${inputClass} h-11 px-3 text-sm/5 tabular-nums`;
 
 interface LeaveHistoryListProps {
   query: ApiQuery<Paginated<Leave>>;
   filters: LeavesQuery;
-  currentYear: number;
-  // 絞り込み・ページが変わったとき(絞り込みを変えるときは 1 ページ目にして渡す)
-  onChange: (next: LeavesQuery, options?: { scroll: boolean }) => void;
+  // [検索] を押したとき(1 ページ目へ戻すのは呼び出し側)
+  onSearch: (next: Omit<LeavesQuery, 'page'>) => void;
+  onPageChange: (page: number) => void;
   onOpenDetail: (leaveId: string) => void;
 }
 
-// SCR-004 §3.3 内 申請履歴(絞り込み + 一覧)
+// SCR-004 自分の休暇タブ内の申請履歴(検索条件カード + 表)
 export function LeaveHistoryList({
   query,
   filters,
-  currentYear,
-  onChange,
+  onSearch,
+  onPageChange,
   onOpenDetail,
 }: LeaveHistoryListProps) {
-  // 続けて押されても取りこぼさないよう、次の選択は URL ではなく画面上の選択から作る
-  const [toggles, updateToggles] = useSyncedState(
-    { statuses: filters.statuses, leaveTypes: filters.leaveTypes },
-    `${filters.statuses.join(',')}|${filters.leaveTypes.join(',')}`,
+  const idPrefix = useId();
+  // 入力中の値は [検索] を押すまで URL に出さない。戻る操作などで URL が変わったら入力欄も合わせる
+  const [draft, updateDraft] = useSyncedState(
+    {
+      appliedFrom: filters.appliedFrom,
+      appliedTo: filters.appliedTo,
+      leaveType: filters.leaveType,
+      status: filters.status,
+    },
+    `${filters.appliedFrom}|${filters.appliedTo}|${filters.leaveType}|${filters.status}`,
   );
+  const rangeInvalid = draft.appliedFrom !== '' && draft.appliedTo !== '' && draft.appliedFrom > draft.appliedTo;
+  const rangeErrorId = `${idPrefix}-range-error`;
 
-  // 状態・種別は押した時点で反映する。画面の位置は動かさない(ページ先頭へ戻さない)
-  function handleToggleChange(patch: Partial<Pick<LeavesQuery, 'statuses' | 'leaveTypes'>>) {
-    updateToggles(patch);
-    onChange({ ...filters, ...toggles, ...patch, page: 1 }, { scroll: false });
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (rangeInvalid) return;
+    onSearch(draft);
   }
 
   function renderDetailButton(leave: Leave) {
@@ -75,14 +99,14 @@ export function LeaveHistoryList({
         page={query.data.page}
         totalPages={totalPages}
         totalCount={totalCount}
-        onChange={(page) => onChange({ ...filters, page })}
+        onChange={onPageChange}
       />
     );
 
     if (items.length === 0) {
       return (
         <>
-          <p className="py-6 text-center text-sm/5 text-general-80">{t.empty}</p>
+          <p className="py-8 text-center text-sm/5 text-general-80">{t.empty}</p>
           {/* 範囲外のページを指定された場合に戻れるよう、件数があるときは Pagination を出す */}
           {totalCount > 0 && pagination}
         </>
@@ -95,25 +119,22 @@ export function LeaveHistoryList({
         <table className="hidden w-full border-collapse md:table">
           <thead>
             <tr>
-              <th scope="col" className={thClass}>
+              <th scope="col" className={bandThClass}>
                 {t.createdAt}
               </th>
-              <th scope="col" className={thClass}>
-                {t.leaveType}
-              </th>
-              <th scope="col" className={thClass}>
+              <th scope="col" className={bandThClass}>
                 {t.period}
               </th>
-              <th scope="col" className={`${thClass} text-right`}>
+              <th scope="col" className={bandThClass}>
+                {t.leaveType}
+              </th>
+              <th scope="col" className={`${bandThClass} text-right`}>
                 {t.days}
               </th>
-              <th scope="col" className={thClass}>
-                {t.approver}
-              </th>
-              <th scope="col" className={thClass}>
+              <th scope="col" className={bandThClass}>
                 {t.statusColumn}
               </th>
-              <th scope="col" className={`${thClass} text-right`}>
+              <th scope="col" className={`${bandThClass} text-right`}>
                 {t.actions}
               </th>
             </tr>
@@ -121,41 +142,39 @@ export function LeaveHistoryList({
           <tbody>
             {items.map((leave) => (
               <tr key={leave.id}>
-                <td className={`${tdClass} tabular-nums`}>{formatTokyoDate(leave.createdAt)}</td>
-                <td className={tdClass}>{leaveTypes[leave.leaveType]}</td>
-                <td className={`${tdClass} tabular-nums`}>
+                <td className={`${bandTdClass} tabular-nums`}>{formatTokyoDate(leave.createdAt)}</td>
+                <td className={`${bandTdClass} tabular-nums`}>
                   {formatPeriod(leave.startDate, leave.endDate)}
                 </td>
-                <td className={`${tdClass} text-right tabular-nums`}>{formatDays(leave.days)}</td>
-                <td className={tdClass}>
-                  {leave.approver?.name ?? messages.leave.detail.autoApproved}
+                <td className={bandTdClass}>{leaveTypes[leave.leaveType]}</td>
+                <td className={`${bandTdClass} text-right tabular-nums`}>{formatDays(leave.days)}</td>
+                <td className={bandTdClass}>
+                  <LeaveStatusBadge status={leave.status} soft />
                 </td>
-                <td className={tdClass}>
-                  <LeaveStatusBadge status={leave.status} />
-                </td>
-                <td className={`${tdClass} text-right`}>{renderDetailButton(leave)}</td>
+                <td className={`${bandTdClass} text-right`}>{renderDetailButton(leave)}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        {/* md 未満: 同じ情報の一覧 */}
-        <ul className="divide-y divide-general-40 border-y border-general-40 md:hidden">
+        {/* md 未満: 同じ情報のカード一覧 */}
+        <ul className="flex flex-col gap-3 md:hidden">
           {items.map((leave) => (
-            <li key={leave.id} className="flex flex-col gap-1.5 px-2 py-3">
-              <span className="flex items-baseline justify-between gap-3">
-                <span className="text-sm/5 font-medium text-general-100">
+            <li
+              key={leave.id}
+              className="flex flex-col gap-2 rounded-xl border border-general-40 p-4"
+            >
+              <span className="flex items-center justify-between gap-3">
+                <span className="text-base/6 font-bold text-general-100">
                   {leaveTypes[leave.leaveType]}
                 </span>
-                <LeaveStatusBadge status={leave.status} />
+                <LeaveStatusBadge status={leave.status} soft />
               </span>
               <span className="flex items-baseline justify-between gap-3 text-sm/5 text-general-100 tabular-nums">
                 <span>{formatPeriod(leave.startDate, leave.endDate)}</span>
-                <span className="shrink-0">{formatDays(leave.days)}</span>
+                <span className="shrink-0 font-medium">{formatDays(leave.days)}</span>
               </span>
               <span className="text-xs/4 text-general-80">
-                {t.approver}: {leave.approver?.name ?? messages.leave.detail.autoApproved}
-                {' ・ '}
                 {t.createdAt} {formatTokyoDate(leave.createdAt)}
               </span>
               <div className="pt-1">{renderDetailButton(leave)}</div>
@@ -169,59 +188,88 @@ export function LeaveHistoryList({
   }
 
   return (
-    <Card title={t.title}>
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-4">
-          {/* sm 未満は「年」と選択欄を横 1 列に並べる */}
-          <div className="flex items-center gap-3 sm:block sm:max-w-xs">
-            <label htmlFor="leaves-year" className={`${labelClass} shrink-0 max-sm:mb-0`}>
-              {t.year}
-            </label>
-            <select
-              id="leaves-year"
-              value={filters.year}
-              onChange={(e) => onChange({ ...filters, year: Number(e.target.value), page: 1 })}
-              className={`${selectClass} min-w-0 flex-1`}
-            >
-              {yearOptions(currentYear).map((year) => (
-                <option key={year} value={year}>
-                  {t.yearOption(year)}
-                </option>
-              ))}
-            </select>
+    <>
+      <form
+        onSubmit={handleSubmit}
+        aria-label={t.title}
+        className={`grid grid-cols-[minmax(0,1fr)] gap-4 ${cardFrameClass} p-5 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end`}
+      >
+        <div>
+          <span id={`${idPrefix}-period-label`} className={labelClass}>
+            {t.appliedPeriod}
+          </span>
+          <div role="group" aria-labelledby={`${idPrefix}-period-label`} className="flex items-center gap-2">
+            <input
+              id={`${idPrefix}-from`}
+              type="date"
+              aria-label={`${t.appliedPeriod} ${messages.dateRange.startDate}`}
+              value={draft.appliedFrom}
+              onChange={(e) => updateDraft({ appliedFrom: e.target.value })}
+              aria-invalid={rangeInvalid || undefined}
+              aria-describedby={rangeInvalid ? rangeErrorId : undefined}
+              className={`${dateInputClass} min-w-0 flex-1`}
+            />
+            <span aria-hidden="true" className="text-general-80">
+              ～
+            </span>
+            <input
+              id={`${idPrefix}-to`}
+              type="date"
+              aria-label={`${t.appliedPeriod} ${messages.dateRange.endDate}`}
+              value={draft.appliedTo}
+              onChange={(e) => updateDraft({ appliedTo: e.target.value })}
+              aria-invalid={rangeInvalid || undefined}
+              aria-describedby={rangeInvalid ? rangeErrorId : undefined}
+              className={`${dateInputClass} min-w-0 flex-1`}
+            />
           </div>
-          <LeaveFilterButtons
-            idPrefix="leaves-status"
-            label={t.status}
-            options={LEAVE_STATUSES}
-            optionLabel={(status) => messages.leave.statuses[status]}
-            variantOf={(status) => LEAVE_STATUS_BADGE[status]}
-            selected={toggles.statuses}
-            onChange={(statuses) => handleToggleChange({ statuses })}
-            describedBy={FILTER_HINT_ID}
-          />
-          <LeaveFilterButtons
-            idPrefix="leaves-leave-type"
-            label={t.leaveType}
-            options={LEAVE_TYPES}
-            optionLabel={(type) => leaveTypes[type]}
-            variantOf={() => 'neutral'}
-            selected={toggles.leaveTypes}
-            onChange={(next) => handleToggleChange({ leaveTypes: next })}
-            describedBy={FILTER_HINT_ID}
-          />
-          <p id={FILTER_HINT_ID} className="-mt-2 text-xs/4 text-general-80">
-            {t.filterHint}
-          </p>
+          {rangeInvalid && <FieldError id={rangeErrorId} message={messages.dateRange.order} />}
         </div>
-        {/* 絞り込みの結果を待つ間は前の一覧を薄く残す(読み込み表示に置き換えず、ちらつかせない) */}
+        <div>
+          <label htmlFor={`${idPrefix}-type`} className={labelClass}>
+            {t.leaveTypeFilter}
+          </label>
+          <Select<TypeFilter>
+            id={`${idPrefix}-type`}
+            value={draft.leaveType === '' ? ALL : draft.leaveType}
+            onChange={(value) => updateDraft({ leaveType: value === ALL ? '' : value })}
+            options={TYPE_OPTIONS}
+          />
+        </div>
+        <div>
+          <label htmlFor={`${idPrefix}-status`} className={labelClass}>
+            {t.statusFilter}
+          </label>
+          <Select<StatusFilter>
+            id={`${idPrefix}-status`}
+            value={draft.status === '' ? ALL : draft.status}
+            onChange={(value) => updateDraft({ status: value === ALL ? '' : value })}
+            options={STATUS_OPTIONS}
+          />
+        </div>
+        <button
+          type="submit"
+          className={`${primaryButtonClass} flex h-12 items-center justify-center gap-2 px-8 text-base/6`}
+        >
+          <span aria-hidden="true" className="size-5">
+            <SearchIcon />
+          </span>
+          {t.search}
+        </button>
+      </form>
+
+      <section
+        aria-label={t.title}
+        className={`${cardFrameClass} p-4 md:p-5`}
+      >
+        {/* 結果を待つ間は前の一覧を薄く残す(読み込み表示に置き換えず、ちらつかせない) */}
         <div
           aria-busy={query.isStale}
           className={query.isStale ? 'opacity-60 transition-opacity' : undefined}
         >
           {renderList()}
         </div>
-      </div>
-    </Card>
+      </section>
+    </>
   );
 }

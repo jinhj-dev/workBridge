@@ -48,10 +48,10 @@ export function Tabs({ label, items, value, onChange }: TabsProps) {
             aria-selected={selected}
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(item.value)}
-            className={`-mb-px h-11 shrink-0 border-b-2 px-1 text-sm/5 font-medium whitespace-nowrap focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-100 ${
+            className={`-mb-px h-11 shrink-0 rounded-t-sm border-b-[3px] px-1 text-sm/5 whitespace-nowrap focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-100 ${
               selected
-                ? 'border-primary-100 text-primary-100'
-                : 'border-transparent text-general-80 hover:text-general-100'
+                ? 'border-primary-100 font-bold text-primary-100'
+                : 'border-transparent font-medium text-general-80 hover:text-general-100'
             }`}
           >
             {item.label}

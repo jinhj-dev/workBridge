@@ -22,6 +22,16 @@ export function formatTokyoDateTime(instant: Date): string {
   return `${toShiftedIso(instant).slice(0, 19)}+09:00`;
 }
 
+// 'YYYY-MM-DD' → その東京日付の 0 時の時刻
+export function tokyoDayStart(ymd: string): Date {
+  return new Date(`${ymd}T00:00:00+09:00`);
+}
+
+// 'YYYY-MM-DD' → その翌日の東京 0 時の時刻(その日の範囲の排他的な終端)
+export function tokyoNextDayStart(ymd: string): Date {
+  return new Date(tokyoDayStart(ymd).getTime() + 24 * 60 * 60 * 1000);
+}
+
 // 'YYYY-MM-DD' → DATE カラム用の Date(UTC 0 時)
 export function toDbDate(ymd: string): Date {
   return new Date(`${ymd}T00:00:00Z`);

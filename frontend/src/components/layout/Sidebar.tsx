@@ -7,7 +7,6 @@ import { messages } from '@/messages/ja';
 import {
   BuildingIcon,
   CalendarCheckIcon,
-  ClipboardCheckIcon,
   ClockIcon,
   HomeIcon,
   UmbrellaIcon,
@@ -25,7 +24,6 @@ const COMMON_MENU: MenuItem[] = [
   { href: '/dashboard', label: messages.nav.dashboard, icon: <HomeIcon /> },
   { href: '/attendance', label: messages.nav.attendance, icon: <CalendarCheckIcon /> },
   { href: '/leaves', label: messages.nav.leaves, icon: <UmbrellaIcon /> },
-  { href: '/leaves/approvals', label: messages.nav.approvals, icon: <ClipboardCheckIcon /> },
 ];
 
 const ADMIN_MENU: MenuItem[] = [
@@ -42,7 +40,8 @@ interface SidebarNavProps {
   pendingApprovalCount?: number | null;
 }
 
-const APPROVALS_HREF = '/leaves/approvals';
+// 承認待ち件数のバッジは休暇管理(承認タブを含む)の項目に付ける
+const LEAVES_HREF = '/leaves';
 const COUNT_MAX = 99;
 
 // 09 §2.3 サイドバーメニュー: 項目の高さ 44、左右の余白 16、アイコン付き、選択中は Primary 淡色の塗り+Primary 文字
@@ -50,8 +49,8 @@ export function SidebarNav({ isAdmin, onNavigate, pendingApprovalCount }: Sideba
   const pathname = usePathname();
 
   function renderItem(item: MenuItem) {
-    const active = pathname === item.href;
-    const count = item.href === APPROVALS_HREF ? pendingApprovalCount : null;
+    const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+    const count = item.href === LEAVES_HREF ? pendingApprovalCount : null;
     return (
       <li key={item.href}>
         <Link
