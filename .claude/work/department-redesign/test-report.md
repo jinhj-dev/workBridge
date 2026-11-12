@@ -227,3 +227,64 @@ RESULT: PASS
 
 ### 7. 최종 판정
 - PASS: review Round 3 tester 2건 반영 후 전체 항목 통과(backend 단위 320·e2e 408, frontend 단위 642, 빌드·tsc·lint, Playwright 37건), 所属社員確認 캡처 3종 + 긴 이름 1종 육안 확인 정상
+
+---
+
+## Run 5 (PR 직전 검증, origin/main 리베이스 후 재검증)
+
+대상: 리베이스 후(origin/main 37dc533 위, 커밋 7444c69) frontend Vitest 전부 FAIL("Vitest failed to find the current suite") 원인 조사·해결, 전체 검사(`sh .husky/pre-commit`), Playwright 부서·휴가 재실행. 코드·설정 파일 변경 없음.
+
+### 1. 원인 조사
+- 증상 재현: 에이전트 Git Bash 셸에서 `npx vitest run`(frontend) 실행 시 45파일 전부 `vitest.setup.ts:5` afterEach에서 실패. `src/components/Modal` 단독도 동일하게 실패.
+- 결정적 분기(같은 명령, 같은 워킹 디렉터리, 같은 Node 26.13.0):
+  - Git Bash에서 실행 → 실패(재현 10회 이상, 워커 수 1, `--pool=forks/threads`, `--clearCache` 후에도 실패)
+  - PowerShell에서 `npx vitest run` → **45파일 / 649건 통과**(드라이브 문자 `C:`·`c:` 모두 통과)
+  - PowerShell → `bash.exe -c` → 통과. Git Bash를 에이전트 셸 밖(PowerShell)에서 띄우면 통과
+  - 에이전트 셸 → `bash.exe` 직접 호출 또는 `cmd /c` → 실패
+  - 같은 셸에서 backend Vitest(node 환경, setup 없음)는 통과(22파일 / 320건)
+- 배제한 원인과 근거:
+  - 코드·설정 변경: `vitest.config.mts`, `vitest.setup.ts`, `package.json`, lockfile은 #22(37dc533) 및 현재 브랜치 어디에서도 변경 없음(`git diff origin/main HEAD` 빈 결과). 작업 트리 clean
+  - 설정 파일 자체: 최소 setup(`import { afterEach } from 'vitest'`만 있는 파일)을 임시 config(저장소 밖)로 지정해도 같은 실패. 실제 setup 파일을 임시 config로 지정해도 같은 실패 → setup 내용과 무관
+  - 중복 설치: `frontend/node_modules/vitest`(4.1.12)가 단일 버전, `npm ls` 정상. backend와 frontend는 각자 node_modules(별개 프로젝트이므로 충돌 아님)
+  - 동시 실행 프로세스: vitest 프로세스 없음 확인. 남은 node.exe는 MCP 서버, Next dev(3000), Nest dev(6000)뿐이며 vitest와 무관
+  - 캐시: `vitest --clearCache`로 results·fs module cache 삭제 후에도 실패. 캐시가 원인 아님
+  - 워커·메모리: `--maxWorkers=1`에서도 실패. 여유 메모리 약 2.2GB이나 PowerShell 경로가 동일 상태에서 통과하므로 메모리 부족이 원인은 아님
+  - 환경변수: Git Bash와 PowerShell 자식 Node 프로세스의 env·cwd·execPath 덤프가 바이트 단위 동일(`cmp` IDENTICAL). `MSYSTEM`·`TERM`·`SHELL`·`SHLVL`·`PWD` 제거도 무효
+  - Vitest 내부 메커니즘: 에러는 `@vitest/runner`의 `getCurrentSuite()`에서 `defaultSuite`가 비어 있을 때 발생. 즉 setup의 `afterEach`가 테스트 러너가 초기화한 것과 다른 러너 인스턴스(또는 수집 컨텍스트 밖)에서 호출된 것
+- 결론(환경 원인): 프로젝트 코드·설정이 아니라 **에이전트 Git Bash 프로세스 환경에서 frontend Vitest(jsdom + setup 파일)가 러너 컨텍스트를 잃는 현상**. 정확한 Windows 레벨 메커니즘(부모 프로세스·핸들 상속 추정)은 확정하지 못함. 리베이스 전 hook 통과 및 PowerShell 통과가 이를 뒷받침함.
+- 참고: 리베이스 직전·직후 첫 몇 번의 Git Bash 실행 중 일부는 우연히 통과했으나(재현 불안정), 현재는 재현 가능. 판정은 PowerShell 경로 기준.
+
+### 2. 조치
+- 코드·설정·node_modules 변경 없음. `npm ci` 불필요(의존성 정상)
+- `vitest --clearCache`로 Vitest 결과 캐시 삭제(영향 없음 확인용. 재발과 무관)
+- 테스트 실행을 PowerShell 경로(또는 PowerShell → `bash.exe -c`)로 수행
+- 임시 파일은 `C:\Users\jinhyeonju\AppData\Local\Temp\claude\exp\`에만 생성(저장소 밖). 저장소 `git status` clean 유지
+- 팁: 이후 에이전트에서 frontend 테스트가 같은 실패를 보이면 같은 방식으로 실행하면 됨. 설정 변경 불필요
+
+### 3. 실행 결과
+| 구분 | 명령 | 결과 |
+|---|---|---|
+| 전체 검사 | `sh .husky/pre-commit` (PowerShell → bash.exe 경유, 루트) | ALL CHECKS PASSED |
+| Frontend lint | `npm --prefix frontend run lint` | 통과 |
+| Frontend 타입체크 | `npm --prefix frontend run typecheck` | 통과 |
+| Frontend 단위 | `npm --prefix frontend test` | 45 파일 / **649 통과** / 0 실패 |
+| Backend lint | `npm --prefix backend run lint` | 통과 |
+| Backend 타입체크 | `npm --prefix backend run typecheck` | 통과 |
+| Backend 단위 | `npm --prefix backend test` | 22 파일 / **320 통과** / 0 실패 |
+| Playwright 부서·휴가 | `departments` · `departments-manager` · `departments-responsive` · `departments-list-modal` · `departments-members-modal` · `leaves` · `approvals` · `leave-sidebar-submenu` · `leave-management` | **49 통과** / 0 실패 / 0 skip |
+
+- Frontend 649건은 Run 4(642건)보다 많음. 리베이스로 합쳐진 #22 테스트 추가분으로 추정(개별 집계는 미확인)
+- pre-commit 로그에 jsdom stderr 메시지(`Not implemented: navigation to another Document`)가 출력되나 해당 테스트는 통과. 실패 아님, 참고만
+- 제외: `dashboard-renewal.spec.ts`(사용자 결정, 판정 제외 유지)
+
+### 4. DB 변경 사항 (개발 DB)
+- Playwright globalSetup의 E2E 계정(900001·900002) 초기화, `leaves.spec.ts` beforeAll의 `db:e2e-leaves-reset`(E2E 관리자 휴가 삭제). 기존 스크립트 그대로
+- 테스트가 만든 임시 부서는 각 테스트 finally에서 API로 삭제하도록 되어 있음. 이번 Run에서 잔존 여부를 별도 API 조회로 재확인하지 않음(미검증)
+- 수동 SQL·직접 수정 없음. 비밀번호 값은 출력·기록하지 않음(`frontend/.env.local`은 셸에서 로드만 함)
+
+### 5. 실패 항목
+- 없음
+
+### 6. 최종 판정
+- RESULT: PASS (frontend 단위 649, backend 단위 320, Playwright 49 모두 통과, 실패 0)
+- 해결 상태: 코드 원인 없음. 환경 원인(Git Bash 실행 경로)은 실행 경로를 바꿔 우회. 근본 원인은 미확정
