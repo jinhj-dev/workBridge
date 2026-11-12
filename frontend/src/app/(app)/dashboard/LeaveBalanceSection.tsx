@@ -1,6 +1,7 @@
 'use client';
 
 import { Card } from '@/components/Card';
+import { Notice } from '@/components/Notice';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
 import type { LeaveBalance } from '@/lib/api/types';
@@ -8,7 +9,7 @@ import type { ApiQuery } from '@/lib/api/useApiQuery';
 import { formatDays } from '@/lib/format';
 import { messages } from '@/messages/ja';
 import { CardLink } from './CardLink';
-import { BriefcaseIcon, CalendarPlusIcon, InfoIcon, UmbrellaIcon } from './icons';
+import { BriefcaseIcon, CalendarPlusIcon, UmbrellaIcon } from './icons';
 import { MetricValue } from './MetricValue';
 
 const t = messages.dashboard.leave;
@@ -54,12 +55,7 @@ export function LeaveBalanceSection({ query, showHistoryLink = true }: LeaveBala
         </dl>
         {/* 付与日数 0 は「未登録」とみなして案内する */}
         {balance.grantedDays === 0 && (
-          <p className="flex items-start gap-1.5 text-sm/5 text-general-80">
-            <span aria-hidden="true" className="mt-0.5 size-4 shrink-0 [&>svg]:size-full">
-              <InfoIcon />
-            </span>
-            {t.notGranted}
-          </p>
+          <Notice>{t.notGranted}</Notice>
         )}
       </div>
     );

@@ -12,7 +12,7 @@ import {
   selectClass,
 } from '@/components/form';
 import { PlusIcon } from '@/components/leave/leaveIcons';
-import { InfoNotice } from '@/components/InfoNotice';
+import { Notice } from '@/components/Notice';
 import { PageHeader } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
 import { SearchInput } from '@/components/SearchInput';
@@ -463,14 +463,14 @@ export function DepartmentsView() {
         </ul>
 
         <div className="mt-3">
-          <InfoNotice>
+          <Notice>
             <ul>
               {t.notes.map((note) => (
                 <li key={note}>{note}</li>
               ))}
               <li>{t.memberCountNote}</li>
             </ul>
-          </InfoNotice>
+          </Notice>
         </div>
 
         <Pagination

@@ -1,6 +1,7 @@
 import { bandTdClass, bandThClass } from '@/components/table';
+import { Notice } from '@/components/Notice';
 import { LeaveCategoryBadge } from '@/components/leave/LeaveCategoryBadge';
-import { InfoIcon, UserCircleIcon } from '@/components/leave/leaveIcons';
+import { UserCircleIcon } from '@/components/leave/leaveIcons';
 import type { LeaveCalendarItem } from '@/lib/api/types';
 import { formatLeavePeriod } from '@/lib/leave-calendar';
 import { messages } from '@/messages/ja';
@@ -85,12 +86,7 @@ export function LeaveScheduleTable({
           </tbody>
         </table>
       </div>
-      <p className="flex items-center gap-2 rounded-lg bg-general-30 px-4 py-3 text-sm/5 text-general-80">
-        <span aria-hidden="true" className="size-5 shrink-0">
-          <InfoIcon />
-        </span>
-        {t.listNote}
-      </p>
+      <Notice>{t.listNote}</Notice>
     </div>
   );
 }

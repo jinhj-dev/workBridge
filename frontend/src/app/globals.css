@@ -59,6 +59,21 @@
   --color-calendar-sunday: #f0142f;
   --color-calendar-saturday: #2f5bea;
 
+  /* 案内メッセージ(Notice。09 §2.1)。枠線なし。背景・文字・アイコンは既存トークンを参照 */
+  --color-notice-info-bg: var(--color-primary-30);
+  --color-notice-info-icon: var(--color-primary-100);
+  --color-notice-success-bg: var(--color-success-30);
+  --color-notice-success-icon: var(--color-success-110);
+  --color-notice-warning-bg: var(--color-warning-30);
+  --color-notice-warning-icon: var(--color-warning-110);
+  --color-notice-error-bg: var(--color-danger-30);
+  --color-notice-error-icon: var(--color-danger-100);
+  --color-notice-text: var(--color-general-100);
+  --radius-notice: 0.75rem;
+  --spacing-notice-x: 1.25rem;
+  --spacing-notice-y: 0.75rem;
+  --spacing-notice-gap: 0.75rem;
+
   /* 入力枠線(09 §2.1 でパレット外と明記された値) */
   --color-input-border: #d9e1ec;
 

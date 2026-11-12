@@ -7,13 +7,13 @@ import { ApiError, NetworkError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { safeRedirect } from '@/lib/auth/redirect';
 import {
-  ErrorIcon,
   FieldError,
   inputClass,
   labelClass,
   primaryButtonClass,
 } from '@/components/form';
 import { Logo } from '@/components/Logo';
+import { Notice } from '@/components/Notice';
 import { Spinner } from '@/components/Spinner';
 import { messages } from '@/messages/ja';
 
@@ -108,15 +108,7 @@ export function LoginForm() {
         <h1 className="mt-6 text-h4 font-bold">{t.title}</h1>
 
         <form noValidate onSubmit={handleSubmit} className="mt-6 flex flex-col gap-5">
-          {formError && (
-            <div
-              role="alert"
-              className="flex items-start gap-2 rounded border border-danger-100 bg-danger-30 px-4 py-3 text-sm/5 text-general-100"
-            >
-              <ErrorIcon />
-              {formError}
-            </div>
-          )}
+          {formError && <Notice variant="error">{formError}</Notice>}
 
           <div>
             <label htmlFor="empId" className={labelClass}>

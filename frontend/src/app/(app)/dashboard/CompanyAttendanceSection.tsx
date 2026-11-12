@@ -1,5 +1,6 @@
 import { Card } from '@/components/Card';
 import { DonutChart } from '@/components/DonutChart';
+import { Notice } from '@/components/Notice';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
 import { formatPercent, shareOf } from '@/lib/attendance-rate';
@@ -55,7 +56,7 @@ export function CompanyAttendanceSection({ query }: { query: ApiQuery<AdminDashb
           </ul>
         </div>
         {!s.isWorkday && (
-          <p className="text-sm/5 text-general-80">{messages.dashboard.holidayNote}</p>
+          <Notice>{messages.dashboard.holidayNote}</Notice>
         )}
       </div>
     );
