@@ -56,7 +56,16 @@ function respond(items: DepartmentDetail[], path: string, init?: RequestInit) {
   if (path.startsWith('/admin/departments/manager-candidates')) return Promise.resolve([]);
   if (path.includes('/members')) {
     return Promise.resolve({
-      items: [{ id: 'u-1', empId: '00001', name: '山田 太郎' }],
+      items: [
+        {
+          id: 'u-1',
+          empId: '00001',
+          name: '山田 太郎',
+          hireDate: '2020-04-01',
+          jobTitle: null,
+          contactEmail: null,
+        },
+      ],
       page: 1,
       limit: 20,
       totalCount: 1,
@@ -87,6 +96,11 @@ beforeEach(() => {
   apiFetch.mockReset();
   router.push.mockReset();
   nav.search = '';
+  // 所属社員確認モーダルが画面幅(表かカードか)の判定に使う。jsdom には matchMedia が無い
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+  );
 });
 
 describe('DepartmentsView(SCR-010 部署管理)', () => {

@@ -11,7 +11,8 @@ import {
   secondaryButtonClass,
   selectClass,
 } from '@/components/form';
-import { InfoIcon, PlusIcon } from '@/components/leave/leaveIcons';
+import { PlusIcon } from '@/components/leave/leaveIcons';
+import { InfoNotice } from '@/components/InfoNotice';
 import { PageHeader } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
 import { SearchInput } from '@/components/SearchInput';
@@ -461,16 +462,15 @@ export function DepartmentsView() {
           })}
         </ul>
 
-        <div className="mt-3 flex items-start gap-2 rounded-lg bg-general-30 p-3 text-sm/5 text-general-80">
-          <span aria-hidden="true" className="mt-0.5 size-5 shrink-0">
-            <InfoIcon />
-          </span>
-          <ul>
-            {t.notes.map((note) => (
-              <li key={note}>{note}</li>
-            ))}
-            <li>{t.memberCountNote}</li>
-          </ul>
+        <div className="mt-3">
+          <InfoNotice>
+            <ul>
+              {t.notes.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+              <li>{t.memberCountNote}</li>
+            </ul>
+          </InfoNotice>
         </div>
 
         <Pagination

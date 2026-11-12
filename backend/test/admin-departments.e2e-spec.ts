@@ -779,17 +779,49 @@ describe('管理者 部署 API(e2e)', () => {
     it('shouldListOnlyActiveMembersOrderedByEmpId', async () => {
       const dept = await createViaApi();
       const suffix = uniqueSuffix();
+      const jobTitle = await tracker.createJobTitle({ tone: 'VIOLET' });
       const second = await tracker.createUser({ departmentId: dept.id, empId: `Z${suffix}B` });
-      const first = await tracker.createUser({ departmentId: dept.id, empId: `Z${suffix}A` });
+      const first = await tracker.createUser({
+        departmentId: dept.id,
+        empId: `Z${suffix}A`,
+        jobTitleId: jobTitle.id,
+        contactEmail: `member-${suffix}@example.com`,
+        hireDate: new Date('2024-04-01T00:00:00Z'),
+      });
       await tracker.createUser({ departmentId: dept.id, isActive: false });
       const res = await api('get', `/${dept.id}/members`).expect(200);
       const body = res.body as {
-        items: { id: string; empId: string; name: string }[];
+        items: {
+          id: string;
+          empId: string;
+          name: string;
+          jobTitle: { id: string; name: string; tone: string } | null;
+          contactEmail: string | null;
+          hireDate: string;
+        }[];
         totalCount: number;
       };
       expect(body.totalCount).toBe(2);
       expect(body.items.map((m) => m.empId)).toEqual([first.empId, second.empId]);
-      expect(Object.keys(body.items[0]).sort()).toEqual(['empId', 'id', 'name']);
+      expect(Object.keys(body.items[0]).sort()).toEqual([
+        'contactEmail',
+        'empId',
+        'hireDate',
+        'id',
+        'jobTitle',
+        'name',
+      ]);
+      expect(body.items[0].jobTitle).toEqual({
+        id: jobTitle.id,
+        name: jobTitle.name,
+        tone: 'VIOLET',
+      });
+      expect(body.items[0].contactEmail).toBe(`member-${suffix}@example.com`);
+      expect(body.items[0].hireDate).toBe('2024-04-01');
+      expect(body.items[1].hireDate).toBe('2026-01-01');
+      // 役職・連絡先がない社員は null(キーは省略しない)
+      expect(body.items[1].jobTitle).toBeNull();
+      expect(body.items[1].contactEmail).toBeNull();
       await api('get', `/${randomUUID()}/members`).expect(404);
       await api('get', '/not-a-uuid/members').expect(400);
     });
@@ -876,6 +908,51 @@ describe('管理者 部署 API(e2e)', () => {
       const dept = await createViaApi();
       await api('patch', `/${dept.id}`).send({ managerId: manager.id }).expect(200);
       await api('delete', `/${dept.id}`).expect(204);
+    });
+  });
+
+  describe('役職・連絡先の公開範囲(IT-DEPT-37)', () => {
+    it('shouldNotExposeJobTitleOrContactInGeneralUserResponses', async () => {
+      const suffix = uniqueSuffix();
+      const jobTitle = await tracker.createJobTitle({ tone: 'BLUE' });
+      const contactEmail = `scope-${suffix}@example.com`;
+      const holder = await tracker.createUser({
+        name: `公開範囲${suffix}`,
+        jobTitleId: jobTitle.id,
+        contactEmail,
+        mustChangePassword: false,
+      });
+      const holderToken = await sign(holder.id);
+
+      // 管理者向け API-DEPT-009 は候補の基本項目だけを返す
+      const candidates = await api('get', `/manager-candidates?keyword=${suffix}`).expect(200);
+      const candidateBody = candidates.body as Record<string, unknown>[];
+      expect(candidateBody.map((c) => c.id)).toContain(holder.id);
+      for (const item of candidateBody) {
+        expect(item).not.toHaveProperty('jobTitle');
+        expect(item).not.toHaveProperty('jobTitleId');
+        expect(item).not.toHaveProperty('contactEmail');
+        expect(item).not.toHaveProperty('hireDate');
+      }
+
+      // 一般社員が受け取る応答(部署一覧・自分の情報)に役職・連絡先を含めない
+      const departments = await request(app.getHttpServer())
+        .get('/api/v1/departments')
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .expect(200);
+      expect(JSON.stringify(departments.body)).not.toContain(contactEmail);
+      expect(JSON.stringify(departments.body)).not.toContain('jobTitle');
+
+      const me = await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${holderToken}`)
+        .expect(200);
+      expect(me.body).not.toHaveProperty('jobTitle');
+      expect(me.body).not.toHaveProperty('jobTitleId');
+      expect(me.body).not.toHaveProperty('contactEmail');
+      expect(me.body).not.toHaveProperty('hireDate');
+      expect(JSON.stringify(departments.body)).not.toContain('hireDate');
+      expect(JSON.stringify(me.body)).not.toContain(contactEmail);
     });
   });
 });

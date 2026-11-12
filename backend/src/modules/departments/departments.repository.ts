@@ -2,6 +2,7 @@ import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { AppException } from '../../common/exceptions/app.exception.js';
 import { USER_SUMMARY_SELECT } from '../../common/mappers/user-summary.js';
 import type { UserSummaryRow } from '../../common/mappers/user-summary.js';
+import { fromDbDate } from '../../common/time/tokyo-date.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { SYSTEM_DEPARTMENT_CODE } from './department.constants.js';
@@ -188,17 +189,27 @@ export class DepartmentsRepository {
       return null;
     }
     const where = { departmentId, isActive: true };
-    const [items, total] = await this.prisma.$transaction([
+    const [rows, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({
         where,
-        select: { id: true, empId: true, name: true },
+        select: {
+          id: true,
+          empId: true,
+          name: true,
+          contactEmail: true,
+          hireDate: true,
+          jobTitle: { select: { id: true, name: true, tone: true } },
+        },
         orderBy: { empId: 'asc' },
         skip: paging.skip,
         take: paging.take,
       }),
       this.prisma.user.count({ where }),
     ]);
-    return { items, total };
+    return {
+      items: rows.map((row) => ({ ...row, hireDate: fromDbDate(row.hireDate) })),
+      total,
+    };
   }
 
   // 責任者候補: 有効な社員全員(本人・ADMIN を含む)。empId 昇順、上限固定

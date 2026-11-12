@@ -67,10 +67,15 @@ export interface DepartmentSummary {
 }
 
 // API-DEPT-008
+export type JobTitleTone = 'GRAY' | 'BLUE' | 'VIOLET' | 'PINK';
+
 export interface DepartmentMember {
   id: string;
   empId: string;
   name: string;
+  hireDate: string; // YYYY-MM-DD(入社日)
+  jobTitle: { id: string; name: string; tone: JobTitleTone } | null;
+  contactEmail: string | null;
 }
 
 export interface Paginated<T> {

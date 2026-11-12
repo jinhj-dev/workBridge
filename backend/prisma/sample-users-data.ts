@@ -4,13 +4,15 @@ import { BCRYPT_COST } from '../src/common/security/credentials.js';
 import { toDbDate } from '../src/common/time/tokyo-date.js';
 import { Role, type PrismaClient } from '../src/generated/prisma/client.js';
 import { SYSTEM_DEPARTMENT_CODE } from '../src/modules/departments/department.constants.js';
-import { assertValidPassword } from './initial-data.js';
+import { assertValidPassword, JOB_TITLES } from './initial-data.js';
 
 export const SAMPLE_USER_COUNT = 100;
 const FIRST_EMP_NUMBER = 10001;
 
 // 均等に割り振る所属部署(code)
 const DEPARTMENT_CODES = ['GA', 'DEV', 'SALES', 'HR'];
+// 5 人に 1 人(計 20 名)は役職なしにする
+const NO_JOB_TITLE_INTERVAL = 5;
 // 20 人に 1 人(計 5 名)を未所属にする
 const UNASSIGNED_INTERVAL = 20;
 // 10 人に 1 人(計 10 名)を無効にする
@@ -72,6 +74,8 @@ export interface SampleUser {
   departmentCode: string;
   isActive: boolean;
   hireDate: string; // YYYY-MM-DD
+  jobTitleName: string | null; // 役職なしは null
+  contactEmail: string; // 仮の連絡先(example.com、RFC 2606)
 }
 
 const pad = (value: number): string => String(value).padStart(2, '0');
@@ -95,13 +99,18 @@ export function buildSampleUsers(): SampleUser[] {
         : DEPARTMENT_CODES[assignedOrdinal % DEPARTMENT_CODES.length],
       isActive: index % INACTIVE_INTERVAL !== INACTIVE_INTERVAL - 1,
       hireDate: `${year}-${pad(month)}-${pad(day)}`,
+      jobTitleName:
+        index % NO_JOB_TITLE_INTERVAL === NO_JOB_TITLE_INTERVAL - 1
+          ? null
+          : JOB_TITLES[index % JOB_TITLES.length].name,
+      contactEmail: `user${FIRST_EMP_NUMBER + index}@example.com`,
     };
   });
 }
 
 export interface InsertSampleUsersResult {
   createdCount: number; // 新規に登録した件数
-  updatedCount: number; // 登録済みでパスワードを更新した件数
+  updatedCount: number; // 登録済みで更新した件数(パスワード・役職・連絡先)
 }
 
 // 環境変数 SEED_USER_PASSWORD を検証して返す(規則は SEED_ADMIN_PASSWORD と同じ)。不正な値は例外にする
@@ -112,7 +121,7 @@ export function parseSampleUserPassword(env: NodeJS.ProcessEnv): string {
 }
 
 // サンプル社員を 1 トランザクションで登録する。
-// 未登録の社員番号は新規登録、登録済みの社員番号はパスワードのハッシュだけを更新する(他の列は変更しない)。
+// 未登録の社員番号は新規登録、登録済みの社員番号はパスワードのハッシュ・役職・連絡先だけを更新する(他の列は変更しない)。
 // ハッシュは 1 回だけ計算して全員で共用する。平文は保存・出力しない
 export async function insertSampleUsers(
   prisma: PrismaClient,
@@ -120,12 +129,23 @@ export async function insertSampleUsers(
 ): Promise<InsertSampleUsersResult> {
   const departments = await prisma.department.findMany({ select: { id: true, code: true } });
   const departmentIdByCode = new Map(departments.map((row) => [row.code, row.id]));
+  const jobTitles = await prisma.jobTitle.findMany({ select: { id: true, name: true } });
+  const jobTitleIdByName = new Map(jobTitles.map((row) => [row.name, row.id]));
   const passwordHash = await bcrypt.hash(password, BCRYPT_COST);
 
   const samples = buildSampleUsers().map((user) => {
     const departmentId = departmentIdByCode.get(user.departmentCode);
     if (!departmentId) {
       throw new Error(`部署 ${user.departmentCode} が存在しないため、登録できません。`);
+    }
+    let jobTitleId: string | null = null;
+    if (user.jobTitleName !== null) {
+      jobTitleId = jobTitleIdByName.get(user.jobTitleName) ?? null;
+      if (!jobTitleId) {
+        throw new Error(
+          `役職 ${user.jobTitleName} が存在しないため、登録できません。先に npm run db:seed を実行してください。`,
+        );
+      }
     }
     return {
       empId: user.empId,
@@ -137,6 +157,8 @@ export async function insertSampleUsers(
       mustChangePassword: true,
       departmentId,
       hireDate: toDbDate(user.hireDate),
+      jobTitleId,
+      contactEmail: user.contactEmail,
     };
   });
 
@@ -156,6 +178,13 @@ export async function insertSampleUsers(
             data: { passwordHash },
           })
         : { count: 0 };
+    // 役職・連絡先は社員ごとに値が違うため、行ごとに更新する(最大 100 件)
+    for (const row of samples.filter((sample) => existingEmpIds.has(sample.empId))) {
+      await tx.user.update({
+        where: { empId: row.empId },
+        data: { jobTitleId: row.jobTitleId, contactEmail: row.contactEmail },
+      });
+    }
     return { createdCount: created.count, updatedCount: updated.count };
   });
 }

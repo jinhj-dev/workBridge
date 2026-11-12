@@ -77,6 +77,7 @@ export async function captureDbError(run: () => Promise<unknown>): Promise<DbErr
 export class TestDataTracker {
   readonly userIds: string[] = [];
   readonly departmentIds: string[] = [];
+  readonly jobTitleIds: string[] = [];
   // 部署を指定しない社員の所属先(必要になったとき 1 回だけ作る)
   private defaultDepartmentId: string | undefined;
 
@@ -113,6 +114,17 @@ export class TestDataTracker {
     return department;
   }
 
+  // name は 50 文字以内(T + 12 文字を含む)
+  async createJobTitle(
+    overrides: Partial<Prisma.JobTitleUncheckedCreateInput> = {},
+  ): Promise<Prisma.JobTitleGetPayload<object>> {
+    const jobTitle = await this.prisma.jobTitle.create({
+      data: { name: `テスト役職${uniqueSuffix()}`, ...overrides },
+    });
+    this.jobTitleIds.push(jobTitle.id);
+    return jobTitle;
+  }
+
   private async getDefaultDepartmentId(): Promise<string> {
     this.defaultDepartmentId ??= (await this.createDepartment()).id;
     return this.defaultDepartmentId;
@@ -139,6 +151,8 @@ export class TestDataTracker {
       }),
       this.prisma.user.deleteMany({ where: { id: { in: ids } } }),
       this.prisma.department.deleteMany({ where: { id: { in: this.departmentIds } } }),
+      // 社員の削除後でないと RESTRICT FK で消せない
+      this.prisma.jobTitle.deleteMany({ where: { id: { in: this.jobTitleIds } } }),
     ]);
   }
 }

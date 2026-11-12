@@ -1,8 +1,8 @@
-// 初期データ(部署と初期 ADMIN)の投入処理。実行の入口は seed.ts。テストからも呼び出す。
+// 初期データ(部署・役職・初期 ADMIN)の投入処理。実行の入口は seed.ts。テストからも呼び出す。
 import bcrypt from 'bcrypt';
 import { BCRYPT_COST, EMP_ID_PATTERN } from '../src/common/security/credentials.js';
 import { toDbDate } from '../src/common/time/tokyo-date.js';
-import { Role, type PrismaClient } from '../src/generated/prisma/client.js';
+import { JobTitleTone, Role, type PrismaClient } from '../src/generated/prisma/client.js';
 import {
   SYSTEM_DEPARTMENT_CODE,
   SYSTEM_DEPARTMENT_NAME,
@@ -15,6 +15,14 @@ export const DEPARTMENTS = [
   { code: 'DEV', name: '開発部' },
   { code: 'SALES', name: '営業部' },
   { code: 'HR', name: '人事部' },
+];
+
+// 初期役職(色味は役職ごとに指定する)。現在は seed でのみ登録・管理する
+export const JOB_TITLES = [
+  { name: 'マネージャー', tone: JobTitleTone.VIOLET },
+  { name: 'リーダー', tone: JobTitleTone.BLUE },
+  { name: 'エンジニア', tone: JobTitleTone.GRAY },
+  { name: 'デザイナー', tone: JobTitleTone.PINK },
 ];
 
 // 初期 ADMIN の所属部署
@@ -39,6 +47,7 @@ export interface SeedConfig {
 
 export interface SeedResult {
   createdDepartmentCount: number;
+  createdJobTitleCount: number;
   // created: 初期 ADMIN を登録した / skipped: 活性 ADMIN が既にいるため何もしなかった
   admin: 'created' | 'skipped';
 }
@@ -77,7 +86,7 @@ export function parseSeedConfig(env: NodeJS.ProcessEnv): SeedConfig {
   return { adminEmpId, adminName, adminPassword };
 }
 
-// 部署と初期 ADMIN を投入する。何度実行しても重複しない。
+// 部署・役職・初期 ADMIN を投入する。何度実行しても重複しない。
 // 初期 ADMIN は「活性 ADMIN が 1 人もいない」ときだけ登録する(FR-USER-002 の前提を満たすため)。
 // 手動で 1 回ずつ実行する前提で、同時実行は想定しない(別の社員番号で同時に実行すると ADMIN が 2 人できうる)。
 export async function seedInitialData(
@@ -88,12 +97,17 @@ export async function seedInitialData(
     data: DEPARTMENTS,
     skipDuplicates: true,
   });
+  // 既にある役職(name 重複)は変更しない
+  const { count: createdJobTitleCount } = await prisma.jobTitle.createMany({
+    data: JOB_TITLES,
+    skipDuplicates: true,
+  });
 
   const activeAdminCount = await prisma.user.count({
     where: { role: Role.ADMIN, isActive: true },
   });
   if (activeAdminCount > 0) {
-    return { createdDepartmentCount, admin: 'skipped' };
+    return { createdDepartmentCount, createdJobTitleCount, admin: 'skipped' };
   }
 
   // 同じ社員番号のユーザー(EMPLOYEE や無効化済み)がいる場合は、上書きせずに止める
@@ -121,5 +135,5 @@ export async function seedInitialData(
       hireDate: toDbDate(INITIAL_ADMIN_HIRE_DATE),
     },
   });
-  return { createdDepartmentCount, admin: 'created' };
+  return { createdDepartmentCount, createdJobTitleCount, admin: 'created' };
 }

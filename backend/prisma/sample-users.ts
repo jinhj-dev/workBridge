@@ -1,7 +1,7 @@
 // 社員番号 10001〜10100 のサンプル社員 100 名を登録する入口。開発 DB 専用(本番では実行できない)。
 // 一覧・検索・ページネーションなどを画面で確認するために使う。再実行しても重複しない。
 // 実行: npm run db:sample-users(DATABASE_URL と SEED_USER_PASSWORD が必要)
-// 全員のパスワードは SEED_USER_PASSWORD(初回ログイン時に変更が必要)。登録済みの社員はパスワードだけを更新する
+// 全員のパスワードは SEED_USER_PASSWORD(初回ログイン時に変更が必要)。登録済みの社員はパスワード・役職・連絡先を更新する
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
@@ -30,7 +30,7 @@ async function main(): Promise<void> {
   try {
     const { createdCount, updatedCount } = await insertSampleUsers(prisma, password);
     console.log(
-      `サンプル社員 ${SAMPLE_USER_COUNT} 名を処理しました(新規登録 ${createdCount} 名、パスワード更新 ${updatedCount} 名)。`,
+      `サンプル社員 ${SAMPLE_USER_COUNT} 名を処理しました(新規登録 ${createdCount} 名、パスワード・役職・連絡先更新 ${updatedCount} 名)。`,
     );
   } finally {
     await prisma.$disconnect();

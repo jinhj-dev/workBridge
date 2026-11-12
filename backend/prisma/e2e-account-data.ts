@@ -12,6 +12,8 @@ export interface E2eAccountDefinition {
   role: Role;
   mustChangePassword: boolean;
   passwordEnvName: 'E2E_ADMIN_PASSWORD' | 'E2E_INITIAL_PASSWORD';
+  jobTitleName: string | null;
+  contactEmail: string | null;
 }
 
 // 社員番号は E2E アカウント用に決めた値(システム全体の社員番号規則は変えない)
@@ -22,6 +24,8 @@ export const E2E_ACCOUNTS = {
     role: Role.ADMIN,
     mustChangePassword: false,
     passwordEnvName: 'E2E_ADMIN_PASSWORD',
+    jobTitleName: 'マネージャー',
+    contactEmail: 'e2e-admin@example.com',
   },
   initial: {
     empId: '900002',
@@ -29,6 +33,8 @@ export const E2E_ACCOUNTS = {
     role: Role.EMPLOYEE,
     mustChangePassword: true,
     passwordEnvName: 'E2E_INITIAL_PASSWORD',
+    jobTitleName: null,
+    contactEmail: null,
   },
 } as const satisfies Record<string, E2eAccountDefinition>;
 
@@ -41,6 +47,8 @@ export interface E2eAccountSpec {
   role: Role;
   mustChangePassword: boolean;
   password: string;
+  jobTitleName: string | null;
+  contactEmail: string | null;
 }
 
 export interface E2eAccountConfig {
@@ -86,6 +94,8 @@ export function parseE2eAccountConfig(env: NodeJS.ProcessEnv): E2eAccountConfig 
       role: definition.role,
       mustChangePassword: definition.mustChangePassword,
       password,
+      jobTitleName: definition.jobTitleName,
+      contactEmail: definition.contactEmail,
     };
   });
   return { accounts };
@@ -140,9 +150,20 @@ export async function resetE2eAccounts(
       throw new Error('先に npm run db:seed で初期データを登録してください。');
     }
 
+    // 役職は seed の登録内容から名前で引く
+    const jobTitles = await tx.jobTitle.findMany({ select: { id: true, name: true } });
+    const jobTitleIdByName = new Map(jobTitles.map((row) => [row.name, row.id]));
+
     const results: E2eResetResult['accounts'] = [];
     const userIds: string[] = [];
     for (const { account, passwordHash } of hashedAccounts) {
+      let jobTitleId: string | null = null;
+      if (account.jobTitleName !== null) {
+        jobTitleId = jobTitleIdByName.get(account.jobTitleName) ?? null;
+        if (!jobTitleId) {
+          throw new Error('先に npm run db:seed で初期データを登録してください。');
+        }
+      }
       const data = {
         name: account.name,
         passwordHash,
@@ -152,6 +173,8 @@ export async function resetE2eAccounts(
         mustChangePassword: account.mustChangePassword,
         departmentId: department.id,
         hireDate: toDbDate(E2E_HIRE_DATE),
+        jobTitleId,
+        contactEmail: account.contactEmail,
       };
       const user = await tx.user.upsert({
         where: { empId: account.empId },

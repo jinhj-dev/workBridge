@@ -490,6 +490,7 @@ Response 200
 { "id": "uuid", "name": "홍길동", "empId": "00001", "hireDate": "2026-04-01", "departmentId": "uuid", "departmentName": "개발팀",
   "role": "EMPLOYEE", "approvalRequired": true, "isActive": true, "createdAt": "2026-01-02T09:00:00+09:00" }
 ```
+- (구현 시 적용) 항목에 `jobTitle`(`{ id, name, tone }` 또는 null)·`contactEmail`(string 또는 null)을 추가한다. 형식은 API-DEPT-008과 같다
 
 ### API-USER-002: 사원 등록
 - `POST /admin/users` · ADMIN · FR-USER-001
@@ -501,6 +502,9 @@ Request
 ```
 - name, empId, initialPassword, hireDate, departmentId, role, approvalRequired 필수. 未所属 부서도 지정할 수 있다
 - hireDate: YYYY-MM-DD, 실재하는 날짜, 미래 날짜 허용, 기본값 없음. 누락·형식 오류는 400 VALIDATION_ERROR
+- (구현 시 적용) 선택 항목 `jobTitleId`·`contactEmail`(FR-USER-001)
+  - `jobTitleId`: 존재하는 직책 ID(UUID) 또는 null(미설정). 직책 목록 API는 미정
+  - `contactEmail`: 문자열 또는 null. 앞뒤 공백 제거 후 이메일 형식·254자 이하, 빈 문자열은 null로 저장. 위반 시 400 VALIDATION_ERROR. 서버에서 반드시 검증한다(DB에는 형식 제약이 없다, 05 §2)
 - Response 201: 사원 상세(API-USER-003과 같은 구조). `isActive = true`, `mustChangePassword = true`
 
 | HTTP | Code | 설명 |
@@ -511,11 +515,13 @@ Request
 ### API-USER-003: 사원 상세
 - `GET /admin/users/:id` · ADMIN · FR-USER-002
 - Response 200: 목록 항목 + `mustChangePassword`, `updatedAt`, `pendingApprovalCount`(이 사용자에게 할당된 PENDING 건수), `leaveGrants: [{ "year": 2026, "grantedDays": 15 }]`
+  - (구현 시 적용) 목록 항목과 같이 `jobTitle`·`contactEmail`을 포함한다
 - 404 NOT_FOUND
 
 ### API-USER-004: 사원 수정
 - `PATCH /admin/users/:id` · ADMIN · FR-USER-002
 - Request(변경할 필드만): `name`, `empId`, `hireDate`, `departmentId`, `role`, `approvalRequired`, `isActive`
+- (구현 시 적용) `jobTitleId`·`contactEmail`도 변경할 수 있다. null은 해제. 검증은 API-USER-002와 같다
 - `hireDate`를 지정하면 API-USER-002와 같은 규칙으로 검증한다(null 불가)
 - `departmentId: null`은 허용하지 않는다(400 VALIDATION_ERROR)
 - Response 200: 사원 상세
@@ -633,7 +639,16 @@ Request
 ### API-DEPT-008: 부서 소속 사원 목록
 - `GET /admin/departments/:id/members` · ADMIN · FR-DEPT-001
 - Query: `page`, `limit`(공통 페이지네이션)
-- Response 200: 페이지네이션(`[{ "id": "uuid", "empId": "00001", "name": "山田 太郎" }]`). 소속 **활성** 사원만, 사원번호 오름차순
+- Response 200: 페이지네이션. 소속 **활성** 사원만, 사원번호 오름차순
+```json
+{ "id": "uuid", "empId": "00001", "name": "山田 太郎",
+  "jobTitle": { "id": "uuid", "name": "マネージャー", "tone": "VIOLET" },
+  "contactEmail": "yamada@example.com" }
+```
+- `jobTitle`: 役職 `{ id, name, tone }`. `tone`은 `GRAY` | `BLUE` | `VIOLET` | `PINK`(05 §2-1). 미설정이면 `null`
+- `contactEmail`: 連絡先(사내 이메일). 미설정이면 `null`
+- `jobTitle`·`contactEmail`은 항상 키를 포함한다. 입사일·권한 등 다른 사원 정보는 넣지 않는다
+- 役職·連絡先은 이 API(ADMIN 전용)에서만 반환한다. `UserSummary`·API-AUTH-004·API-DEPT-001·`DepartmentDetail.manager`·API-DEPT-009에는 넣지 않는다
 - 400 VALIDATION_ERROR: `:id`가 UUID 형식이 아님, `page`·`limit` 범위 오류
 - 404 NOT_FOUND 「部署が見つかりません。」
 

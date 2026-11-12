@@ -1,9 +1,9 @@
-// 初期データ投入の入口(部署と初期 ADMIN 1 名のみ)。何度実行しても重複しない。
+// 初期データ投入の入口(部署・役職・初期 ADMIN)。何度実行しても重複しない。
 // 実行: npm run db:seed(または prisma db seed)
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
-import { DEPARTMENTS, parseSeedConfig, seedInitialData } from './initial-data.js';
+import { DEPARTMENTS, JOB_TITLES, parseSeedConfig, seedInitialData } from './initial-data.js';
 
 async function main(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
@@ -19,6 +19,9 @@ async function main(): Promise<void> {
     const result = await seedInitialData(prisma, config);
     console.log(
       `部署: ${DEPARTMENTS.length} 件中 ${result.createdDepartmentCount} 件を新規登録しました。`,
+    );
+    console.log(
+      `役職: ${JOB_TITLES.length} 件中 ${result.createdJobTitleCount} 件を新規登録しました。`,
     );
     if (result.admin === 'created') {
       console.log(

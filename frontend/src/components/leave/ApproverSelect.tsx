@@ -1,8 +1,16 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import type { FocusEvent, KeyboardEvent } from 'react';
-import { ErrorIcon, FieldError, inputClass, secondaryButtonClass } from '@/components/form';
+import type { FocusEvent, KeyboardEvent, ReactNode } from 'react';
+import {
+  ErrorIcon,
+  FieldError,
+  IconField,
+  iconInputClass,
+  iconInputTrailingClass,
+  inputClass,
+  secondaryButtonClass,
+} from '@/components/form';
 import { Skeleton } from '@/components/Skeleton';
 import type { UserSummary } from '@/lib/api/types';
 import { messages } from '@/messages/ja';
@@ -31,6 +39,24 @@ interface ApproverSelectProps {
   // 指定すると候補の絞り込みをサーバー側で行う: 入力中の文字を通知し(確定・取消時は空文字)、
   // candidates は絞り込み済みとして扱う。0 件でも入力欄は残す
   onSearch?: (keyword: string) => void;
+  // 指定すると入力欄の左にアイコン、右に開閉の矢印を付ける(SCR-010 部署責任者)
+  leadingIcon?: ReactNode;
+}
+
+function ChevronDownIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`transition-transform ${open ? 'rotate-180' : ''}`}
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
 }
 
 function optionLabel(user: UserSummary): string {
@@ -49,6 +75,7 @@ export function ApproverSelect({
   onRetry,
   texts,
   onSearch,
+  leadingIcon,
 }: ApproverSelectProps) {
   const t = texts ?? defaultTexts;
   const listId = useId();
@@ -153,37 +180,49 @@ export function ApproverSelect({
     stopEditing();
   }
 
+  const input = (
+    <input
+      id={id}
+      type="text"
+      role="combobox"
+      autoComplete="off"
+      aria-expanded={open}
+      aria-controls={listId}
+      aria-autocomplete="list"
+      aria-activedescendant={open && filtered[active] ? optionId(active) : undefined}
+      aria-invalid={error ? true : undefined}
+      aria-required={required || undefined}
+      aria-describedby={error ? `${id}-error` : undefined}
+      placeholder={t.placeholder}
+      value={editing ?? (value ? optionLabel(value) : '')}
+      onChange={(e) => {
+        setEditing(e.target.value);
+        onSearch?.(e.target.value);
+        setActiveIndex(0);
+        setOpen(true);
+        if (value) {
+          previousValueRef.current = value;
+          onChange(null);
+        }
+      }}
+      onFocus={() => setOpen(true)}
+      onClick={() => setOpen(true)}
+      onKeyDown={handleKeyDown}
+      className={
+        leadingIcon ? `${inputClass} ${iconInputClass} ${iconInputTrailingClass}` : inputClass
+      }
+    />
+  );
+
   return (
     <div onBlur={handleBlur}>
-      <input
-        id={id}
-        type="text"
-        role="combobox"
-        autoComplete="off"
-        aria-expanded={open}
-        aria-controls={listId}
-        aria-autocomplete="list"
-        aria-activedescendant={open && filtered[active] ? optionId(active) : undefined}
-        aria-invalid={error ? true : undefined}
-        aria-required={required || undefined}
-        aria-describedby={error ? `${id}-error` : undefined}
-        placeholder={t.placeholder}
-        value={editing ?? (value ? optionLabel(value) : '')}
-        onChange={(e) => {
-          setEditing(e.target.value);
-          onSearch?.(e.target.value);
-          setActiveIndex(0);
-          setOpen(true);
-          if (value) {
-            previousValueRef.current = value;
-            onChange(null);
-          }
-        }}
-        onFocus={() => setOpen(true)}
-        onClick={() => setOpen(true)}
-        onKeyDown={handleKeyDown}
-        className={inputClass}
-      />
+      {leadingIcon ? (
+        <IconField icon={leadingIcon} trailing={<ChevronDownIcon open={open} />}>
+          {input}
+        </IconField>
+      ) : (
+        input
+      )}
       <ul
         ref={listRef}
         id={listId}

@@ -45,9 +45,10 @@
 
 ### 2. 데이터베이스 — 완료
 
-- [x] Prisma Schema(테이블 6개, ENUM 3개, FK RESTRICT, 인덱스) — 05 §0~§7
+- [x] Prisma Schema(테이블 7개, ENUM 4개, FK RESTRICT, 인덱스) — 05 §0~§7
 - [x] 마이그레이션(`init`, `split_leaves_rejected_check`, `add_users_hire_date`, `department_code_and_required_user_department`, `add_departments_description_manager`), CHECK 14개 — departments.code(UNIQUE)·未所属 부서·users.department_id NOT NULL (05 §1·§2), departments.description·manager_id(FK RESTRICT, UNIQUE 없음)·인덱스 `departments(manager_id)` (05 §1·§7, 개발·테스트 DB 적용)
 - [x] Seed: 부서 5개(未所属 포함, 코드 부여), 초기 ADMIN(활성 ADMIN이 없을 때만, 総務部 소속)
+- [x] 직책 마스터·連絡先: 마이그레이션 `add_job_titles_and_users_contact` — `job_titles`(name UNIQUE, tone ENUM `job_title_tone` 기본 GRAY)·`users.job_title_id`(FK RESTRICT, 인덱스 없음)·`users.contact_email`(VARCHAR 254, UNIQUE 없음), 기존 행 NULL. seed 직책 4개(이름 기준 중복 없음, 기존 행 불변) (05 §0·§2·§2-1·§7, 개발·테스트 DB 적용). DB 통합 테스트(UNIQUE·FK RESTRICT·ENUM·길이·컬럼 정의, seed 재실행 시 tone 불변) 통과
 - [x] DB 통합 테스트: CRUD, UNIQUE, FK, CHECK 14개, DATE·Decimal 왕복, seed 멱등성, departments.code UNIQUE·users.department_id NOT NULL·마이그레이션 후 상태
 - [x] DB 사용 절차 문서화(`backend/README.md`)
 
@@ -153,8 +154,11 @@
 - [x] 부서 관리 화면 SCR-010 재구성: 헤더·요약 2개(部署数 未所属 제외·所属社員数)·부서명 검색(디바운스)·열 정렬(기본 部署名 오름차순, md 미만 select)·部署責任者/説明 열·選択中の部署情報·所属社員確認 모달·등록/수정 모달 説明·部署責任者(서버 검색, `ApproverSelect` `texts`·`onSearch` 추가). 今月の変更·状態 필터는 범위 밖 — frontend Vitest 45파일 634건, Playwright `departments`·`departments-manager`·`departments-responsive` 19건 포함 31건 통과(test-report Run 3, 개발 DB)
 - [x] SCR-010 목록·모달 추가 수정(사용자 요청): 표 5행 높이 내부 스크롤·헤더 고정(모바일 카드는 페이지 스크롤 유지), 所属社員数 옆 [確認], 액션 [詳細][編集][削除](削除 Danger, 未所属은 詳細만), 部署詳細 모달(조회 전용) 신설·選択中の部署情報 삭제, 所属社員確認 모달 재구성(社員番号·氏名·部署 3열, `limit=100` 전 페이지 수집 후 클라이언트 검색, 인원 수는 부서 전체 기준). 공용 `dangerOutlineButtonClass`·`Modal` `subtitle` 추가. API·DB 변경 없음 — frontend Vitest 45파일 642건, Playwright 부서 5개 spec·휴가 포함 37건 통과(test-report Run 4, 개발 DB). 리뷰 Round 4 APPROVE
 
+- [x] 사원 役職·連絡先 표시(employee-position-contact): 직책 마스터(seed 4개, 관리 화면·목록 API 없음)·연락처(사내 이메일) DB 추가, API-DEPT-008 응답 `jobTitle`·`contactEmail`(ADMIN 전용, 다른 API 미노출), 所属社員確認 모달 5열(役職 tone 배지·連絡先, 빈 값 「—」, 入社日 제외, `Modal` size `xl`), 색 토큰 `violet-30/110`·`pink-30/110`·Badge `violet`·`pink`(09 §5 8). 샘플 사원·E2E 계정 값 부여. 실제 사원은 입력 경로가 없어 「—」 — backend unit 323건, e2e 418건, frontend Vitest 656건, Playwright 93건 통과(test-report Run 3). 리뷰 APPROVE·보안 PASS
+
 후속 과제
-- [ ] 사원 役職·連絡先 DB 추가(별도 작업): 현재 users에 컬럼이 없어 SCR-010 所属社員確認 모달에서 제외. 추가 시 API-DEPT-008 응답·모달 열 함께 반영(入社日 열은 사용자 결정으로 제외)
+- [ ] 사원 관리 화면·API(SCR-006·007, API-USER-002·004) 구현 시 役職·連絡先 입력 경로와 서버 검증 추가: 役職은 직책 목록에서 선택(직책 목록 API 미정), 連絡先은 이메일 형식·254자 이하·빈 값 NULL(02 FR-USER-001·002, 06 API-USER-002·004). DB에 형식 제약이 없으므로 서버 검증 필수(보안 점검 낮음 1건). mailto 링크를 도입하면 형식 검증된 값만 href에 사용
+- [ ] seed e2e의 tone 미덮어쓰기 테스트가 앞 테스트의 직책 등록에 의존(단독 실행 시 실패 가능, 리뷰 Round 2 낮음 1건, 미반영)
 
 ### 9. 대시보드 — 진행 중
 
@@ -223,3 +227,4 @@
 | 2026-11-12 | 휴가 관리 사이드바 하위 메뉴: SCR-004 페이지 안 탭 UI 삭제, 사이드바(`lg` 미만 드로어) 休暇管理를 개폐 하위 메뉴(自分の休暇·休暇カレンダー·承認[표시 대상만])로 변경, 승인 대기 배지는 부모 행. 하단 탭 休暇管理는 `/leaves` 링크 유지. 공용 `SidebarSubmenu`·`ApprovalsAccessProvider`/`useApprovalsVisible` 추가, `NavTabs`·`messages.leaveManagement.tabsLabel` 삭제. 03·SCR-004·09 반영. API·DB 변경 없음(frontend tsc·eslint 오류 없음, Vitest 44파일 612건 통과, Playwright 신규 2건 포함 22건 통과. 비승인자 사원의 사이드바는 단위 테스트로만 확인) |
 | 2026-11-12 | 부서 관리 재설계(SCR-010): departments에 `description`(VARCHAR 500)·`manager_id`(FK users RESTRICT, UNIQUE 없음 = 겸임 허용, 인덱스) 추가(마이그레이션 `add_departments_description_manager`, 기존 행 NULL). 부서 책임자 = 임의의 활성 사원(소속·권한 무관, 未所属 지정 불가, 400 INVALID_MANAGER), 사원 비활성화 시 자동 해제·부서 이동은 영향 없음(API-USER-004 미구현으로 문서만). API-DEPT-002 정렬, 007 요약·008 소속 사원·009 책임자 후보 신규. 화면은 헤더·요약·정렬 목록·선택 상세·所属社員 모달로 재구성(今月の変更·状態 범위 밖). 02·05·06·SCR-010·08·09 §6 반영(test-report Run 3: backend unit 320건, e2e 408건, frontend Vitest 634건, Playwright 31건 통과. 리뷰 APPROVE·보안 PASS. 리뷰 Round 2 낮음 2건(책임자 후보 100건 상한 실측 테스트, 책임자 입력 Escape 시 이전 값 미복원)은 미반영) |
 | 2026-11-12 | SCR-010 목록·모달 추가 수정(사용자 요청): 표 5행 내부 스크롤·헤더 고정, 所属社員数 [確認], 행 액션 [詳細][編集][削除], 部署詳細 모달 신설·選択中の部署情報 삭제, 所属社員確認 모달 3열·전 페이지 수집 후 클라이언트 검색. 공용 `dangerOutlineButtonClass`(09 §3 Danger 구현)·`Modal` `subtitle` 추가(토큰 변경 없음). SCR-010·08·09 §6 반영. API·DB 변경 없음(test-report Run 4: backend unit 320건, e2e 408건, frontend Vitest 642건, Playwright 37건 통과, 리뷰 Round 4 APPROVE). 役職·連絡先 DB 추가는 §2 #8 후속 과제 |
+| 2026-11-12 | 사원 役職·連絡先: 직책 마스터 `job_titles`(seed 4개, tone ENUM)·`users.job_title_id`(FK RESTRICT)·`contact_email` 추가(마이그레이션 `add_job_titles_and_users_contact`, 기존 행 NULL). API-DEPT-008 응답에 `jobTitle`·`contactEmail`(ADMIN 전용), SCR-010 所属社員確認 모달 5열(入社日 제외, 빈 값 「—」). 사용자 지시로 役職 배지 색 재현을 위해 색 토큰 4개·Badge `violet`·`pink` 추가, 공용 `Modal` size `xl`(800) 추가. 02·04(SCR-006·007·010)·05·06·08·09 반영, API-USER-*·SCR-006/007 입력 항목은 구현 시 적용(test-report Run 3: backend unit 323건, e2e 418건, frontend Vitest 656건, Playwright 93건 통과. 리뷰 APPROVE·보안 PASS(낮음 1건은 §2 #8 후속 과제)) |

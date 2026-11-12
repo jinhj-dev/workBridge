@@ -39,12 +39,47 @@ export function BuildingIcon() {
   );
 }
 
+export function UserIcon() {
+  return (
+    <Icon>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c0-3.6 3.6-6 8-6s8 2.4 8 6" />
+    </Icon>
+  );
+}
+
+export function DocumentTextIcon() {
+  return (
+    <Icon>
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M8 8h8M8 12h8M8 16h5" />
+    </Icon>
+  );
+}
+
 export function PeopleIcon() {
   return (
     <Icon>
       <circle cx="9" cy="8" r="3.5" />
       <path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" />
       <path d="M16 4.7a3.5 3.5 0 0 1 0 6.6M18 14.3c2 .8 3.5 2.6 3.5 5.7" />
+    </Icon>
+  );
+}
+
+export function MailIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3.5 7 8.5 6 8.5-6" />
+    </Icon>
+  );
+}
+
+export function ChevronRightIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="m9 5 7 7-7 7" />
     </Icon>
   );
 }
