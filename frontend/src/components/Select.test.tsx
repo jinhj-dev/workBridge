@@ -46,4 +46,13 @@ describe('Select', () => {
     expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByRole('combobox')).not.toHaveAttribute('aria-required');
   });
+
+  it('shouldSetDataAutofocusOnlyWhenAutoFocusIsTrue', () => {
+    const { rerender } = render(
+      <Select id="s" value="A" onChange={vi.fn()} options={options} autoFocus />,
+    );
+    expect(screen.getByRole('combobox')).toHaveAttribute('data-autofocus');
+    rerender(<Select id="s" value="A" onChange={vi.fn()} options={options} />);
+    expect(screen.getByRole('combobox')).not.toHaveAttribute('data-autofocus');
+  });
 });

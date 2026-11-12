@@ -41,6 +41,8 @@ interface ApproverSelectProps {
   onSearch?: (keyword: string) => void;
   // 指定すると入力欄の左にアイコン、右に開閉の矢印を付ける(SCR-010 部署責任者)
   leadingIcon?: ReactNode;
+  // 入力欄に結びつける補助説明(FieldHint)の id
+  describedBy?: string;
 }
 
 function ChevronDownIcon({ open }: { open: boolean }) {
@@ -76,6 +78,7 @@ export function ApproverSelect({
   texts,
   onSearch,
   leadingIcon,
+  describedBy,
 }: ApproverSelectProps) {
   const t = texts ?? defaultTexts;
   const listId = useId();
@@ -183,7 +186,9 @@ export function ApproverSelect({
       aria-activedescendant={open && filtered[active] ? optionId(active) : undefined}
       aria-invalid={error ? true : undefined}
       aria-required={required || undefined}
-      aria-describedby={error ? `${id}-error` : undefined}
+      aria-describedby={
+        [describedBy, error ? `${id}-error` : null].filter(Boolean).join(' ') || undefined
+      }
       placeholder={t.placeholder}
       value={editing ?? (value ? optionLabel(value) : '')}
       onChange={(e) => {

@@ -153,6 +153,55 @@ describe('AttendanceEditModal(SCR-008 勤怠修正)', () => {
     resolveRequest({ ...TARGET });
   });
 
+  it('shouldDescribeDialogAndMarkClockInRequiredWithFocusWhenRendered', () => {
+    renderModal();
+    expect(screen.getByRole('dialog', { name: t.title })).toHaveAccessibleDescription(
+      t.description,
+    );
+    expect(clockInput()).toHaveAttribute('aria-required', 'true');
+    expect(clockInput()).toHaveFocus();
+  });
+
+  it('shouldFocusSubmitOnConfirmStep', async () => {
+    const user = userEvent.setup();
+    renderModal();
+    await user.click(screen.getByRole('button', { name: t.save }));
+    expect(screen.getByRole('button', { name: t.submit })).toHaveFocus();
+  });
+
+  it('shouldFocusClockInWhenBackFromConfirm', async () => {
+    const user = userEvent.setup();
+    renderModal();
+    await user.click(screen.getByRole('button', { name: t.save }));
+    await user.click(screen.getByRole('button', { name: t.back }));
+    expect(clockInput()).toHaveFocus();
+  });
+
+  it('shouldFocusClockInWhenInvalidTimeRangeReturnsToInput', async () => {
+    const user = userEvent.setup();
+    apiFetch.mockRejectedValue(new ApiError(400, 'INVALID_TIME_RANGE', 'サーバー文言'));
+    renderModal();
+    await user.click(screen.getByRole('button', { name: t.save }));
+    await user.click(screen.getByRole('button', { name: t.submit }));
+
+    expect(await screen.findByText(t.invalidTimeRange)).toBeInTheDocument();
+    expect(clockInput()).toHaveFocus();
+  });
+
+  it('shouldIgnoreEscapeWhileRequestInFlight', async () => {
+    const user = userEvent.setup();
+    let resolveRequest: (value: unknown) => void = () => undefined;
+    apiFetch.mockReturnValue(new Promise((resolve) => (resolveRequest = resolve)));
+    renderModal();
+    await user.click(screen.getByRole('button', { name: t.save }));
+    await user.click(screen.getByRole('button', { name: t.submit }));
+
+    const escape = new Event('cancel', { cancelable: true });
+    fireEvent(screen.getByRole('dialog'), escape);
+    expect(escape.defaultPrevented).toBe(true);
+    resolveRequest({ ...TARGET });
+  });
+
   it('shouldKeepModalOpenOnNetworkError', async () => {
     const user = userEvent.setup();
     apiFetch.mockRejectedValue(new NetworkError());

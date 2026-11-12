@@ -1,14 +1,12 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { primaryButtonClass, secondaryButtonClass } from '@/components/form';
-import { Modal } from '@/components/Modal';
-import { Notice } from '@/components/Notice';
-import { Spinner } from '@/components/Spinner';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useToast } from '@/components/Toast';
 import { ApiError, NetworkError, apiFetch } from '@/lib/api/client';
 import type { DepartmentDetail } from '@/lib/api/types';
 import { messages } from '@/messages/ja';
+import { TrashIcon } from './icons';
 
 const t = messages.departments.deleteModal;
 
@@ -53,42 +51,22 @@ export function DepartmentDeleteModal({ department, onClose, onDone }: Departmen
     }
   }
 
-  const buttonClass = 'flex h-10 items-center justify-center gap-2 px-4 text-sm/5';
-
   return (
-    <Modal
+    <ConfirmDialog
       open={department !== null}
+      tone="danger"
+      icon={<TrashIcon />}
       title={t.title}
-      onClose={onClose}
-      footer={
-        <>
-          <button
-            type="button"
-            onClick={onClose}
-            className={`${secondaryButtonClass} ${buttonClass}`}
-          >
-            {messages.common.cancel}
-          </button>
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => void submit()}
-            className={`${primaryButtonClass} ${buttonClass} disabled:cursor-not-allowed disabled:bg-primary-60`}
-          >
-            {submitting && <Spinner />}
-            {t.submit}
-          </button>
-        </>
+      message={department ? t.confirm(department.name) : ''}
+      notice={
+        department && department.inactiveMemberCount > 0
+          ? t.inactiveNote(department.inactiveMemberCount)
+          : undefined
       }
-    >
-      {department && (
-        <div className="flex flex-col gap-2">
-          <p className="break-words text-general-100">{t.confirm(department.name)}</p>
-          {department.inactiveMemberCount > 0 && (
-            <Notice variant="warning">{t.inactiveNote(department.inactiveMemberCount)}</Notice>
-          )}
-        </div>
-      )}
-    </Modal>
+      confirmLabel={t.submit}
+      submitting={submitting}
+      onConfirm={() => void submit()}
+      onClose={onClose}
+    />
   );
 }

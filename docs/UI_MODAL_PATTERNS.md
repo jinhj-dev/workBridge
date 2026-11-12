@@ -63,7 +63,7 @@
 | I-3 단계형 | 부모 모달 아이콘 유지(단계 사이 변경 금지) | M06 승인·却下·取消 단계 = 달력 |
 | I-4 색 | 위험 동작을 포함해 **항상** `bg-primary-30` 박스 + `text-primary-100`(시안 `compare-d8-delete`). 위험 신호는 버튼 색(D5)과 warning Notice가 담당 | |
 | I-5 형태 | 40px 박스 `rounded-md`, 아이콘 24, `aria-hidden` | `Modal.tsx:64-71` |
-| I-6 자산 | 같은 도메인은 같은 아이콘 파일을 쓴다. 없는 아이콘(휴지통, 勤怠 시계)은 기존 아이콘 파일 방식(24 viewBox, `currentColor`, stroke 2)으로 추가. 위치는 구현 시 frontend가 정하고 09 §6에 기록 | `departments/icons.tsx`, `components/CalendarIcon.tsx`, `dashboard/icons.tsx` |
+| I-6 자산 | 같은 도메인은 같은 아이콘 파일을 쓴다. 신규 아이콘 파일은 만들지 않고 기존 자산을 재사용한다(2026-11-13 정정: 휴지통·勤怠 시계는 이미 있음 — `admin/departments/icons.tsx` `TrashIcon`, `components/layout/navIcons.tsx` `ClockIcon`, 둘 다 24 viewBox·`currentColor`·stroke 1.75). 모달별 사용 파일은 09 §6 `Modal` 행에 기록 | `departments/icons.tsx`, `components/CalendarIcon.tsx`, `dashboard/icons.tsx`, `layout/navIcons.tsx` |
 
 모달별 아이콘(확정 기준 적용): M01 건물 / M02 건물 / M03 사람들 / M04 휴지통 / M05 달력 / M06 달력 / M07 달력 / M08 시계 / M09 出勤 들어가기·退勤 나가기.
 
@@ -297,6 +297,7 @@ disabled 대비: WCAG 1.4.3은 비활성 컴포넌트를 대비 요구에서 제
 | Esc | 기본 허용, `busy` 중 차단(§4.2 2중 구조) |
 | Focus trap | `showModal()` 네이티브 |
 | 초기 포커스 | A: 첫 입력 / D'·reject: 입력 / D 위험: [キャンセル] / D 기타: 주 버튼 / B·C: 브라우저 기본. `data-autofocus` |
+| 단계 전환 포커스(2026-11-13 구현) | 단계형 모달(M06·M08)은 footer를 단계 key(`<Fragment key={단계}>`)로 감싸 단계 전환 시 버튼을 재마운트하고, 진입 단계의 초기 포커스 요소에 `autoFocus`를 준다(같은 DOM이 재사용되면 직전에 누른 버튼에 포커스가 남아 Enter로 확정될 위험). 되돌아가기 시 M06은 직전 진입 버튼([承認]/[却下]/[取消]), M08은 첫 입력(出勤時刻)에 포커스 |
 | 포커스 복귀 | 네이티브. 연 버튼이 사라지거나 disabled되는 경우(M09 출근 후 버튼 교체)는 단계 1에서 실측 |
 | 이름·설명 | `aria-labelledby` + `aria-describedby`(description) |
 | role | `dialog` 유지. `alertdialog` 미도입 사유: `getByRole('dialog')`가 alertdialog를 매칭하지 않아 `queryByRole('dialog')...not.toBeInTheDocument()` 류(`DashboardView.test.tsx:406`, `DepartmentsView.test.tsx:216,226`)가 항상 통과하는 무의미한 테스트가 되고, 단계형 확인과 role이 갈린다 |
@@ -344,10 +345,12 @@ disabled 대비: WCAG 1.4.3은 비활성 컴포넌트를 대비 요구에서 제
 
 ### 9.2 남은 미결 (확정 결정을 적용하면서 새로 생긴 세부. 구현 단계 전에 확인)
 
-| ID | 내용 | 권장 |
+> 2026-11-13 구현(`feature/modal-refactor`)에서 U1~U4는 **사용자 부재로 권장안을 적용**해 확정했다(사용자 확인 후 변경 가능). U5는 범위 밖으로 남긴다.
+
+| ID | 내용 | 권장 / 적용 |
 |---|---|---|
-| U1 | M02 部署詳細: 제목 아이콘(건물)과 본문 히어로 아이콘(건물, `size-16` 원형)이 중복 | 히어로는 SCR-010 명세 요소라 유지, 제목 아이콘도 규칙대로 적용(중복 수용). 줄이려면 히어로 아이콘만 제거 |
-| U2 | M05 「申請日数」(입력에 따라 계산되는 값) 표시: 현재 회색 박스(`LeaveApplyModal.tsx:277`) | FormTable 행 안 일반 텍스트(`min-h-12 flex items-center text-base/6 font-bold`)로 바꾸고 `aria-live` 유지. ReadOnlySummary의 회색 배경과 혼동을 피함 |
-| U3 | 입력 장식 아이콘(`IconField`)을 폼 표준으로 할지(D2의 "部署登録처럼"이 플레이스홀더·설명문만 지정) | 표준으로 하지 않음(M01 기존 유지, 신규는 선택) |
-| U4 | SCR-010 등록 제목: 명세 「部署の登録」 vs 코드 「部署登録」(AUDIT §9 D6) | 코드(「部署登録」) 기준으로 명세 갱신 |
+| U1 | M02 部署詳細: 제목 아이콘(건물)과 본문 히어로 아이콘(건물, `size-16` 원형)이 중복 | 히어로는 SCR-010 명세 요소라 유지, 제목 아이콘도 규칙대로 적용(중복 수용). 줄이려면 히어로 아이콘만 제거. **적용(권장안)**: 히어로 유지 + 제목 `BuildingIcon` |
+| U2 | M05 「申請日数」(입력에 따라 계산되는 값) 표시: 현재 회색 박스(`LeaveApplyModal.tsx:277`) | FormTable 행 안 일반 텍스트(`min-h-12 flex items-center text-base/6 font-bold`)로 바꾸고 `aria-live` 유지. ReadOnlySummary의 회색 배경과 혼동을 피함. **적용(권장안)**: 박스 제거, `flex min-h-12 items-center text-base/6 font-bold text-general-100 tabular-nums`, `aria-live` 유지 |
+| U3 | 입력 장식 아이콘(`IconField`)을 폼 표준으로 할지(D2의 "部署登録처럼"이 플레이스홀더·설명문만 지정) | 표준으로 하지 않음(M01 기존 유지, 신규는 선택). **적용(권장안)**: 표준 아님, M01만 유지 |
+| U4 | SCR-010 등록 제목: 명세 「部署の登録」 vs 코드 「部署登録」(AUDIT §9 D6) | 코드(「部署登録」) 기준으로 명세 갱신. **적용(권장안)**: SCR-010 명세를 「部署登録」으로 갱신 |
 | U5 | 시안의 「部署の編集」은 部署コード를 수정 불가로 가정했으나 현재는 편집 가능 | 이번 범위 밖. 원하면 별도 기능 변경(feature-dev)으로 |

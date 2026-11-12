@@ -24,6 +24,7 @@ export const messages = {
       minutes === 0 ? `${hours}時間` : `${hours}時間${minutes}分`,
     forbidden: 'アクセス権限がありません。',
     all: 'すべて',
+    charCount: (n: number, max: number) => `${n}/${max}`,
   },
   nav: {
     mainLabel: 'メインメニュー',
@@ -194,9 +195,9 @@ export const messages = {
     reject: {
       title: '休暇の却下',
       reasonLabel: '却下理由',
+      reasonPlaceholder: '却下の理由を入力してください',
       submit: '却下する',
       success: '却下しました。',
-      count: (n: number, max: number) => `${n}/${max}`,
       validation: {
         required: '却下理由を入力してください。',
         tooLong: '却下理由は500文字以内で入力してください。',
@@ -272,6 +273,8 @@ export const messages = {
     remaining: '残日数',
     apply: {
       title: '休暇申請',
+      description: '新しい休暇を申請します。',
+      reasonPlaceholder: '休暇の理由を入力してください',
       leaveType: '休暇種別',
       startDate: '開始日',
       endDate: '終了日',
@@ -283,7 +286,6 @@ export const messages = {
       submit: '申請する',
       pendingSuccess: '休暇を申請しました。承認者の承認をお待ちください。',
       approvedSuccess: '休暇が承認されました。',
-      count: (n: number, max: number) => `${n}/${max}`,
       validation: {
         leaveType: '休暇種別を選択してください。',
         period: '休暇期間を入力してください。',
@@ -402,6 +404,13 @@ export const messages = {
     page: (n: number) => `${n}ページ`,
     total: (n: number) => `全${n}件`,
   },
+  // 日付・日時入力欄の表示(24時間表記)
+  dateInput: {
+    date: (year: string, month: string, day: string) => `${year}年${month}月${day}日`,
+    time: (hour: string, minute: string) => `${hour}時${minute}分`,
+    datePlaceholder: '----年--月--日',
+    dateTimePlaceholder: '----年--月--日 --時--分',
+  },
   dateRange: {
     startDate: '開始日',
     endDate: '終了日',
@@ -485,6 +494,7 @@ export const messages = {
     editLabel: (name: string, workDate: string) => `${name}さんの${workDate}の勤怠を修正`,
     modal: {
       title: '勤怠の修正',
+      description: '出勤・退勤時刻を修正します。',
       employee: '社員名',
       workDate: '勤務日',
       clockIn: '出勤時刻',

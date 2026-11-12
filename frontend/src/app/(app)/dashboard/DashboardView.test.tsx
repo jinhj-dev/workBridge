@@ -395,6 +395,10 @@ describe('DashboardView 勤怠', () => {
     expect(within(dialog).getByRole('button', { name: messages.common.cancel })).toBeDisabled();
     expect(callsTo('/attendance/clock-in')).toHaveLength(1);
     expect(callsTo('/attendance/clock-in')[0][1]).toMatchObject({ method: 'POST' });
+    // 送信中は Esc(cancel イベント)でも閉じない
+    const escape = new Event('cancel', { cancelable: true });
+    fireEvent(dialog, escape);
+    expect(escape.defaultPrevented).toBe(true);
 
     resolveClockIn(attendance());
     await waitFor(() =>
@@ -419,6 +423,15 @@ describe('DashboardView 勤怠', () => {
     await waitFor(() => expect(callsTo('/attendance/monthly')).toHaveLength(2));
     expect(callsTo('/dashboard/department-status')).toHaveLength(2);
     expect(callsTo('/admin/dashboard/summary')).toHaveLength(2);
+  });
+
+  it('shouldFocusConfirmButtonWhenClockInConfirmOpens', async () => {
+    mockApi();
+    const ui = renderView();
+    await waitAttendanceLoaded();
+
+    await ui.click(clockInButton());
+    expect(screen.getByRole('button', { name: t.attendance.confirm })).toHaveFocus();
   });
 
   it('shouldNotCallApiWhenConfirmIsCancelled', async () => {

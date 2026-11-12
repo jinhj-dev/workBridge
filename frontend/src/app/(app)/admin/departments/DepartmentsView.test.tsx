@@ -267,6 +267,21 @@ describe('DepartmentsView(SCR-010 部署管理)', () => {
     expect(await screen.findByText(t.deleteModal.success)).toBeInTheDocument();
   });
 
+  it('shouldDisableCancelWhileDeleting', async () => {
+    apiFetch.mockImplementation((path: string, init?: RequestInit) => {
+      if (init?.method === 'DELETE') return new Promise(() => {});
+      return respond([EMPTY_DEPT], path, init);
+    });
+    renderView();
+    const user = userEvent.setup();
+    const [button] = await screen.findAllByRole('button', { name: t.deleteLabel('開発部') });
+    await user.click(button);
+    // 削除は取り消せないので、開いた直後の初期フォーカスは [キャンセル]
+    expect(await screen.findByRole('button', { name: messages.common.cancel })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: t.deleteModal.submit }));
+    expect(screen.getByRole('button', { name: messages.common.cancel })).toBeDisabled();
+  });
+
   it('shouldNotShowInactiveNoteWhenNoInactiveMembers', async () => {
     mockList([EMPTY_DEPT]);
     renderView();

@@ -23,6 +23,7 @@ export function DepartmentDetailModal({ department, onClose, onEdit }: Departmen
       open={department !== null}
       title={t.detailModal.title}
       size="lg"
+      icon={<BuildingIcon />}
       onClose={onClose}
       footer={
         <>

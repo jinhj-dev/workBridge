@@ -1,16 +1,21 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   FieldError,
+  FieldHint,
+  confirmMessageClass,
   inputClass,
-  labelClass,
-  primaryButtonClass,
-  secondaryButtonClass,
+  modalPrimaryButtonClass,
+  modalSecondaryButtonClass,
 } from '@/components/form';
+import { DateInput } from '@/components/DateInput';
+import { FormTable, FormTableRow } from '@/components/FormTable';
+import { ClockIcon } from '@/components/layout/navIcons';
 import { Modal } from '@/components/Modal';
 import { Notice } from '@/components/Notice';
+import { ReadOnlySummary, ReadOnlySummaryItem } from '@/components/ReadOnlySummary';
 import { Spinner } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
 import { ApiError, NetworkError, apiFetch } from '@/lib/api/client';
@@ -107,10 +112,6 @@ export function AttendanceEditModal({ attendance, onClose, onSaved }: Attendance
     throw error;
   }
 
-  const buttonClass = 'flex h-10 items-center justify-center gap-2 px-4 text-sm/5';
-  const subButtonClass = `${secondaryButtonClass} ${buttonClass}`;
-  const submitButtonClass = `${primaryButtonClass} ${buttonClass} disabled:cursor-not-allowed disabled:bg-primary-60`;
-
   function renderFooter(): ReactNode {
     if (step === 'confirm') {
       return (
@@ -119,7 +120,7 @@ export function AttendanceEditModal({ attendance, onClose, onSaved }: Attendance
             type="button"
             disabled={submitting}
             onClick={() => setStep('input')}
-            className={subButtonClass}
+            className={modalSecondaryButtonClass}
           >
             {t.back}
           </button>
@@ -127,7 +128,9 @@ export function AttendanceEditModal({ attendance, onClose, onSaved }: Attendance
             type="button"
             disabled={submitting}
             onClick={() => void submit()}
-            className={submitButtonClass}
+            autoFocus
+            data-autofocus=""
+            className={modalPrimaryButtonClass}
           >
             {submitting && <Spinner />}
             {t.submit}
@@ -137,7 +140,7 @@ export function AttendanceEditModal({ attendance, onClose, onSaved }: Attendance
     }
     return (
       <>
-        <button type="button" onClick={onClose} className={subButtonClass}>
+        <button type="button" onClick={onClose} className={modalSecondaryButtonClass}>
           {messages.common.cancel}
         </button>
         <button
@@ -145,7 +148,7 @@ export function AttendanceEditModal({ attendance, onClose, onSaved }: Attendance
           onClick={() => {
             if (validate()) setStep('confirm');
           }}
-          className={submitButtonClass}
+          className={modalPrimaryButtonClass}
         >
           {t.save}
         </button>
@@ -156,64 +159,69 @@ export function AttendanceEditModal({ attendance, onClose, onSaved }: Attendance
   function renderBody(): ReactNode {
     if (!attendance) return null;
     if (step === 'confirm') {
-      return <p className="text-general-100">{t.confirm}</p>;
+      return <p className={confirmMessageClass}>{t.confirm}</p>;
     }
     return (
-      <div className="flex flex-col gap-4">
-        {errors.server && (
-          <Notice variant="error">{errors.server}</Notice>
-        )}
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm/5">
-          <dt className="text-general-80">{t.employee}</dt>
-          <dd className="min-w-0 break-words text-general-100">{attendance.user.name}</dd>
-          <dt className="text-general-80">{t.workDate}</dt>
-          <dd className="text-general-100 tabular-nums">{formatWorkDate(attendance.workDate)}</dd>
-        </dl>
-        <div>
-          <label htmlFor="attendance-edit-clock-in" className={labelClass}>
-            {t.clockIn}
-          </label>
-          <input
-            id="attendance-edit-clock-in"
-            type="datetime-local"
-            value={clockIn}
-            onChange={(e) => setClockIn(e.target.value)}
-            aria-invalid={errors.clockIn ? true : undefined}
-            aria-describedby={errors.clockIn ? 'attendance-edit-clock-in-error' : undefined}
-            className={`${inputClass} tabular-nums`}
-          />
-          {errors.clockIn && (
-            <FieldError id="attendance-edit-clock-in-error" message={errors.clockIn} />
-          )}
-        </div>
-        <div>
-          <label htmlFor="attendance-edit-clock-out" className={labelClass}>
-            {t.clockOut}
-          </label>
-          <input
-            id="attendance-edit-clock-out"
-            type="datetime-local"
-            value={clockOut}
-            onChange={(e) => setClockOut(e.target.value)}
-            aria-invalid={errors.clockOut ? true : undefined}
-            aria-describedby={`attendance-edit-clock-out-hint${
-              errors.clockOut ? ' attendance-edit-clock-out-error' : ''
-            }`}
-            className={`${inputClass} tabular-nums`}
-          />
-          <p id="attendance-edit-clock-out-hint" className="mt-1 text-xs/4 text-general-80">
-            {t.clockOutHint}
-          </p>
-          {errors.clockOut && (
-            <FieldError id="attendance-edit-clock-out-error" message={errors.clockOut} />
-          )}
-        </div>
+      <div className="flex flex-col gap-6">
+        {errors.server && <Notice variant="error">{errors.server}</Notice>}
+        <ReadOnlySummary>
+          <ReadOnlySummaryItem label={t.employee}>{attendance.user.name}</ReadOnlySummaryItem>
+          <ReadOnlySummaryItem label={t.workDate}>
+            <span className="tabular-nums">{formatWorkDate(attendance.workDate)}</span>
+          </ReadOnlySummaryItem>
+        </ReadOnlySummary>
+        <FormTable>
+          <FormTableRow label={t.clockIn} htmlFor="attendance-edit-clock-in" required>
+            <DateInput
+              id="attendance-edit-clock-in"
+              type="datetime-local"
+              value={clockIn}
+              onChange={(e) => setClockIn(e.target.value)}
+              aria-invalid={errors.clockIn ? true : undefined}
+              aria-required="true"
+              aria-describedby={errors.clockIn ? 'attendance-edit-clock-in-error' : undefined}
+              autoFocus
+              data-autofocus=""
+              className={`${inputClass} tabular-nums`}
+            />
+            {errors.clockIn && (
+              <FieldError id="attendance-edit-clock-in-error" message={errors.clockIn} />
+            )}
+          </FormTableRow>
+          <FormTableRow label={t.clockOut} htmlFor="attendance-edit-clock-out">
+            <DateInput
+              id="attendance-edit-clock-out"
+              type="datetime-local"
+              value={clockOut}
+              onChange={(e) => setClockOut(e.target.value)}
+              aria-invalid={errors.clockOut ? true : undefined}
+              aria-describedby={`attendance-edit-clock-out-hint${
+                errors.clockOut ? ' attendance-edit-clock-out-error' : ''
+              }`}
+              className={`${inputClass} tabular-nums`}
+            />
+            <FieldHint id="attendance-edit-clock-out-hint">{t.clockOutHint}</FieldHint>
+            {errors.clockOut && (
+              <FieldError id="attendance-edit-clock-out-error" message={errors.clockOut} />
+            )}
+          </FormTableRow>
+        </FormTable>
       </div>
     );
   }
 
   return (
-    <Modal open={attendance !== null} title={t.title} onClose={onClose} footer={renderFooter()}>
+    <Modal
+      open={attendance !== null}
+      title={t.title}
+      description={t.description}
+      size="lg"
+      icon={<ClockIcon />}
+      onClose={onClose}
+      // 段階ごとに key を変えてフッターのボタンを作り直す(同じ DOM が再利用されて autoFocus が効かなくなるのを防ぐ)
+      footer={<Fragment key={step}>{renderFooter()}</Fragment>}
+      busy={submitting}
+    >
       {renderBody()}
     </Modal>
   );

@@ -1,12 +1,15 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { CalendarIcon } from '@/components/CalendarIcon';
 import { DetailTable, DetailTableRow } from '@/components/DetailTable';
 import {
+  CharCount,
   FieldError,
+  confirmMessageClass,
   labelClass,
+  modalDangerButtonClass,
   modalPrimaryButtonClass,
   modalSecondaryButtonClass,
   textareaClass,
@@ -64,6 +67,8 @@ export function LeaveDetailModal({
   const [rejectReason, setRejectReason] = useState('');
   const [reasonError, setReasonError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // 確認段階から詳細へ戻るとき、直前に押した操作ボタンへフォーカスを戻す(ボタンが作り直されてフォーカスが失われるのを防ぐ)
+  const [returnFocus, setReturnFocus] = useState<Step | null>(null);
   // state の更新は非同期なので、連続した送信は ref で確実に止める
   const submittingRef = useRef(false);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
@@ -72,6 +77,7 @@ export function LeaveDetailModal({
 
   function handleClose() {
     setStep(initialStep);
+    setReturnFocus(null);
     setRejectReason('');
     setReasonError(null);
     onClose();
@@ -182,7 +188,12 @@ export function LeaveDetailModal({
           <button
             type="button"
             disabled={submitting}
-            onClick={() => setStep('detail')}
+            onClick={() => {
+              setReturnFocus('cancel');
+              setStep('detail');
+            }}
+            autoFocus
+            data-autofocus=""
             className={modalSecondaryButtonClass}
           >
             {t.cancel.back}
@@ -191,7 +202,7 @@ export function LeaveDetailModal({
             type="button"
             disabled={submitting}
             onClick={() => void submit(`/leaves/${leaveId}/cancel`, undefined, t.cancel.success)}
-            className={modalPrimaryButtonClass}
+            className={modalDangerButtonClass}
           >
             {submitting && <Spinner />}
             {t.cancel.submit}
@@ -207,6 +218,7 @@ export function LeaveDetailModal({
             disabled={submitting}
             onClick={() => {
               if (initialStep === 'detail') {
+                setReturnFocus(shownStep);
                 setStep('detail');
                 setReasonError(null);
               } else {
@@ -225,6 +237,7 @@ export function LeaveDetailModal({
                 ? () => void submit(`/leaves/${leaveId}/approve`, undefined, t.approve.success)
                 : handleReject
             }
+            {...(shownStep === 'approve' ? { autoFocus: true, 'data-autofocus': '' } : {})}
             className={modalPrimaryButtonClass}
           >
             {submitting && <Spinner />}
@@ -242,6 +255,7 @@ export function LeaveDetailModal({
           <button
             type="button"
             onClick={() => setStep('cancel')}
+            autoFocus={returnFocus === 'cancel'}
             className={modalSecondaryButtonClass}
           >
             {t.detail.cancel}
@@ -252,6 +266,7 @@ export function LeaveDetailModal({
             <button
               type="button"
               onClick={() => setStep('reject')}
+              autoFocus={returnFocus === 'reject'}
               className={modalSecondaryButtonClass}
             >
               {t.detail.reject}
@@ -259,6 +274,7 @@ export function LeaveDetailModal({
             <button
               type="button"
               onClick={() => setStep('approve')}
+              autoFocus={returnFocus === 'approve'}
               className={modalPrimaryButtonClass}
             >
               {t.detail.approve}
@@ -274,11 +290,11 @@ export function LeaveDetailModal({
     if (!leave) return <SectionError onRetry={query.reload} />;
 
     if (shownStep === 'approve') {
-      return <p className="text-general-100">{t.approve.confirm(leave.user.name)}</p>;
+      return <p className={confirmMessageClass}>{t.approve.confirm(leave.user.name)}</p>;
     }
 
     if (shownStep === 'cancel') {
-      return <p className="text-general-100">{t.cancel.confirm}</p>;
+      return <p className={confirmMessageClass}>{t.cancel.confirm}</p>;
     }
 
     if (shownStep === 'reject') {
@@ -292,25 +308,22 @@ export function LeaveDetailModal({
             ref={reasonRef}
             id="rejectReason"
             autoFocus
+            data-autofocus=""
             required
             rows={4}
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
+            placeholder={t.reject.reasonPlaceholder}
             aria-invalid={reasonError ? true : undefined}
             aria-describedby={`rejectReason-count${reasonError ? ' rejectReason-error' : ''}`}
             className={textareaClass}
           />
-          <div className="flex items-start justify-between gap-3">
-            <div>{reasonError && <FieldError id="rejectReason-error" message={reasonError} />}</div>
-            <p
-              id="rejectReason-count"
-              className={`mt-1 shrink-0 text-sm/5 tabular-nums ${
-                length > REJECT_REASON_MAX ? 'font-medium text-danger-100' : 'text-general-80'
-              }`}
-            >
-              {t.reject.count(length, REJECT_REASON_MAX)}
-            </p>
-          </div>
+          <CharCount
+            id="rejectReason-count"
+            length={length}
+            max={REJECT_REASON_MAX}
+            error={reasonError && <FieldError id="rejectReason-error" message={reasonError} />}
+          />
         </div>
       );
     }
@@ -357,8 +370,10 @@ export function LeaveDetailModal({
       open={leaveId !== null}
       title={title}
       onClose={handleClose}
-      footer={renderFooter()}
+      // 段階ごとに key を変えてフッターのボタンを作り直す(同じ DOM が再利用されて autoFocus が効かなくなるのを防ぐ)
+      footer={<Fragment key={shownStep}>{renderFooter()}</Fragment>}
       icon={<CalendarIcon />}
+      busy={submitting}
       size="lg"
     >
       {renderBody()}

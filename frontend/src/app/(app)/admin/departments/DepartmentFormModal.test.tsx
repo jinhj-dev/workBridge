@@ -69,6 +69,12 @@ beforeEach(() => {
 });
 
 describe('DepartmentFormModal(SCR-010 登録・編集)', () => {
+  it('shouldFocusCodeFieldAndShowDescriptionCounterWhenOpened', () => {
+    renderModal();
+    expect(screen.getByLabelText(t.code)).toHaveFocus();
+    expect(screen.getByText(messages.common.charCount(0, 500))).toBeInTheDocument();
+  });
+
   it('shouldShowRequiredErrorsAndNotCallApiWhenEmpty', async () => {
     renderModal();
     await userEvent.click(screen.getByRole('button', { name: t.form.create }));
@@ -327,6 +333,31 @@ describe('DepartmentFormModal(SCR-010 登録・編集)', () => {
     // 0 件でも入力欄は消えず、該当なしを伝える
     expect(screen.getByLabelText(t.form.manager)).toBe(input);
     expect(await screen.findByText(t.form.managerSelect.noMatch)).toBeInTheDocument();
+  });
+
+  it('shouldDescribeManagerInputWithLimitHintOnlyWhenCandidatesReachLimit', async () => {
+    const hundred: UserSummary[] = Array.from({ length: 100 }, (_, i) => ({
+      id: `u-${i}`,
+      empId: String(i).padStart(5, '0'),
+      name: `社員${i}`,
+      departmentName: null,
+    }));
+    apiFetch.mockImplementation((path: string, init?: RequestInit) =>
+      init?.method ? Promise.resolve(TARGET) : Promise.resolve(hundred),
+    );
+    renderModal();
+    const manager = await screen.findByRole('combobox', { name: t.form.manager });
+    await waitFor(() => expect(manager).toHaveAccessibleDescription(t.form.managerLimitHint));
+  });
+
+  it('shouldNotDescribeManagerInputWithLimitHintWhenCandidatesBelowLimit', async () => {
+    apiFetch.mockImplementation((path: string, init?: RequestInit) =>
+      init?.method ? Promise.resolve(TARGET) : Promise.resolve(CANDIDATES),
+    );
+    renderModal();
+    const manager = await screen.findByRole('combobox', { name: t.form.manager });
+    await waitFor(() => expect(apiFetch).toHaveBeenCalled());
+    expect(manager).not.toHaveAccessibleDescription(t.form.managerLimitHint);
   });
 
   it('shouldShowLimitHintWhenCandidatesReachLimit', async () => {

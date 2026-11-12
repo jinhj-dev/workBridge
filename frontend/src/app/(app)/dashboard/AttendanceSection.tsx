@@ -4,16 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/Badge';
 import type { BadgeVariant } from '@/components/Badge';
 import { Card } from '@/components/Card';
-import {
-  modalPrimaryButtonClass,
-  modalSecondaryButtonClass,
-  primaryButtonClass,
-  primaryOutlineButtonClass,
-} from '@/components/form';
-import { Modal } from '@/components/Modal';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { primaryButtonClass, primaryOutlineButtonClass } from '@/components/form';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
-import { Spinner } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
 import { ApiError, NetworkError, apiFetch } from '@/lib/api/client';
 import type { Attendance } from '@/lib/api/types';
@@ -222,36 +216,18 @@ export function AttendanceSection({ onClocked }: AttendanceSectionProps) {
         {renderButton()}
       </div>
 
-      <Modal
+      <ConfirmDialog
         open={pending !== null}
+        icon={pending === 'clockOut' ? <ExitIcon /> : <EnterIcon />}
         title={pending ? CONFIRM[pending].title : ''}
+        message={pending ? CONFIRM[pending].body : ''}
+        confirmLabel={t.confirm}
+        submitting={submitting}
+        onConfirm={() => void handleConfirm()}
         onClose={() => {
           if (!submittingRef.current) setPending(null);
         }}
-        footer={
-          <>
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => setPending(null)}
-              className={modalSecondaryButtonClass}
-            >
-              {messages.common.cancel}
-            </button>
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={handleConfirm}
-              className={modalPrimaryButtonClass}
-            >
-              {submitting && <Spinner />}
-              {t.confirm}
-            </button>
-          </>
-        }
-      >
-        {pending && <p className="text-general-100">{CONFIRM[pending].body}</p>}
-      </Modal>
+      />
     </Card>
   );
 }
