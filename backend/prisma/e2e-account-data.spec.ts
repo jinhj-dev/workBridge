@@ -26,6 +26,8 @@ describe('parseE2eAccountConfig', () => {
           role: Role.ADMIN,
           mustChangePassword: false,
           password: ADMIN_PASSWORD,
+          jobTitleName: 'マネージャー',
+          contactEmail: 'e2e-admin@example.com',
         },
         {
           empId: '900002',
@@ -33,6 +35,8 @@ describe('parseE2eAccountConfig', () => {
           role: Role.EMPLOYEE,
           mustChangePassword: true,
           password: INITIAL_PASSWORD,
+          jobTitleName: null,
+          contactEmail: null,
         },
       ],
     });

@@ -45,6 +45,14 @@ describe('Modal', () => {
     expect(screen.getByRole('dialog')).toHaveClass('max-w-160');
   });
 
+  it('shouldUseXlWidthWhenRequested', () => {
+    renderModal({ size: 'xl' });
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveClass('max-w-200');
+    expect(dialog).not.toHaveClass('max-w-160');
+    expect(dialog).not.toHaveClass('max-w-105');
+  });
+
   it('shouldScrollOnlyBodyAndKeepFooterWithDivider', () => {
     renderModal();
     const body = screen.getByText('本文').parentElement;

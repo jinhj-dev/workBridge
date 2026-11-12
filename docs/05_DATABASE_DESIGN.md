@@ -25,6 +25,7 @@ PostgreSQL 네이티브 ENUM 타입으로 정의한다. 값을 추가할 때는 
 | user_role | ADMIN / EMPLOYEE | users.role |
 | leave_type | ANNUAL / HALF_AM / HALF_PM / SPECIAL / OTHER | leaves.leave_type |
 | leave_status | PENDING / APPROVED / REJECTED / CANCELLED | leaves.status |
+| job_title_tone | GRAY / BLUE / VIOLET / PINK (기본 GRAY) | job_titles.tone |
 
 ### CHECK 제약의 관리
 
@@ -75,6 +76,8 @@ description·manager_id는 마이그레이션 `add_departments_description_manag
 | must_change_password | BOOLEAN | | NO | 비밀번호 변경 필요 여부 (기본 true) |
 | department_id | UUID | | NO | 부서 ID (모든 사원은 1개 부서에 소속) |
 | hire_date | DATE | | NO | 입사일 (Asia/Tokyo 기준 날짜). 기본값 없음 |
+| job_title_id | UUID | | YES | 役職(직책) ID. 미설정은 NULL |
+| contact_email | VARCHAR(254) | | YES | 連絡先(사내 이메일). 앞뒤 공백 제거·이메일 형식·254자 이하·빈 값 NULL(애플리케이션, FR-USER-001). 대소문자 그대로 저장 |
 | created_at | TIMESTAMPTZ | | NO | 생성일 |
 | updated_at | TIMESTAMPTZ | | NO | 수정일 |
 
@@ -82,9 +85,39 @@ description·manager_id는 마이그레이션 `add_departments_description_manag
 
 - emp_id: UNIQUE
 - department_id: FK → departments.id
+- job_title_id: FK → job_titles.id (ON DELETE RESTRICT: 사원이 참조 중인 직책은 삭제할 수 없다). 인덱스 없음
+- contact_email: UNIQUE 없음(공용 주소 허용), DB 형식 검증 없음
 - 활성 ADMIN이 최소 1명 존재해야 한다(서비스 계층에서 검증, FR-USER-002). 동시성 처리는 §8을 따른다.
 
 hire_date는 마이그레이션 `add_users_hire_date`에서 기존 행을 `2026-01-01`로 채운 뒤 NOT NULL로 바꿨다. seed 초기 ADMIN과 E2E 계정도 같은 고정값 `2026-01-01`을 쓴다.
+
+job_title_id·contact_email은 마이그레이션 `add_job_titles_and_users_contact`에서 추가했다. 기존 행은 둘 다 NULL(백필 없음)이다. 현재 쓰기 경로는 seed·샘플/E2E 스크립트뿐이며, 사원 등록·수정 API(API-USER-002·004) 구현 시 서버에서 형식·길이를 검증한다.
+
+## 2-1. Table: job_titles
+
+관련 요구사항: FR-USER-001, FR-USER-002, FR-DEPT-001
+
+| 컬럼 | 타입 | PK | NULL | 설명 |
+|---|---|---|---|---|
+| id | UUID | O | NO | 직책 ID |
+| name | VARCHAR(50) | | NO | 직책명 |
+| tone | job_title_tone | | NO | 배지 색 계열(기본 GRAY). 색의 계획명만 저장하며 실제 색은 프론트엔드가 정한다(09_DESIGN_SYSTEM.md) |
+| created_at | TIMESTAMPTZ | | NO | 생성일 |
+| updated_at | TIMESTAMPTZ | | NO | 수정일 |
+
+### Constraints
+
+- name: UNIQUE
+- 감사 컬럼·정렬 순서 컬럼은 두지 않는다.
+
+직책은 현재 seed(운영 초기 데이터, `backend/prisma/initial-data.ts` `JOB_TITLES`)로만 등록·관리한다. 관리 화면과 직책 목록 API는 없다(미정). 마이그레이션은 데이터를 INSERT하지 않는다. seed는 이름 기준으로 중복 없이 등록하며(재실행 시 기존 행 불변), 초기 직책은 다음 4개이다. 색은 이름이 아니라 tone으로 결정한다.
+
+| name | tone |
+|---|---|
+| マネージャー | VIOLET |
+| リーダー | BLUE |
+| エンジニア | GRAY |
+| デザイナー | PINK |
 
 ## 3. Table: refresh_tokens
 
@@ -235,6 +268,7 @@ hire_date는 마이그레이션 `add_users_hire_date`에서 기존 행을 `2026-
 - leave_grants(user_id, year) — UNIQUE 제약으로 생성
 - refresh_tokens(user_id)
 - refresh_tokens(token_hash) — UNIQUE 제약으로 생성
+- job_titles(name) — UNIQUE 제약으로 생성(users(job_title_id)에는 인덱스를 두지 않는다)
 
 ## 8. Data Integrity
 

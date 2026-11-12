@@ -1,4 +1,5 @@
 import { formatTokyoDateTime } from '../../common/time/tokyo-date.js';
+import type { JobTitleTone } from '../../generated/prisma/client.js';
 import { SYSTEM_DEPARTMENT_CODE } from './department.constants.js';
 
 // 部署責任者(id・empId・name のみ)
@@ -61,4 +62,7 @@ export interface DepartmentMember {
   id: string;
   empId: string;
   name: string;
+  jobTitle: { id: string; name: string; tone: JobTitleTone } | null;
+  contactEmail: string | null;
+  hireDate: string; // YYYY-MM-DD
 }

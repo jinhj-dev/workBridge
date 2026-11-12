@@ -260,6 +260,139 @@ describe('UNIQUE 制約', () => {
   });
 });
 
+describe('役職と連絡先', () => {
+  it('job_titles.name の重複を拒否し、tone の既定値は GRAY', async () => {
+    const jobTitle = await tracker.createJobTitle();
+    expect(jobTitle.tone).toBe('GRAY');
+    await expectUnique(
+      () => prisma.jobTitle.create({ data: { name: jobTitle.name } }),
+      'job_titles_name_key',
+    );
+  });
+
+  it('既存の users 行と同じく、役職・連絡先は未指定なら NULL になる', async () => {
+    const user = await tracker.createUser();
+    expect(user.jobTitleId).toBeNull();
+    expect(user.contactEmail).toBeNull();
+  });
+
+  it('役職を参照する user がいる間は役職を削除できず、存在しない役職の参照も拒否する', async () => {
+    const jobTitle = await tracker.createJobTitle();
+    await tracker.createUser({ jobTitleId: jobTitle.id });
+    await expectForeignKey(
+      () => prisma.jobTitle.delete({ where: { id: jobTitle.id } }),
+      'users_job_title_id_fkey',
+    );
+    await expectForeignKey(
+      () => tracker.createUser({ jobTitleId: crypto.randomUUID() }),
+      'users_job_title_id_fkey',
+    );
+  });
+
+  it('information_schema で users.job_title_id(uuid)・contact_email(varchar 254)が NULL 許可・既定値なし', async () => {
+    const columns = await prisma.$queryRaw<
+      {
+        column_name: string;
+        data_type: string;
+        character_maximum_length: number | null;
+        is_nullable: string;
+        column_default: string | null;
+      }[]
+    >`
+      SELECT column_name, data_type, character_maximum_length, is_nullable, column_default
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'users'
+        AND column_name IN ('job_title_id', 'contact_email')
+      ORDER BY column_name`;
+    expect(columns).toEqual([
+      {
+        column_name: 'contact_email',
+        data_type: 'character varying',
+        character_maximum_length: 254,
+        is_nullable: 'YES',
+        column_default: null,
+      },
+      {
+        column_name: 'job_title_id',
+        data_type: 'uuid',
+        character_maximum_length: null,
+        is_nullable: 'YES',
+        column_default: null,
+      },
+    ]);
+  });
+
+  it('job_titles の列構成と job_title_tone の ENUM 値(GRAY・BLUE・VIOLET・PINK)を確認する', async () => {
+    const columns = await prisma.$queryRaw<
+      {
+        column_name: string;
+        data_type: string;
+        character_maximum_length: number | null;
+        is_nullable: string;
+        column_default: string | null;
+      }[]
+    >`
+      SELECT column_name, data_type, character_maximum_length, is_nullable, column_default
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'job_titles'
+      ORDER BY ordinal_position`;
+    const byName = Object.fromEntries(columns.map((c) => [c.column_name, c]));
+    expect(byName.name).toMatchObject({
+      data_type: 'character varying',
+      character_maximum_length: 50,
+      is_nullable: 'NO',
+    });
+    expect(byName.tone).toMatchObject({ data_type: 'USER-DEFINED', is_nullable: 'NO' });
+    expect(byName.tone.column_default).toContain("'GRAY'");
+    expect(byName.created_at).toBeDefined();
+    expect(byName.updated_at).toBeDefined();
+
+    const values = await prisma.$queryRaw<{ enumlabel: string }[]>`
+      SELECT e.enumlabel FROM pg_enum e
+      JOIN pg_type t ON t.oid = e.enumtypid
+      WHERE t.typname = 'job_title_tone'
+      ORDER BY e.enumsortorder`;
+    expect(values.map((v) => v.enumlabel)).toEqual(['GRAY', 'BLUE', 'VIOLET', 'PINK']);
+  });
+
+  it('job_titles は参照のない役職を削除でき、tone に ENUM 外の値・長すぎる name を拒否する', async () => {
+    const unused = await tracker.createJobTitle();
+    await prisma.jobTitle.delete({ where: { id: unused.id } });
+    tracker.jobTitleIds.splice(tracker.jobTitleIds.indexOf(unused.id), 1);
+    expect(await prisma.jobTitle.findUnique({ where: { id: unused.id } })).toBeNull();
+
+    const badTone = await captureDbError(
+      () => prisma.$executeRaw`
+        INSERT INTO job_titles (id, name, tone) VALUES (gen_random_uuid(), ${`R${uniqueSuffix()}`}, 'RED'::job_title_tone)`,
+    );
+    expect(badTone.message).toContain('job_title_tone');
+    const oldInfoTone = await captureDbError(
+      () => prisma.$executeRaw`
+        INSERT INTO job_titles (id, name, tone) VALUES (gen_random_uuid(), ${`I${uniqueSuffix()}`}, 'INFO'::job_title_tone)`,
+    );
+    expect(oldInfoTone.message).toContain('job_title_tone');
+
+    const longName = await captureDbError(
+      () => prisma.$executeRaw`
+        INSERT INTO job_titles (id, name) VALUES (gen_random_uuid(), ${'あ'.repeat(51)})`,
+    );
+    expect(longName.sqlState).toBe('22001');
+  });
+
+  it('users.contact_email は 255 文字を拒否し、同じメールアドレスを複数人に保存できる(UNIQUE なし)', async () => {
+    const longEmail = await captureDbError(
+      () => tracker.createUser({ contactEmail: `${'a'.repeat(246)}@example.com` }),
+    );
+    expect(longEmail.sqlState).toBe('22001');
+
+    const shared = `shared-${uniqueSuffix()}@example.com`;
+    const first = await tracker.createUser({ contactEmail: shared });
+    const second = await tracker.createUser({ contactEmail: shared });
+    expect(first.contactEmail).toBe(shared);
+    expect(second.contactEmail).toBe(shared);
+  });
+});
+
 describe('FK ON DELETE RESTRICT', () => {
   it('存在しない user_id の参照を拒否する', async () => {
     await expectForeignKey(

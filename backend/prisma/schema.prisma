@@ -63,6 +63,29 @@ enum LeaveStatus {
   @@map("leave_status")
 }
 
+// 役職バッジの色味(色の計画名のみ。具体的な色はフロントエンドが決める)
+enum JobTitleTone {
+  GRAY
+  BLUE
+  VIOLET
+  PINK
+
+  @@map("job_title_tone")
+}
+
+// 役職(現在は seed でのみ登録する)
+model JobTitle {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String       @unique @db.VarChar(50)
+  tone      JobTitleTone @default(GRAY)
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  users User[]
+
+  @@map("job_titles")
+}
+
 // 部署(管理者が登録・編集・削除する。code が UNASSIGNED の「未所属」はシステム部署で変更・削除できない)
 model Department {
   id        String   @id @default(uuid()) @db.Uuid
@@ -93,10 +116,13 @@ model User {
   mustChangePassword Boolean  @default(true) @map("must_change_password")
   departmentId       String   @map("department_id") @db.Uuid
   hireDate           DateTime @map("hire_date") @db.Date
+  jobTitleId         String?  @map("job_title_id") @db.Uuid
+  contactEmail       String?  @map("contact_email") @db.VarChar(254)
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   department Department @relation("DepartmentMembers", fields: [departmentId], references: [id], onDelete: Restrict)
+  jobTitle   JobTitle?   @relation(fields: [jobTitleId], references: [id], onDelete: Restrict)
 
   refreshTokens       RefreshToken[]
   attendances         Attendance[]   @relation("AttendanceUser")

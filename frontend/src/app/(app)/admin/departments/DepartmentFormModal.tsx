@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
   FieldError,
+  IconField,
+  iconInputClass,
   inputClass,
-  labelClass,
   primaryButtonClass,
-  secondaryButtonClass,
   textareaClass,
 } from '@/components/form';
+import { FormRow } from '@/components/FormRow';
+import { InfoNotice } from '@/components/InfoNotice';
 import { ApproverSelect } from '@/components/leave/ApproverSelect';
 import { Modal } from '@/components/Modal';
 import { Spinner } from '@/components/Spinner';
@@ -18,6 +20,7 @@ import { ApiError, NetworkError, apiFetch } from '@/lib/api/client';
 import type { DepartmentDetail, UserSummary } from '@/lib/api/types';
 import { useApiQuery } from '@/lib/api/useApiQuery';
 import { messages } from '@/messages/ja';
+import { BuildingIcon, DocumentTextIcon, UserIcon } from './icons';
 
 const t = messages.departments.form;
 
@@ -29,6 +32,9 @@ const CANDIDATE_LIMIT = 100;
 // 責任者の検索はこの時間入力が止まってからサーバーへ問い合わせる
 const SEARCH_DEBOUNCE_MS = 300;
 const FORM_ID = 'department-form';
+// 参照デザインのキャンセル(薄いグレー地 + 枠)。secondaryButtonClass の白地と背景が衝突するため別に定義する
+const cancelButtonClass =
+  'rounded-lg border border-general-50 bg-general-30 font-bold text-general-100 hover:bg-general-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
 
 interface DepartmentFormModalProps {
   open: boolean;
@@ -173,21 +179,21 @@ export function DepartmentFormModal({
     throw error;
   }
 
-  const buttonClass = 'flex h-10 items-center justify-center gap-2 px-4 text-sm/5';
+  const buttonClass =
+    'flex h-11 items-center justify-center gap-2 px-4 text-base/6 sm:h-12 sm:min-w-32';
+  const descriptionLength = description.length;
 
   return (
     <Modal
       open={open}
       title={department ? t.editTitle : t.createTitle}
-      size="lg"
+      subtitle={department ? t.editDescription : t.createDescription}
+      size="xl"
+      variant="form"
       onClose={onClose}
       footer={
         <>
-          <button
-            type="button"
-            onClick={onClose}
-            className={`${secondaryButtonClass} ${buttonClass}`}
-          >
+          <button type="button" onClick={onClose} className={`${cancelButtonClass} ${buttonClass}`}>
             {messages.common.cancel}
           </button>
           <button
@@ -206,12 +212,9 @@ export function DepartmentFormModal({
         id={FORM_ID}
         onSubmit={(e) => void handleSubmit(e)}
         noValidate
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-5 sm:gap-6"
       >
-        <div>
-          <label htmlFor="department-code" className={labelClass}>
-            {messages.departments.code}
-          </label>
+        <FormRow label={messages.departments.code} htmlFor="department-code" required>
           <input
             id="department-code"
             type="text"
@@ -227,44 +230,24 @@ export function DepartmentFormModal({
             {t.codeHint}
           </p>
           {errors.code && <FieldError id="department-code-error" message={errors.code} />}
-        </div>
-        <div>
-          <label htmlFor="department-name" className={labelClass}>
-            {messages.departments.name}
-          </label>
-          <input
-            id="department-name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoComplete="off"
-            aria-invalid={errors.name ? true : undefined}
-            aria-describedby={errors.name ? 'department-name-error' : undefined}
-            className={inputClass}
-          />
+        </FormRow>
+        <FormRow label={messages.departments.name} htmlFor="department-name" required>
+          <IconField icon={<BuildingIcon />}>
+            <input
+              id="department-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t.namePlaceholder}
+              autoComplete="off"
+              aria-invalid={errors.name ? true : undefined}
+              aria-describedby={errors.name ? 'department-name-error' : undefined}
+              className={`${inputClass} ${iconInputClass}`}
+            />
+          </IconField>
           {errors.name && <FieldError id="department-name-error" message={errors.name} />}
-        </div>
-        <div>
-          <label htmlFor="department-description" className={labelClass}>
-            {t.description}
-          </label>
-          <textarea
-            id="department-description"
-            rows={3}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            aria-invalid={errors.description ? true : undefined}
-            aria-describedby={errors.description ? 'department-description-error' : undefined}
-            className={textareaClass}
-          />
-          {errors.description && (
-            <FieldError id="department-description-error" message={errors.description} />
-          )}
-        </div>
-        <div>
-          <label htmlFor="department-manager" className={labelClass}>
-            {t.manager}
-          </label>
+        </FormRow>
+        <FormRow label={t.manager} htmlFor="department-manager">
           <ApproverSelect
             id="department-manager"
             value={manager}
@@ -278,12 +261,40 @@ export function DepartmentFormModal({
             onRetry={candidates.reload}
             texts={t.managerSelect}
             onSearch={setRawKeyword}
+            leadingIcon={<UserIcon />}
           />
-          <p className="mt-1 text-xs/4 text-general-80">{t.managerHint}</p>
           {(candidates.data?.length ?? 0) >= CANDIDATE_LIMIT && (
             <p className="mt-1 text-xs/4 text-general-80">{t.managerLimitHint}</p>
           )}
-        </div>
+        </FormRow>
+        <FormRow label={t.description} htmlFor="department-description">
+          <IconField icon={<DocumentTextIcon />} align="top">
+            <textarea
+              id="department-description"
+              rows={4}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={t.descriptionPlaceholder}
+              aria-invalid={errors.description ? true : undefined}
+              aria-describedby={`department-description-count${
+                errors.description ? ' department-description-error' : ''
+              }`}
+              className={`${textareaClass} ${iconInputClass} min-h-28`}
+            />
+          </IconField>
+          <p
+            id="department-description-count"
+            className={`mt-2 text-right text-sm/5 tabular-nums ${
+              descriptionLength > DESCRIPTION_MAX_LENGTH ? 'text-danger-100' : 'text-general-80'
+            }`}
+          >
+            {descriptionLength} / {DESCRIPTION_MAX_LENGTH}
+          </p>
+          {errors.description && (
+            <FieldError id="department-description-error" message={errors.description} />
+          )}
+        </FormRow>
+        <InfoNotice>{t.notice}</InfoNotice>
       </form>
     </Modal>
   );

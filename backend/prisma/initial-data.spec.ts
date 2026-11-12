@@ -1,6 +1,6 @@
 // seed の設定読み込み(parseSeedConfig)の単体テスト。DB は使わない。
 import { describe, expect, it } from 'vitest';
-import { parseSeedConfig } from './initial-data.js';
+import { JOB_TITLES, parseSeedConfig } from './initial-data.js';
 
 const VALID_PASSWORD = 'Seed1234pass';
 
@@ -46,5 +46,21 @@ describe('parseSeedConfig', () => {
     expect(() =>
       parseSeedConfig({ SEED_ADMIN_PASSWORD: VALID_PASSWORD, SEED_ADMIN_NAME: '名'.repeat(101) }),
     ).toThrow('SEED_ADMIN_NAME');
+  });
+});
+
+describe('JOB_TITLES', () => {
+  it('shouldDefineFourUniqueJobTitlesWithinColumnLength', () => {
+    expect(JOB_TITLES.map((jobTitle) => jobTitle.name)).toEqual([
+      'マネージャー',
+      'リーダー',
+      'エンジニア',
+      'デザイナー',
+    ]);
+    expect(new Set(JOB_TITLES.map((jobTitle) => jobTitle.name)).size).toBe(JOB_TITLES.length);
+    for (const jobTitle of JOB_TITLES) {
+      expect(jobTitle.name.length).toBeLessThanOrEqual(50);
+    }
+    expect(JOB_TITLES.map((jobTitle) => jobTitle.tone)).toEqual(['VIOLET', 'BLUE', 'GRAY', 'PINK']);
   });
 });

@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import { describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '../src/generated/prisma/client.js';
 import { SYSTEM_DEPARTMENT_CODE } from '../src/modules/departments/department.constants.js';
+import { JOB_TITLES } from './initial-data.js';
 import {
   buildSampleUsers,
   insertSampleUsers,
@@ -51,6 +52,18 @@ describe('buildSampleUsers', () => {
     expect(years.size).toBe(12);
   });
 
+  it('shouldAssignJobTitlesInRotationWithTwentyNullAndExampleDotComEmails', () => {
+    const jobTitleNames = JOB_TITLES.map((jobTitle) => jobTitle.name);
+    expect(users.filter((user) => user.jobTitleName === null)).toHaveLength(20);
+    for (const user of users) {
+      if (user.jobTitleName !== null) {
+        expect(jobTitleNames).toContain(user.jobTitleName);
+      }
+      expect(user.contactEmail).toBe(`user${user.empId}@example.com`);
+    }
+    expect(new Set(users.map((user) => user.jobTitleName)).size).toBe(JOB_TITLES.length + 1);
+  });
+
   it('shouldHaveNonEmptyNamesWithinColumnLength', () => {
     for (const user of users) {
       expect(user.name.length).toBeGreaterThan(0);
@@ -82,7 +95,16 @@ describe('insertSampleUsers', () => {
   }));
   const PASSWORD = 'Sample1234';
 
-  function createPrismaStub(existingEmpIds: string[] = [], rows = departments) {
+  const jobTitleRows = JOB_TITLES.map((jobTitle) => ({
+    id: `jt-${jobTitle.name}`,
+    name: jobTitle.name,
+  }));
+
+  function createPrismaStub(
+    existingEmpIds: string[] = [],
+    rows = departments,
+    jobTitles = jobTitleRows,
+  ) {
     const findDepartments = vi.fn().mockResolvedValue(rows);
     const findUsers = vi.fn().mockResolvedValue(existingEmpIds.map((empId) => ({ empId })));
     const createMany = vi
@@ -91,13 +113,15 @@ describe('insertSampleUsers', () => {
         Promise.resolve({ count: data.length }),
       );
     const updateMany = vi.fn().mockResolvedValue({ count: existingEmpIds.length });
-    const tx = { user: { findMany: findUsers, createMany, updateMany } };
+    const updateRow = vi.fn().mockResolvedValue({});
+    const tx = { user: { findMany: findUsers, createMany, updateMany, update: updateRow } };
     const transaction = vi.fn().mockImplementation((fn: (client: typeof tx) => unknown) => fn(tx));
     const prisma = {
       department: { findMany: findDepartments },
+      jobTitle: { findMany: vi.fn().mockResolvedValue(jobTitles) },
       $transaction: transaction,
     } as unknown as PrismaClient;
-    return { prisma, createMany, updateMany, transaction };
+    return { prisma, createMany, updateMany, updateRow, transaction };
   }
 
   it('shouldCreateAllWithBcryptHashOfPasswordWhenNoneExist', async () => {
@@ -113,6 +137,8 @@ describe('insertSampleUsers', () => {
     const args = createMany.mock.calls[0]?.[0] as {
       data: {
         passwordHash: string;
+        jobTitleId: string | null;
+        contactEmail: string;
         role: string;
         mustChangePassword: boolean;
         departmentId: string;
@@ -122,14 +148,16 @@ describe('insertSampleUsers', () => {
     expect(args.data.every((row) => row.role === 'EMPLOYEE')).toBe(true);
     expect(args.data.every((row) => row.mustChangePassword)).toBe(true);
     expect(args.data.every((row) => row.departmentId.startsWith('id-'))).toBe(true);
+    expect(args.data.filter((row) => row.jobTitleId === null)).toHaveLength(20);
+    expect(args.data.every((row) => row.contactEmail.endsWith('@example.com'))).toBe(true);
     // ハッシュは 1 回だけ計算して共用し、入力のパスワードと一致する
     const hashes = new Set(args.data.map((row) => row.passwordHash));
     expect(hashes.size).toBe(1);
     expect(await bcrypt.compare(PASSWORD, [...hashes][0])).toBe(true);
   });
 
-  it('shouldUpdateOnlyPasswordHashForExistingAndCreateTheRest', async () => {
-    const { prisma, createMany, updateMany } = createPrismaStub(['10001', '10002']);
+  it('shouldUpdatePasswordJobTitleAndContactForExistingAndCreateTheRest', async () => {
+    const { prisma, createMany, updateMany, updateRow } = createPrismaStub(['10001', '10002']);
 
     await expect(insertSampleUsers(prisma, PASSWORD)).resolves.toEqual({
       createdCount: 98,
@@ -144,6 +172,19 @@ describe('insertSampleUsers', () => {
     };
     expect(update.where.empId.in).toEqual(['10001', '10002']);
     expect(Object.keys(update.data)).toEqual(['passwordHash']);
+    // 役職・連絡先は社員ごとに行単位で更新する(10001 = マネージャー、10002 = リーダー)
+    expect(updateRow).toHaveBeenCalledTimes(2);
+    expect(updateRow).toHaveBeenCalledWith({
+      where: { empId: '10001' },
+      data: { jobTitleId: 'jt-マネージャー', contactEmail: 'user10001@example.com' },
+    });
+  });
+
+  it('shouldThrowWithoutWritingWhenJobTitleIsMissing', async () => {
+    const { prisma, transaction } = createPrismaStub([], departments, []);
+
+    await expect(insertSampleUsers(prisma, PASSWORD)).rejects.toThrow('npm run db:seed');
+    expect(transaction).not.toHaveBeenCalled();
   });
 
   it('shouldThrowWithoutWritingWhenDepartmentIsMissing', async () => {

@@ -41,6 +41,11 @@
   --color-warning-110: #b45309;
   --color-violet-100: #7c5cf0;
   --color-violet-80: #9b86f5;
+  /* 役職バッジ(SCR-010 所属社員確認の参照デザイン再現) */
+  --color-violet-30: #f1ebfd;
+  --color-violet-110: #6d28d9;
+  --color-pink-30: #fbe8fa;
+  --color-pink-110: #a21caf;
   --color-page-from: #fafbff;
   --color-page-to: #f1f3fc;
 

@@ -4,21 +4,24 @@ import bcrypt from 'bcrypt';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   DEPARTMENTS,
+  JOB_TITLES,
   seedInitialData,
   type SeedConfig,
   type SeedResult,
 } from '../../prisma/initial-data.js';
-import { Role } from '../../src/generated/prisma/client.js';
+import { JobTitleTone, Role } from '../../src/generated/prisma/client.js';
 import { createTestPrisma, fromDbDate, uniqueSuffix } from './db-helpers.js';
 
 const VALID_PASSWORD = 'Seed1234pass';
 
 const DEPARTMENT_NAMES = DEPARTMENTS.map((department) => department.name);
+const JOB_TITLE_NAMES = JOB_TITLES.map((jobTitle) => jobTitle.name);
 
 describe('seedInitialData', () => {
   const prisma = createTestPrisma();
   const createdUserIds: string[] = [];
   let preexistingDepartmentNames: string[] = [];
+  let preexistingJobTitleNames: string[] = [];
 
   beforeAll(async () => {
     // このテストは「活性 ADMIN がいない」状態から始める必要がある。
@@ -34,6 +37,11 @@ describe('seedInitialData', () => {
       select: { name: true },
     });
     preexistingDepartmentNames = existing.map((department) => department.name);
+    const existingJobTitles = await prisma.jobTitle.findMany({
+      where: { name: { in: JOB_TITLE_NAMES } },
+      select: { name: true },
+    });
+    preexistingJobTitleNames = existingJobTitles.map((jobTitle) => jobTitle.name);
   });
 
   afterAll(async () => {
@@ -43,6 +51,9 @@ describe('seedInitialData', () => {
         prisma.user.deleteMany({ where: { id: { in: createdUserIds } } }),
         prisma.department.deleteMany({
           where: { name: { in: DEPARTMENT_NAMES, notIn: preexistingDepartmentNames } },
+        }),
+        prisma.jobTitle.deleteMany({
+          where: { name: { in: JOB_TITLE_NAMES, notIn: preexistingJobTitleNames } },
         }),
       ]);
     } finally {
@@ -72,6 +83,9 @@ describe('seedInitialData', () => {
     const empId = `SEED${uniqueSuffix()}`;
     const first = await seedAndTrack(configFor(empId));
     expect(first.admin).toBe('created');
+    expect(first.createdJobTitleCount).toBe(
+      JOB_TITLE_NAMES.length - preexistingJobTitleNames.length,
+    );
     expect(first.createdDepartmentCount).toBe(
       DEPARTMENT_NAMES.length - preexistingDepartmentNames.length,
     );
@@ -98,13 +112,46 @@ describe('seedInitialData', () => {
       ...configFor(`SEED${uniqueSuffix()}`),
       adminPassword: 'Other5678pass',
     });
-    expect(second).toEqual({ createdDepartmentCount: 0, admin: 'skipped' });
+    expect(second).toEqual({
+      createdDepartmentCount: 0,
+      createdJobTitleCount: 0,
+      admin: 'skipped',
+    });
     expect(await prisma.user.count({ where: { role: Role.ADMIN, isActive: true } })).toBe(1);
     expect(await prisma.department.count({ where: { name: { in: DEPARTMENT_NAMES } } })).toBe(
       DEPARTMENT_NAMES.length,
     );
+    // 役職は 4 件が登録され、色味は seed の指定どおり
+    const jobTitles = await prisma.jobTitle.findMany({ where: { name: { in: JOB_TITLE_NAMES } } });
+    expect(jobTitles).toHaveLength(JOB_TITLES.length);
+    for (const jobTitle of JOB_TITLES) {
+      expect(jobTitles.find((row) => row.name === jobTitle.name)?.tone).toBe(jobTitle.tone);
+    }
     const unchanged = await prisma.user.findUniqueOrThrow({ where: { empId } });
     expect(unchanged.passwordHash).toBe(admin.passwordHash);
+  });
+
+  it('既に登録済みの役職は、色味を変えた状態で再実行しても色味を上書きしない', async () => {
+    // マネージャーの色味を seed の指定(VIOLET)以外に変えてから再実行する
+    const target = JOB_TITLES[0];
+    const original = await prisma.jobTitle.findUniqueOrThrow({ where: { name: target.name } });
+    await prisma.jobTitle.update({
+      where: { id: original.id },
+      data: { tone: JobTitleTone.PINK },
+    });
+    try {
+      const result = await seedInitialData(prisma, configFor(`SEED${uniqueSuffix()}`));
+      expect(result.createdJobTitleCount).toBe(0);
+      const afterSeed = await prisma.jobTitle.findUniqueOrThrow({ where: { name: target.name } });
+      expect(afterSeed.tone).toBe(JobTitleTone.PINK);
+      expect(afterSeed.id).toBe(original.id);
+    } finally {
+      // 他のテストの前提(seed の指定どおりの色味)に戻す
+      await prisma.jobTitle.update({
+        where: { id: original.id },
+        data: { tone: original.tone },
+      });
+    }
   });
 
   it('活性 ADMIN がおらず、同じ社員番号のユーザーがいる場合は上書きせずに失敗する', async () => {

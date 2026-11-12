@@ -29,6 +29,7 @@ describe('resetE2eAccounts', () => {
   const prisma = createTestPrisma();
   const tracker = new TestDataTracker(prisma);
   let devDepartmentId = '';
+  let managerJobTitleId = '';
 
   beforeAll(async () => {
     // 「他の活性 ADMIN がいない」ケースを確認するため、他のデータを消さずに前提を確かめる
@@ -45,6 +46,17 @@ describe('resetE2eAccounts', () => {
     } else {
       const created = await tracker.createDepartment({ code: 'DEV', name: '開発部' });
       devDepartmentId = created.id;
+    }
+    // E2E 管理者の役職(マネージャー)。seed 済みでなければ作り、afterAll で削除する
+    const manager = await prisma.jobTitle.findUnique({
+      where: { name: E2E_ACCOUNTS.admin.jobTitleName },
+    });
+    if (manager) {
+      managerJobTitleId = manager.id;
+    } else {
+      managerJobTitleId = (
+        await tracker.createJobTitle({ name: E2E_ACCOUNTS.admin.jobTitleName, tone: 'VIOLET' })
+      ).id;
     }
   });
 
@@ -127,6 +139,8 @@ describe('resetE2eAccounts', () => {
         name: 'E2E管理者',
         role: Role.ADMIN,
         mustChangePassword: false,
+        jobTitleId: managerJobTitleId,
+        contactEmail: 'e2e-admin@example.com',
         isActive: true,
         approvalRequired: false,
         departmentId: devDepartmentId,
@@ -142,6 +156,8 @@ describe('resetE2eAccounts', () => {
         isActive: true,
         approvalRequired: false,
         departmentId: devDepartmentId,
+        jobTitleId: null,
+        contactEmail: null,
       });
       expect(fromDbDate(initial.hireDate)).toBe(E2E_HIRE_DATE);
       expect(await bcrypt.compare(INITIAL_PASSWORD, initial.passwordHash)).toBe(true);
@@ -190,11 +206,21 @@ describe('resetE2eAccounts', () => {
           departmentId: department.id,
           // 別の日付に変更
           hireDate: toDbDate('2025-04-01'),
+          // 定義(役職なし・連絡先なし)と違う値にする
+          jobTitleId: managerJobTitleId,
+          contactEmail: 'changed-initial@example.com',
         },
       });
       await prisma.user.update({
         where: { empId: adminEmpId },
-        data: { isActive: false, role: Role.EMPLOYEE, approvalRequired: true },
+        data: {
+          isActive: false,
+          role: Role.EMPLOYEE,
+          approvalRequired: true,
+          // 定義(マネージャー・e2e-admin@example.com)と違う値にする
+          jobTitleId: null,
+          contactEmail: 'changed-admin@example.com',
+        },
       });
 
       await resetAndTrack(config);
@@ -205,6 +231,8 @@ describe('resetE2eAccounts', () => {
         isActive: true,
         approvalRequired: false,
         mustChangePassword: false,
+        jobTitleId: managerJobTitleId,
+        contactEmail: 'e2e-admin@example.com',
       });
       expect(await bcrypt.compare(ADMIN_PASSWORD, admin.passwordHash)).toBe(true);
 
@@ -214,6 +242,8 @@ describe('resetE2eAccounts', () => {
         isActive: true,
         mustChangePassword: true,
         departmentId: devDepartmentId,
+        jobTitleId: null,
+        contactEmail: null,
       });
       expect(fromDbDate(initial.hireDate)).toBe(E2E_HIRE_DATE);
       expect(await bcrypt.compare(INITIAL_PASSWORD, initial.passwordHash)).toBe(true);
@@ -263,6 +293,45 @@ describe('resetE2eAccounts', () => {
         adminBefore,
       );
       expect(await prisma.refreshToken.count({ where: { userId: adminBefore.id } })).toBe(1);
+    },
+    TIMEOUT_MS,
+  );
+
+  it(
+    'shouldThrowAndChangeNothingWhenJobTitleIsMissing',
+    async () => {
+      // 管理者(先に処理される)の連絡先を定義と違う値にし、初回ログイン用に存在しない役職名を指定する。
+      // 後段で失敗しても管理者の変更がロールバックされ、トークンも残ることを確認する
+      await prisma.user.update({
+        where: { empId: adminEmpId },
+        data: { contactEmail: 'before-rollback@example.com' },
+      });
+      const adminBefore = await prisma.user.findUniqueOrThrow({ where: { empId: adminEmpId } });
+      await createRefreshToken(adminBefore.id, false);
+      const tokenCountBefore = await prisma.refreshToken.count({
+        where: { userId: adminBefore.id },
+      });
+      const initialBefore = await prisma.user.findUniqueOrThrow({
+        where: { empId: initialEmpId },
+      });
+      const base = configFor(adminEmpId, initialEmpId);
+      const missingConfig: E2eAccountConfig = {
+        accounts: [base.accounts[0], { ...base.accounts[1], jobTitleName: '存在しない役職' }],
+      };
+
+      await expect(resetAndTrack(missingConfig)).rejects.toThrow(
+        '先に npm run db:seed で初期データを登録してください。',
+      );
+
+      expect(await prisma.user.findUniqueOrThrow({ where: { id: adminBefore.id } })).toEqual(
+        adminBefore,
+      );
+      expect(await prisma.user.findUniqueOrThrow({ where: { id: initialBefore.id } })).toEqual(
+        initialBefore,
+      );
+      expect(await prisma.refreshToken.count({ where: { userId: adminBefore.id } })).toBe(
+        tokenCountBefore,
+      );
     },
     TIMEOUT_MS,
   );

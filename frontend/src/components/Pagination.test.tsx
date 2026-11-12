@@ -6,7 +6,7 @@ import { Pagination } from './Pagination';
 
 const t = messages.pagination;
 
-function renderPagination(page: number, totalPages: number) {
+function renderPagination(page: number, totalPages: number, compact = false) {
   const onChange = vi.fn();
   render(
     <Pagination
@@ -14,6 +14,7 @@ function renderPagination(page: number, totalPages: number) {
       totalPages={totalPages}
       totalCount={totalPages * 20}
       onChange={onChange}
+      compact={compact}
     />,
   );
   return onChange;
@@ -44,6 +45,22 @@ describe('Pagination', () => {
     renderPagination(5, 10);
     expect(buttonLabels()).toEqual([t.previous, '1', '4', '5', '6', '10', t.next]);
     expect(screen.getAllByText('…')).toHaveLength(2);
+  });
+
+  it('shouldShowOnlyEdgesAndCurrentPageWhenCompactInMiddle', () => {
+    renderPagination(5, 10, true);
+    expect(buttonLabels()).toEqual([t.previous, '1', '5', '10', t.next]);
+    expect(screen.getAllByText('…')).toHaveLength(2);
+  });
+
+  it('shouldKeepSecondPageReachableWhenCompactOnFirstAndLastPage', () => {
+    renderPagination(1, 10, true);
+    expect(buttonLabels()).toEqual([t.previous, '1', '2', '10', t.next]);
+  });
+
+  it('shouldKeepPreviousOfLastPageReachableWhenCompactOnLastPage', () => {
+    renderPagination(10, 10, true);
+    expect(buttonLabels()).toEqual([t.previous, '1', '9', '10', t.next]);
   });
 
   it('shouldDisablePreviousOnFirstPage', () => {

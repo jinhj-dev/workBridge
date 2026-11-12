@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 // ログイン・パスワード変更などのカード型フォームで共通に使う見た目
 // フォーカスリングは内側に描く(外側の box-shadow は小数倍率でフォーカス解除後に残像が残るため)
 export const inputClass =
@@ -9,6 +11,40 @@ export const selectClass = `${inputClass} cursor-pointer`;
 // 複数行入力(理由など)。Input と同じ枠線・フォーカス表示
 export const textareaClass =
   'w-full resize-y rounded-lg border border-input-border bg-white px-4 py-3 text-base/6 text-general-100 outline-none focus-visible:border-primary-100 focus-visible:ring-2 focus-visible:ring-primary-100 focus-visible:ring-inset aria-invalid:border-danger-100 aria-invalid:focus-visible:ring-danger-100';
+
+// IconField の中に置く入力欄に足す余白(左にアイコン、右にあれば右も空ける)
+export const iconInputClass = 'pl-11';
+export const iconInputTrailingClass = 'pr-11';
+
+// 入力欄の左(必要なら右)に装飾アイコンを重ねる枠。アイコンはクリックを通さない。
+// align="top" は複数行入力用(アイコンを 1 行目に合わせる)
+export function IconField({
+  icon,
+  trailing,
+  align = 'center',
+  children,
+}: {
+  icon: ReactNode;
+  trailing?: ReactNode;
+  align?: 'center' | 'top';
+  children: ReactNode;
+}) {
+  const position = align === 'top' ? 'top-3' : 'top-1/2 -translate-y-1/2';
+  const iconClass = `pointer-events-none absolute ${position} text-general-70 [&>svg]:size-5`;
+  return (
+    <div className="relative">
+      <span aria-hidden="true" className={`${iconClass} left-4`}>
+        {icon}
+      </span>
+      {children}
+      {trailing && (
+        <span aria-hidden="true" className={`${iconClass} right-4`}>
+          {trailing}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export const labelClass = 'mb-1 block text-sm/5 font-medium text-general-80';
 
