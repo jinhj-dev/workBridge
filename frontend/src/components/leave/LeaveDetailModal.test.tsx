@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/Toast';
@@ -348,6 +348,24 @@ describe('LeaveDetailModal 却下', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    [500, false],
+    [501, true],
+  ])('shouldShowReasonCounterToneForLength%i', async (length, overMax) => {
+    const { ui, dialog } = await renderModal(APPROVER);
+    await ui.click(within(dialog).getByRole('button', { name: t.detail.reject }));
+    await ui.click(within(dialog).getByLabelText(t.reject.reasonLabel));
+    await ui.paste('あ'.repeat(length));
+
+    const counter = within(dialog).getByText(messages.common.charCount(length, 500));
+    if (overMax) {
+      expect(counter).toHaveClass('text-danger-100');
+      expect(counter).toHaveClass('font-medium');
+    } else {
+      expect(counter).not.toHaveClass('text-danger-100');
+    }
+  });
+
   it('shouldAccept500CharsReason', async () => {
     const { ui, dialog, handlers } = await renderModal(APPROVER);
     handlers[`/leaves/${LEAVE_ID}/reject`] = () => leave({ status: 'REJECTED' });
@@ -391,7 +409,9 @@ describe('LeaveDetailModal initialStep', () => {
   it('shouldOpenRejectReasonDirectly', async () => {
     renderWithStep(APPROVER, 'reject');
     const dialog = await screen.findByRole('dialog', { name: t.reject.title });
-    expect(await within(dialog).findByLabelText(t.reject.reasonLabel)).toBeInTheDocument();
+    const textarea = await within(dialog).findByLabelText(t.reject.reasonLabel);
+    expect(textarea).toBeInTheDocument();
+    expect(textarea).toHaveAttribute('placeholder', messages.leave.reject.reasonPlaceholder);
   });
 
   it('shouldShowDetailInsteadOfConfirmWhenAlreadyProcessed', async () => {
@@ -415,6 +435,69 @@ describe('LeaveDetailModal initialStep', () => {
 
     await waitFor(() => expect(toast()).toHaveTextContent(t.alreadyProcessed));
     expect(onProcessed).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('LeaveDetailModal 初期フォーカス・送信中・カウンター', () => {
+  it('shouldFocusApproveButtonWhenApproveConfirmOpens', async () => {
+    const { ui, dialog } = await renderModal(APPROVER);
+    await ui.click(within(dialog).getByRole('button', { name: t.detail.approve }));
+    expect(within(dialog).getByRole('button', { name: t.approve.submit })).toHaveFocus();
+  });
+
+  it('shouldFocusBackButtonWhenCancelConfirmOpens', async () => {
+    const { ui, dialog } = await renderModal(APPLICANT_AUTH);
+    await ui.click(within(dialog).getByRole('button', { name: t.detail.cancel }));
+    expect(within(dialog).getByRole('button', { name: t.cancel.back })).toHaveFocus();
+  });
+
+  it('shouldReturnFocusToApproveButtonWhenCancelingApproveConfirm', async () => {
+    const { ui, dialog } = await renderModal(APPROVER);
+    await ui.click(within(dialog).getByRole('button', { name: t.detail.approve }));
+    await ui.click(within(dialog).getByRole('button', { name: messages.common.cancel }));
+    expect(await within(dialog).findByText(t.detail.leaveType)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: t.detail.approve })).toHaveFocus();
+  });
+
+  it('shouldReturnFocusToRejectButtonWhenCancelingRejectReason', async () => {
+    const { ui, dialog } = await renderModal(APPROVER);
+    await ui.click(within(dialog).getByRole('button', { name: t.detail.reject }));
+    await ui.click(within(dialog).getByRole('button', { name: messages.common.cancel }));
+    expect(await within(dialog).findByText(t.detail.leaveType)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: t.detail.reject })).toHaveFocus();
+  });
+
+  it('shouldReturnFocusToCancelButtonWhenBackFromCancelConfirm', async () => {
+    const { ui, dialog } = await renderModal(APPLICANT_AUTH);
+    await ui.click(within(dialog).getByRole('button', { name: t.detail.cancel }));
+    await ui.click(within(dialog).getByRole('button', { name: t.cancel.back }));
+    expect(await within(dialog).findByText(t.detail.leaveType)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: t.detail.cancel })).toHaveFocus();
+  });
+
+  it('shouldIgnoreEscapeWhileApproveSubmitting', async () => {
+    let resolveApprove: (value: Leave) => void = () => {};
+    const { ui, dialog, handlers } = await renderModal(APPROVER);
+    handlers[`/leaves/${LEAVE_ID}/approve`] = () =>
+      new Promise<Leave>((resolve) => {
+        resolveApprove = resolve;
+      });
+
+    await ui.click(within(dialog).getByRole('button', { name: t.detail.approve }));
+    await ui.click(within(dialog).getByRole('button', { name: t.approve.submit }));
+    const escape = new Event('cancel', { cancelable: true });
+    fireEvent(dialog, escape);
+    expect(escape.defaultPrevented).toBe(true);
+
+    resolveApprove(leave({ status: 'APPROVED' }));
+    await waitFor(() => expect(onProcessed).toHaveBeenCalledTimes(1));
+  });
+
+  it('shouldShowRejectReasonCounterAsCharCount', async () => {
+    const { ui, dialog } = await renderModal(APPROVER);
+    await ui.click(within(dialog).getByRole('button', { name: t.detail.reject }));
+    await ui.type(within(dialog).getByLabelText(t.reject.reasonLabel), 'abc');
+    expect(within(dialog).getByText(messages.common.charCount(3, 500))).toBeInTheDocument();
   });
 });
 

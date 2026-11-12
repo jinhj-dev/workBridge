@@ -10,6 +10,7 @@ interface SelectProps<T extends string> {
   describedBy?: string;
   required?: boolean;
   disabled?: boolean;
+  autoFocus?: boolean; // モーダルを開いた直後の初期フォーカス(data-autofocus。React の autoFocus は開く前に確定して効かない)
 }
 
 // 09 §3 Dropdown(Regular)。ネイティブ select に右端の矢印を重ねる
@@ -23,6 +24,7 @@ export function Select<T extends string>({
   describedBy,
   required,
   disabled,
+  autoFocus,
 }: SelectProps<T>) {
   return (
     <div className="relative">
@@ -34,6 +36,7 @@ export function Select<T extends string>({
         aria-describedby={describedBy}
         aria-required={required || undefined}
         disabled={disabled}
+        data-autofocus={autoFocus ? '' : undefined}
         className={`${selectClass} appearance-none pr-10 disabled:cursor-not-allowed disabled:bg-general-30 disabled:text-general-80`}
       >
         {placeholder && (

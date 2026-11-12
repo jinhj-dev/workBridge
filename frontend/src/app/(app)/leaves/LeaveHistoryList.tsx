@@ -3,6 +3,7 @@
 import { cardFrameClass } from '@/components/Card';
 
 import { useId } from 'react';
+import { DateInput } from '@/components/DateInput';
 import { FieldError, inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '@/components/form';
 import { LeaveStatusBadge } from '@/components/leave/LeaveStatusBadge';
 import { SearchIcon } from '@/components/leave/leaveIcons';
@@ -35,7 +36,7 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
 ];
 
 const detailButtonClass = `${secondaryButtonClass} h-9 px-4 text-sm/5`;
-const dateInputClass = `${inputClass} h-11 px-3 text-sm/5 tabular-nums`;
+const dateInputClass = `${inputClass} h-11 px-3 text-sm/5`;
 
 interface LeaveHistoryListProps {
   query: ApiQuery<Paginated<Leave>>;
@@ -199,9 +200,9 @@ export function LeaveHistoryList({
             {t.appliedPeriod}
           </span>
           <div role="group" aria-labelledby={`${idPrefix}-period-label`} className="flex items-center gap-2">
-            <input
+            <DateInput
               id={`${idPrefix}-from`}
-              type="date"
+              compact
               aria-label={`${t.appliedPeriod} ${messages.dateRange.startDate}`}
               value={draft.appliedFrom}
               onChange={(e) => updateDraft({ appliedFrom: e.target.value })}
@@ -212,9 +213,9 @@ export function LeaveHistoryList({
             <span aria-hidden="true" className="text-general-80">
               ～
             </span>
-            <input
+            <DateInput
               id={`${idPrefix}-to`}
-              type="date"
+              compact
               aria-label={`${t.appliedPeriod} ${messages.dateRange.endDate}`}
               value={draft.appliedTo}
               onChange={(e) => updateDraft({ appliedTo: e.target.value })}

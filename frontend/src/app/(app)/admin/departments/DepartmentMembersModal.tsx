@@ -341,7 +341,7 @@ export function DepartmentMembersModal({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm/5 text-general-80">
               {t.target}{' '}
-              <span className="text-xl/7 font-bold text-general-100 tabular-nums">
+              <span className="text-h6 font-bold text-general-100 tabular-nums">
                 {totalCount}
               </span>{' '}
               {t.countUnit}

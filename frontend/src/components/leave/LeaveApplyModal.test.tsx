@@ -291,6 +291,31 @@ describe('LeaveApplyModal(SCR-004 / SCR-002 休暇申請モーダル)', () => {
     expect(toast()).toHaveTextContent(t.approvedSuccess);
   });
 
+  it('shouldFocusLeaveTypeSelectWhenOpened', () => {
+    renderForm();
+    expect(leaveTypeSelect()).toHaveFocus();
+  });
+
+  it('shouldDescribeDialogDaysHintAndReasonPlaceholderWhenRendered', () => {
+    renderForm();
+    expect(screen.getByRole('dialog', { name: t.title })).toHaveAccessibleDescription(
+      t.description,
+    );
+    expect(screen.getByLabelText(t.startDate)).toHaveAccessibleDescription(t.daysHint);
+    expect(screen.getByLabelText(t.reason)).toHaveAttribute('placeholder', t.reasonPlaceholder);
+  });
+
+  it('shouldDisableCancelWhileRequestIsPending', async () => {
+    let resolve: (leave: Leave) => void = () => undefined;
+    mockApi(() => new Promise<Leave>((r) => (resolve = r)));
+    const ui = renderForm();
+    await fillAnnual(ui);
+    await ui.click(screen.getByRole('button', { name: t.submit }));
+    expect(screen.getByRole('button', { name: messages.common.cancel })).toBeDisabled();
+    resolve(createdLeave());
+    await waitFor(() => expect(onApplied).toHaveBeenCalledTimes(1));
+  });
+
   it('shouldNotSubmitTwiceWhileRequestIsPending', async () => {
     let resolve: (leave: Leave) => void = () => undefined;
     mockApi(() => new Promise<Leave>((r) => (resolve = r)));

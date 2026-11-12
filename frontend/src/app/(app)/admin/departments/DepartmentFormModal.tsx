@@ -3,18 +3,18 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
+  CharCount,
   FieldError,
+  FieldHint,
   IconField,
   iconInputClass,
   inputClass,
-  primaryButtonClass,
   textareaClass,
 } from '@/components/form';
-import { FormRow } from '@/components/FormRow';
+import { FormModal } from '@/components/FormModal';
+import { FormTable, FormTableRow } from '@/components/FormTable';
 import { Notice } from '@/components/Notice';
 import { ApproverSelect } from '@/components/leave/ApproverSelect';
-import { Modal } from '@/components/Modal';
-import { Spinner } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
 import { ApiError, NetworkError, apiFetch } from '@/lib/api/client';
 import type { DepartmentDetail, UserSummary } from '@/lib/api/types';
@@ -31,10 +31,6 @@ const DESCRIPTION_MAX_LENGTH = 500;
 const CANDIDATE_LIMIT = 100;
 // 責任者の検索はこの時間入力が止まってからサーバーへ問い合わせる
 const SEARCH_DEBOUNCE_MS = 300;
-const FORM_ID = 'department-form';
-// 参照デザインのキャンセル(薄いグレー地 + 枠)。secondaryButtonClass の白地と背景が衝突するため別に定義する
-const cancelButtonClass =
-  'rounded-lg border border-general-50 bg-general-30 font-bold text-general-100 hover:bg-general-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
 
 interface DepartmentFormModalProps {
   open: boolean;
@@ -179,59 +175,38 @@ export function DepartmentFormModal({
     throw error;
   }
 
-  const buttonClass =
-    'flex h-11 items-center justify-center gap-2 px-4 text-base/6 sm:h-12 sm:min-w-32';
   const descriptionLength = description.length;
 
   return (
-    <Modal
+    <FormModal
       open={open}
       title={department ? t.editTitle : t.createTitle}
-      subtitle={department ? t.editDescription : t.createDescription}
-      size="xl"
-      variant="form"
+      description={department ? t.editDescription : t.createDescription}
+      icon={<BuildingIcon />}
       onClose={onClose}
-      footer={
-        <>
-          <button type="button" onClick={onClose} className={`${cancelButtonClass} ${buttonClass}`}>
-            {messages.common.cancel}
-          </button>
-          <button
-            type="submit"
-            form={FORM_ID}
-            disabled={submitting}
-            className={`${primaryButtonClass} ${buttonClass} disabled:cursor-not-allowed disabled:bg-primary-60`}
-          >
-            {submitting && <Spinner />}
-            {department ? t.save : t.create}
-          </button>
-        </>
-      }
+      onSubmit={(e) => void handleSubmit(e)}
+      submitLabel={department ? t.save : t.create}
+      submitting={submitting}
     >
-      <form
-        id={FORM_ID}
-        onSubmit={(e) => void handleSubmit(e)}
-        noValidate
-        className="flex flex-col gap-5 sm:gap-6"
-      >
-        <FormRow label={messages.departments.code} htmlFor="department-code" required>
+      <FormTable>
+        <FormTableRow label={messages.departments.code} htmlFor="department-code" required>
           <input
             id="department-code"
             type="text"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder={t.codePlaceholder}
+            data-autofocus=""
+            aria-required="true"
             autoComplete="off"
             aria-invalid={errors.code ? true : undefined}
             aria-describedby={`department-code-hint${errors.code ? ' department-code-error' : ''}`}
             className={inputClass}
           />
-          <p id="department-code-hint" className="mt-1 text-xs/4 text-general-80">
-            {t.codeHint}
-          </p>
+          <FieldHint id="department-code-hint">{t.codeHint}</FieldHint>
           {errors.code && <FieldError id="department-code-error" message={errors.code} />}
-        </FormRow>
-        <FormRow label={messages.departments.name} htmlFor="department-name" required>
+        </FormTableRow>
+        <FormTableRow label={messages.departments.name} htmlFor="department-name" required>
           <IconField icon={<BuildingIcon />}>
             <input
               id="department-name"
@@ -239,6 +214,7 @@ export function DepartmentFormModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t.namePlaceholder}
+              aria-required="true"
               autoComplete="off"
               aria-invalid={errors.name ? true : undefined}
               aria-describedby={errors.name ? 'department-name-error' : undefined}
@@ -246,8 +222,8 @@ export function DepartmentFormModal({
             />
           </IconField>
           {errors.name && <FieldError id="department-name-error" message={errors.name} />}
-        </FormRow>
-        <FormRow label={t.manager} htmlFor="department-manager">
+        </FormTableRow>
+        <FormTableRow label={t.manager} htmlFor="department-manager">
           <ApproverSelect
             id="department-manager"
             value={manager}
@@ -262,12 +238,17 @@ export function DepartmentFormModal({
             texts={t.managerSelect}
             onSearch={setRawKeyword}
             leadingIcon={<UserIcon />}
+            describedBy={
+              (candidates.data?.length ?? 0) >= CANDIDATE_LIMIT
+                ? 'department-manager-hint'
+                : undefined
+            }
           />
           {(candidates.data?.length ?? 0) >= CANDIDATE_LIMIT && (
-            <p className="mt-1 text-xs/4 text-general-80">{t.managerLimitHint}</p>
+            <FieldHint id="department-manager-hint">{t.managerLimitHint}</FieldHint>
           )}
-        </FormRow>
-        <FormRow label={t.description} htmlFor="department-description">
+        </FormTableRow>
+        <FormTableRow label={t.description} htmlFor="department-description">
           <IconField icon={<DocumentTextIcon />} align="top">
             <textarea
               id="department-description"
@@ -282,20 +263,19 @@ export function DepartmentFormModal({
               className={`${textareaClass} ${iconInputClass} min-h-28`}
             />
           </IconField>
-          <p
+          <CharCount
             id="department-description-count"
-            className={`mt-2 text-right text-sm/5 tabular-nums ${
-              descriptionLength > DESCRIPTION_MAX_LENGTH ? 'text-danger-100' : 'text-general-80'
-            }`}
-          >
-            {descriptionLength} / {DESCRIPTION_MAX_LENGTH}
-          </p>
-          {errors.description && (
-            <FieldError id="department-description-error" message={errors.description} />
-          )}
-        </FormRow>
-        <Notice>{t.notice}</Notice>
-      </form>
-    </Modal>
+            length={descriptionLength}
+            max={DESCRIPTION_MAX_LENGTH}
+            error={
+              errors.description && (
+                <FieldError id="department-description-error" message={errors.description} />
+              )
+            }
+          />
+        </FormTableRow>
+      </FormTable>
+      <Notice>{t.notice}</Notice>
+    </FormModal>
   );
 }

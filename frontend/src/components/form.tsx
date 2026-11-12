@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { messages } from '@/messages/ja';
 
 // ログイン・パスワード変更などのカード型フォームで共通に使う見た目
 // フォーカスリングは内側に描く(外側の box-shadow は小数倍率でフォーカス解除後に残像が残るため)
@@ -65,7 +66,12 @@ export const dangerOutlineButtonClass =
 
 // モーダル footer のボタン(詳細・申請モーダル共通)。高さ 40
 export const modalPrimaryButtonClass = `${primaryButtonClass} flex h-10 items-center justify-center gap-2 px-4 text-sm/5 disabled:cursor-not-allowed disabled:bg-primary-60`;
-export const modalSecondaryButtonClass = `${secondaryButtonClass} h-10 px-4 text-sm/5`;
+export const modalSecondaryButtonClass = `${secondaryButtonClass} flex h-10 items-center justify-center gap-2 px-4 text-sm/5 disabled:cursor-not-allowed disabled:text-general-60 disabled:hover:bg-white`;
+// 取り消せない操作の確定ボタン(削除・取消など)
+export const modalDangerButtonClass =
+  'rounded-lg bg-danger-100 font-bold text-white hover:bg-danger-100/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger-100 flex h-10 items-center justify-center gap-2 px-4 text-sm/5 disabled:cursor-not-allowed disabled:bg-danger-100/50';
+// 確認モーダル本文の文言
+export const confirmMessageClass = 'break-words text-general-100';
 
 // 枠も背景もない文字だけのボタン(補助的な操作)。大きさ・余白は呼び出し側で指定する
 export const textButtonClass =
@@ -105,5 +111,39 @@ export function RequiredMark() {
     <span aria-hidden="true" className="ml-1 font-bold text-danger-100">
       *
     </span>
+  );
+}
+
+// 入力欄の下に置く補足(形式の説明など)
+export function FieldHint({ id, children }: { id?: string; children: ReactNode }) {
+  return (
+    <p id={id} className="mt-1 text-xs/4 text-general-80">
+      {children}
+    </p>
+  );
+}
+
+// 文字数カウンター。左にエラー(あれば)、右に「n/max」。length の数え方は呼び出し側が決める
+export function CharCount({
+  id,
+  length,
+  max,
+  error,
+}: {
+  id: string;
+  length: number;
+  max: number;
+  error?: ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div>{error}</div>
+      <p
+        id={id}
+        className={`mt-1 shrink-0 text-sm/5 tabular-nums ${length > max ? 'font-medium text-danger-100' : 'text-general-80'}`}
+      >
+        {messages.common.charCount(length, max)}
+      </p>
+    </div>
   );
 }

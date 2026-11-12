@@ -1,3 +1,4 @@
+import { DateInput } from '@/components/DateInput';
 import { FieldError, inputClass, labelClass } from '@/components/form';
 import { messages } from '@/messages/ja';
 
@@ -27,28 +28,26 @@ export function DateRangeFields({
           <label htmlFor={`${idPrefix}-start`} className={labelClass}>
             {t.startDate}
           </label>
-          <input
+          <DateInput
             id={`${idPrefix}-start`}
-            type="date"
             value={startDate}
             onChange={(e) => onChange({ startDate: e.target.value })}
             aria-invalid={invalid}
             aria-describedby={error ? errorId : undefined}
-            className={`${inputClass} tabular-nums`}
+            className={inputClass}
           />
         </div>
         <div>
           <label htmlFor={`${idPrefix}-end`} className={labelClass}>
             {t.endDate}
           </label>
-          <input
+          <DateInput
             id={`${idPrefix}-end`}
-            type="date"
             value={endDate}
             onChange={(e) => onChange({ endDate: e.target.value })}
             aria-invalid={invalid}
             aria-describedby={error ? errorId : undefined}
-            className={`${inputClass} tabular-nums`}
+            className={inputClass}
           />
         </div>
       </div>

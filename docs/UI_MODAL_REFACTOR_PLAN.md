@@ -1,6 +1,7 @@
 # UI 모달 단계별 리팩터링 계획 (UI_MODAL_REFACTOR_PLAN)
 
 > 상태: **v3 — 사용자 결정 D1~D15 반영(2026-11-13). 실행은 사용자 승인 후.** 변경 내역: `.claude/work/modal-audit/docs-update.md`.
+> 진행(2026-11-13, 브랜치 `feature/modal-refactor`, 미커밋·미병합): **단계 1~6 구현 완료, 단계 7은 자동 회귀(tsc·lint·vitest 50파일 724건·Playwright `modal-a11y.spec.ts`)와 문서 반영까지 완료, 일부 검증은 미수행(사용자 확인 대기)**. "한 단계 = 한 PR" 대신 한 브랜치에 청크(C1~C6)별 작업으로 진행했다(사용자 부재로 권장안 적용, 작업 기록 `.claude/work/modal-refactor/`). 미검증 항목은 `docs/10_DEVELOPMENT_ROADMAP.md` 해당 항목에 기록.
 > 근거: `docs/UI_MODAL_AUDIT.md`(M01~M09, 문서 불일치 D1~D7, P1~P10, L1~L2), `docs/UI_MODAL_PATTERNS.md` v3(패턴, 확정 결정 §9.1, 미결 U1~U5 §9.2).
 > 원칙: 한 단계 = 한 PR. **디자인 / 동작 / 로직** 변경을 나눠 적고, 비즈니스 로직(API 호출·검증 규칙·권한 판정·오류 매핑)은 바꾸지 않는다.
 
@@ -11,8 +12,8 @@
 | # | 내용 | 상태 |
 |---|---|---|
 | 0-1 | 사용자 결정 D1~D15 | **완료**(`decisions.md`) |
-| 0-2 | 미결 U1~U5(PATTERNS §9.2) | 해당 단계 착수 전 확인(U1 → 단계 3, U2·U3 → 단계 4, U4 → 단계 7 문서, U5 → 범위 밖) |
-| 0-3 | 변경 전 기준 이미지: 9개 모달 × 360 / 768 / 1024 / 1440(단계형은 단계별) | 단계 1 착수 시 |
+| 0-2 | 미결 U1~U5(PATTERNS §9.2) | **U1~U4 권장안 적용(사용자 부재, 사용자 확인 후 변경 가능)**, U5 범위 밖 |
+| 0-3 | 변경 전 기준 이미지: 9개 모달 × 360 / 768 / 1024 / 1440(단계형은 단계별) | 12종 48장 확보(`.claude/work/modal-refactor/screenshots/before`). **미확보**: M06 승인·반려 단계, M07, M09 退勤(개발 DB에 해당 데이터 없음) |
 | 0-4 | e2e 이미지는 `.screenshot()` 저장형 38곳(11개 스펙), 비교형 `toHaveScreenshot` 0건 → 전후 이미지 **수동 검토** | 확인 완료 |
 
 ---
@@ -139,6 +140,7 @@ v2와 달라진 점: D2가 FormTable 통일로 정해져 **M05가 배치 기준(
 ## 7. 문서 갱신 예정 사항 (단계 7, 문서 반영 모드에서 architect가 반영)
 
 > 이번에는 `docs/09_DESIGN_SYSTEM.md`·화면 명세·context.md를 수정하지 않는다.
+> **2026-11-13 반영 완료**(문서 반영 모드): 아래 7.1·7.2 전부. 반영 목록은 `.claude/work/modal-refactor/docs-update.md`.
 
 ### 7.1 `docs/09_DESIGN_SYSTEM.md`
 
@@ -188,4 +190,6 @@ v2와 달라진 점: D2가 FormTable 통일로 정해져 **M05가 배치 기준(
 | ID | 결정 | 일자 |
 |---|---|---|
 | D1~D15 | `UI_MODAL_PATTERNS.md` §9.1 / 원문 `.claude/work/modal-audit/decisions.md` | 2026-11-13 |
-| U1~U5 | 미결(PATTERNS §9.2) | — |
+| U1~U4 | 권장안 적용(사용자 부재, PATTERNS §9.2) | 2026-11-13 |
+| U5 | 범위 밖(현행 편집 가능 유지) | — |
+| A1~A10 | 구현 세부 권장안(footer 개수 판정 CSS `:has()`, M06 取消 확정 빨간 버튼, 아이콘 기존 자산 재사용, 청크별 단일 브랜치 등). 원문 `.claude/work/modal-refactor/plan.md` | 2026-11-13 |
