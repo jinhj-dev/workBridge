@@ -6,8 +6,8 @@
 |---|---|
 | Screen ID | SCR-004 |
 | 화면명 | 휴가 관리 |
-| URL | 경로 기반 탭 3개: /leaves(自分の休暇, 기본) / /leaves/calendar(休暇カレンダー) / /leaves/approvals(承認, SCR-005). 이전 `?tab=`·`?year=` 파라미터는 무시 |
-| 접근 권한 | 공통(承認 탭은 표시 대상만, 3.0 참조) |
+| URL | 경로 기반 탭 3개(사이드바 休暇管理 하위 메뉴로 전환): /leaves(自分の休暇, 기본) / /leaves/calendar(休暇カレンダー) / /leaves/approvals(承認, SCR-005). 이전 `?tab=`·`?year=` 파라미터는 무시 |
+| 접근 권한 | 공통(承認은 표시 대상만, 3.0 참조) |
 | 관련 요구사항 | FR-LEAVE-001, FR-LEAVE-002, FR-LEAVE-003, FR-LEAVE-004, FR-LEAVE-005, FR-LEAVE-006 |
 
 ## 2. 화면 목적
@@ -16,13 +16,14 @@
 
 ## 3. 화면 구성
 
-세 탭 공통으로 Page Header(휴가 아이콘 + 제목 「休暇管理」 + 우측 [＋ 休暇申請] 버튼, 좁은 폭에서도 한 줄) → 탭(自分の休暇 / 休暇カレンダー / 承認) → 탭 본문 순서로 표시한다. [休暇申請] 버튼은 어느 탭에서든 공통 휴가 신청 모달(3.2)을 연다.
+세 탭 공통으로 Page Header(휴가 아이콘 + 제목 「休暇管理」 + 우측 [＋ 休暇申請] 버튼, 좁은 폭에서도 한 줄) → 탭 본문 순서로 표시한다. 화면 안에는 탭 UI가 없고, 탭 전환은 사이드바의 休暇管理 하위 메뉴(3.0)로 한다(2026-11). [休暇申請] 버튼은 어느 탭에서든 공통 휴가 신청 모달(3.2)을 연다.
 
-### 3.0 탭
+### 3.0 탭 (사이드바 하위 메뉴)
 
-- 탭은 링크다(클라이언트 전환, 뒤로/앞으로로 탭 이동). 활성 탭은 `aria-current="page"`. 탭이 넘치면 탭 행만 가로 스크롤한다.
+- 페이지 안의 탭 UI는 삭제했다(2026-11). 탭 전환은 사이드바(`lg` 미만은 「メニュー」 드로어)의 休暇管理 개폐 하위 메뉴(自分の休暇 / 休暇カレンダー / 承認)로 한다. 라우트·표시 판정·직접 접근 가드는 이전 탭과 같다(03 전역 내비게이션).
+- 하위 메뉴는 링크다(클라이언트 전환, 뒤로/앞으로로 이동). 현재 화면의 하위 메뉴는 `aria-current="page"`.
 - 自分の休暇·休暇カレンダー는 모든 사용자에게 표시한다.
-- 承認 탭: ADMIN은 항상 표시. 그 외는 본인에게 할당된 신청(`PENDING`·`APPROVED`·`REJECTED`)이 1건 이상일 때만 표시한다(`GET /leaves/pending-approval?scope=mine&status=PENDING,APPROVED,REJECTED&limit=1`의 `totalCount > 0`). 판정 전·조회 실패 시에는 숨긴다.
+- 承認 메뉴: ADMIN은 항상 표시. 그 외는 본인에게 할당된 신청(`PENDING`·`APPROVED`·`REJECTED`)이 1건 이상일 때만 표시한다(`GET /leaves/pending-approval?scope=mine&status=PENDING,APPROVED,REJECTED&limit=1`의 `totalCount > 0`). 판정 전·조회 실패 시에는 숨긴다.
 - `/leaves/approvals`에 직접 접근하면 판정 전에는 본문 대신 스켈레톤을 표시하고, 표시 대상이 아니면 `/leaves`로 replace한다(토스트 없음).
 - 기존 `/leaves/approvals?scope=all` 링크(대시보드·상단바 벨)는 그대로 쓸 수 있다.
 

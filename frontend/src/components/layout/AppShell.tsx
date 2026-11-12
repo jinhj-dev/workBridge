@@ -8,6 +8,7 @@ import { useToast } from '@/components/Toast';
 import { ApiError, NetworkError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { messages } from '@/messages/ja';
+import { ApprovalsAccessProvider } from './ApprovalsAccess';
 import { PendingApprovalCountProvider, usePendingApprovalCount } from './PendingApprovalCount';
 import { MobileTabBar } from './MobileTabBar';
 import { SidebarNav } from './Sidebar';
@@ -86,16 +87,18 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <PendingApprovalCountProvider>
-      <ShellLayout
-        userName={user.name}
-        isAdmin={user.role === 'ADMIN'}
-        onLogout={handleLogout}
-        drawerOpen={drawerOpen}
-        setDrawerOpen={setDrawerOpen}
-        drawerRef={drawerRef}
-      >
-        {children}
-      </ShellLayout>
+      <ApprovalsAccessProvider>
+        <ShellLayout
+          userName={user.name}
+          isAdmin={user.role === 'ADMIN'}
+          onLogout={handleLogout}
+          drawerOpen={drawerOpen}
+          setDrawerOpen={setDrawerOpen}
+          drawerRef={drawerRef}
+        >
+          {children}
+        </ShellLayout>
+      </ApprovalsAccessProvider>
     </PendingApprovalCountProvider>
   );
 }

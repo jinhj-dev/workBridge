@@ -207,7 +207,6 @@ export const messages = {
   },
   leaveManagement: {
     title: '休暇管理',
-    tabsLabel: '休暇管理のタブ',
     tabMine: '自分の休暇',
     tabCalendar: '休暇カレンダー',
     tabApprovals: '承認',

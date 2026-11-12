@@ -12,6 +12,9 @@ import {
   UmbrellaIcon,
   UsersIcon,
 } from './navIcons';
+import { useApprovalsVisible } from './ApprovalsAccess';
+import { SidebarSubmenu } from './SidebarSubmenu';
+import type { SidebarSubmenuItem } from './SidebarSubmenu';
 
 interface MenuItem {
   href: string;
@@ -40,24 +43,63 @@ interface SidebarNavProps {
   pendingApprovalCount?: number | null;
 }
 
-// 承認待ち件数のバッジは休暇管理(承認タブを含む)の項目に付ける
+// 休暇管理はサブメニュー(自分の休暇 / 休暇カレンダー / 承認)。承認待ち件数のバッジは親項目に付ける
 const LEAVES_HREF = '/leaves';
 const COUNT_MAX = 99;
 
 // 09 §2.3 サイドバーメニュー: 項目の高さ 44、左右の余白 16、アイコン付き、選択中は Primary 淡色の塗り+Primary 文字
 export function SidebarNav({ isAdmin, onNavigate, pendingApprovalCount }: SidebarNavProps) {
   const pathname = usePathname();
+  const approvalsVisible = useApprovalsVisible();
+
+  const leaveItems: SidebarSubmenuItem[] = [
+    { href: LEAVES_HREF, label: messages.leaveManagement.tabMine },
+    { href: `${LEAVES_HREF}/calendar`, label: messages.leaveManagement.tabCalendar },
+  ];
+  if (approvalsVisible) {
+    leaveItems.push({
+      href: `${LEAVES_HREF}/approvals`,
+      label: messages.leaveManagement.tabApprovals,
+    });
+  }
+
+  function renderPendingBadge(count: number | null | undefined) {
+    if (count == null || count <= 0) return null;
+    return (
+      <>
+        <span className="sr-only">{messages.nav.pendingCount(count)}</span>
+        <span
+          aria-hidden="true"
+          className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-100 px-1 text-xs/4 font-medium text-white tabular-nums"
+        >
+          {count > COUNT_MAX ? `${COUNT_MAX}+` : count}
+        </span>
+      </>
+    );
+  }
 
   function renderItem(item: MenuItem) {
     const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-    const count = item.href === LEAVES_HREF ? pendingApprovalCount : null;
+    if (item.href === LEAVES_HREF) {
+      return (
+        <SidebarSubmenu
+          key={item.href}
+          label={item.label}
+          icon={item.icon}
+          basePath={LEAVES_HREF}
+          items={leaveItems}
+          onNavigate={onNavigate}
+          badge={renderPendingBadge(pendingApprovalCount)}
+        />
+      );
+    }
     return (
       <li key={item.href}>
         <Link
           href={item.href}
           onClick={onNavigate}
           aria-current={active ? 'page' : undefined}
-          className={`mx-4 flex h-11 items-center justify-between gap-2 rounded-lg px-4 text-sm/5 font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100 ${
+          className={`mx-4 flex h-11 items-center gap-2 rounded-lg px-4 text-sm/5 font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100 ${
             active ? 'bg-primary-30 text-primary-100' : 'text-general-100 hover:bg-general-30'
           }`}
         >
@@ -67,17 +109,6 @@ export function SidebarNav({ isAdmin, onNavigate, pendingApprovalCount }: Sideba
             </span>
             {item.label}
           </span>
-          {count != null && count > 0 && (
-            <>
-              <span className="sr-only">{messages.nav.pendingCount(count)}</span>
-              <span
-                aria-hidden="true"
-                className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-100 px-1 text-xs/4 font-medium text-white tabular-nums"
-              >
-                {count > COUNT_MAX ? `${COUNT_MAX}+` : count}
-              </span>
-            </>
-          )}
         </Link>
       </li>
     );
