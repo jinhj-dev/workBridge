@@ -16,3 +16,5 @@
 | C5 테스트 | tester | — | 894 | 207074 | FAIL (SearchInput 실제 48px, 기존 문제) | 0 |
 | C5 Fix 1 | frontend | — | 93 | 140494 | SearchInput 44px(사용자 결정), inputBaseClass 분리 | 1 |
 | C5 재테스트 | tester | — | N/A | N/A | PASS (Vitest 793, button-visual 5) | 1 |
+| C6 구현 | frontend | — | 190 | 157596 | 표 안 버튼·텍스트 링크·PencilIcon 이동 | 0 |
+| C6 테스트 | tester | — | 201(Run6 기준) | N/A | PASS (Vitest 795, button-visual 7) | 0 |

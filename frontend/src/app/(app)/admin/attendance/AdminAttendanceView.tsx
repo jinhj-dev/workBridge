@@ -10,15 +10,10 @@ import {
   MISSING_ROW_CLASS,
 } from '@/components/attendance/attendanceStatus';
 import { Badge } from '@/components/Badge';
-import { Button } from '@/components/Button';
+import { Button, buttonClass } from '@/components/Button';
 import { Card } from '@/components/Card';
-import {
-  inputClass,
-  labelClass,
-  secondaryButtonClass,
-  selectClass,
-  textButtonClass,
-} from '@/components/form';
+import { inputClass, labelClass, selectClass } from '@/components/form';
+import { PencilIcon } from '@/components/leave/leaveIcons';
 import { Pagination } from '@/components/Pagination';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
@@ -43,8 +38,6 @@ const LIMIT = 20;
 const STATUS_OPTIONS: AttendanceStatus[] = ['WORKING', 'DONE', 'MISSING_CLOCK_OUT'];
 
 type FilterValues = Omit<AdminQuery, 'page'>;
-
-const smallButtonClass = `${secondaryButtonClass} h-9 px-4 text-sm/5`;
 
 // SCR-008 全体勤怠管理(管理者)。検索条件とページは URL Query に持つ(03 共通規則)
 export function AdminAttendanceView() {
@@ -165,7 +158,10 @@ export function AdminAttendanceView() {
               >
                 <td className={`${tdClass} tabular-nums`}>{formatWorkDate(item.workDate)}</td>
                 <td className={tdClass}>
-                  <Link href={`/admin/users/${item.user.id}`} className={textButtonClass}>
+                  <Link
+                    href={`/admin/users/${item.user.id}`}
+                    className={buttonClass({ variant: 'text' })}
+                  >
                     {item.user.name}
                   </Link>
                 </td>
@@ -200,7 +196,10 @@ export function AdminAttendanceView() {
               }`}
             >
               <span className="flex items-center justify-between gap-3">
-                <Link href={`/admin/users/${item.user.id}`} className={textButtonClass}>
+                <Link
+                  href={`/admin/users/${item.user.id}`}
+                  className={buttonClass({ variant: 'text' })}
+                >
                   {item.user.name}
                 </Link>
                 <Badge variant={ATTENDANCE_STATUS_BADGE[item.status]}>
@@ -323,13 +322,14 @@ export function AdminAttendanceView() {
 
 function EditButton({ item, onEdit }: { item: Attendance; onEdit: (item: Attendance) => void }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="primaryOutline"
+      size="sm"
+      icon={<PencilIcon />}
       onClick={() => onEdit(item)}
       aria-label={t.editLabel(item.user.name, formatWorkDate(item.workDate))}
-      className={smallButtonClass}
     >
       {t.edit}
-    </button>
+    </Button>
   );
 }

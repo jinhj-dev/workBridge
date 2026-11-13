@@ -170,3 +170,92 @@ for (const width of WIDTHS) {
     });
   });
 }
+
+// B10: 全体勤怠管理(SCR-008)の表内の修正ボタン。360 はカード形式、1024 は表。
+// 一覧の GET は固定の 1 行に差し替える(開発 DB の内容に依存しない)。修正は押してモーダルを開くだけで、保存しない。
+const ADMIN_ATTENDANCE_PATH = '**/api/v1/admin/attendance**';
+const FIXED_ADMIN_ATTENDANCE = {
+  items: [
+    {
+      id: 'e2e-b10-row-1',
+      user: {
+        id: 'e2e-b10-user-1',
+        name: 'E2E長い氏名テスト社員名前の確認用',
+        empId: '900099',
+        departmentName: '営業部',
+      },
+      workDate: '2026-11-06',
+      clockIn: '2026-11-06T09:00:00+09:00',
+      clockOut: '2026-11-06T18:00:00+09:00',
+      workMinutes: 540,
+      status: 'DONE',
+      modifiedAt: null,
+    },
+  ],
+  page: 1,
+  limit: 20,
+  totalCount: 1,
+  totalPages: 1,
+};
+
+for (const width of [360, 1024] as const) {
+  test.describe(`B10 幅 ${width}px`, () => {
+    test.use({ viewport: { width, height: 900 } });
+    test.skip(!E2E_ADMIN.password, 'E2E_ADMIN_PASSWORD が未設定のため実行しない');
+
+    test('shouldKeepEditButtonOneLineInAdminAttendance', async ({ page }, testInfo) => {
+      await blockWrites(page);
+      await page.route(ADMIN_ATTENDANCE_PATH, (route) =>
+        route.request().method() === 'GET'
+          ? route.fulfill({
+              status: 200,
+              contentType: 'application/json',
+              body: JSON.stringify(FIXED_ADMIN_ATTENDANCE),
+            })
+          : route.fallback(),
+      );
+      await page.goto('/login');
+      await login(page);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await navigateInApp(page, '/admin/attendance');
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+      const editButton = page.getByRole('button', { name: messages.adminAttendance.edit }).first();
+      await expect(editButton).toBeVisible();
+      const editBox = await measureBox(editButton);
+      const measured = await editButton.evaluate((el) => {
+        const row = el.closest('tr') ?? el.closest('li');
+        const table = el.closest('table');
+        const container = table?.parentElement;
+        return {
+          rowHeight: row ? row.getBoundingClientRect().height : -1,
+          tableScrollWidth: container ? container.scrollWidth : -1,
+          tableClientWidth: container ? container.clientWidth : -1,
+          whiteSpace: getComputedStyle(el).whiteSpace,
+          hasSvg: el.querySelector('svg') !== null,
+        };
+      });
+      record(testInfo, width, 'B10-admin-attendance-edit', {
+        buttonHeight: editBox.height,
+        buttonWidth: editBox.width,
+        rowHeight: measured.rowHeight,
+        tableScrollWidth: measured.tableScrollWidth,
+        tableClientWidth: measured.tableClientWidth,
+        whiteSpace: measured.whiteSpace,
+      });
+      await capture(page, testInfo, width, 'admin-attendance');
+
+      // 高さ 36(sm)・1 行(nowrap)・アイコン付き
+      expect(editBox.height).toBeCloseTo(36, 0);
+      expect(measured.whiteSpace).toBe('nowrap');
+      expect(measured.hasSvg).toBe(true);
+
+      // 押すのは修正モーダルを開くところまで。保存はしない
+      await editButton.click();
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+    });
+  });
+}

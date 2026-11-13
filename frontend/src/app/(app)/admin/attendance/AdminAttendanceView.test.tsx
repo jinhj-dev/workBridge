@@ -176,6 +176,17 @@ describe('AdminAttendanceView(SCR-008 全体勤怠管理)', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
+  it('shouldRenderDecorativePencilAndSingleLineSmEditButton', async () => {
+    mockApi();
+    renderView();
+
+    const button = (
+      await screen.findAllByRole('button', { name: t.editLabel('山田太郎', '2026/11/08(日)') })
+    )[0];
+    expect(button).toHaveClass('whitespace-nowrap');
+    expect(button.querySelector('svg')?.parentElement).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('shouldOpenEditModalForRowWithEmployeeAndDate', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     mockApi();

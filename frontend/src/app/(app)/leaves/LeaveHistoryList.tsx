@@ -5,7 +5,7 @@ import { cardFrameClass } from '@/components/Card';
 import { useId } from 'react';
 import { DateInput } from '@/components/DateInput';
 import { Button } from '@/components/Button';
-import { FieldError, inputClass, labelClass, secondaryButtonClass } from '@/components/form';
+import { FieldError, inputClass, labelClass } from '@/components/form';
 import { LeaveStatusBadge } from '@/components/leave/LeaveStatusBadge';
 import { Pagination } from '@/components/Pagination';
 import { SectionError } from '@/components/SectionError';
@@ -35,7 +35,6 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   ...LEAVE_STATUSES.map((status) => ({ value: status, label: messages.leave.statuses[status] })),
 ];
 
-const detailButtonClass = `${secondaryButtonClass} h-9 px-4 text-sm/5`;
 const dateInputClass = `${inputClass} h-11 px-3 text-sm/5`;
 
 interface LeaveHistoryListProps {
@@ -78,17 +77,16 @@ export function LeaveHistoryList({
 
   function renderDetailButton(leave: Leave) {
     return (
-      <button
-        type="button"
+      <Button
+        size="sm"
         onClick={() => onOpenDetail(leave.id)}
         aria-label={t.detailLabel(
           leaveTypes[leave.leaveType],
           formatPeriod(leave.startDate, leave.endDate),
         )}
-        className={detailButtonClass}
       >
         {t.detail}
-      </button>
+      </Button>
     );
   }
 

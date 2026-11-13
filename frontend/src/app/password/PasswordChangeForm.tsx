@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ApiError, NetworkError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Button } from '@/components/Button';
-import { FieldError, inputClass, labelClass, textButtonClass } from '@/components/form';
+import { FieldError, inputClass, labelClass } from '@/components/form';
 import { Logo } from '@/components/Logo';
 import { Notice } from '@/components/Notice';
 import { Spinner } from '@/components/Spinner';
@@ -193,9 +193,9 @@ export function PasswordChangeForm() {
 
           {/* 全体メニュー実装までの暫定: 変更が必要な利用者がログアウトできる手段 */}
           {mustChangePassword && (
-            <button type="button" onClick={handleLogout} className={`${textButtonClass} mt-4`}>
+            <Button variant="text" onClick={handleLogout} className="mt-4">
               {t.logout}
-            </button>
+            </Button>
           )}
         </div>
       )}

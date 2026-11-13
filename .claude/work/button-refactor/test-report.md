@@ -142,3 +142,38 @@ RESULT: PASS
 - 개발 DB에 쓰는 기존 spec(login, password, dashboard*, attendance*, leaves, departments*, approvals, leave-*)은 미실행. 쓰기 여부 불확실
 - `npm run build` 미실행(지시에 따라)
 - 3000·6000 서버는 건드리지 않음
+
+## Run 7 (C6)
+
+- 대상: C6 표 내부 액션·텍스트 링크(BT22~33·38·04). ApprovalsView, DepartmentsView, AdminAttendanceView, LeavesView, DashboardView CardLink 관련
+- 기존 단위 테스트는 C6 변경 후에도 전부 통과. 깨진 단언은 없음 (DepartmentsView의 削除 `border-danger-100`·`text-danger-100`, 詳細에 `text-danger-100` 없음 단언도 그대로 통과)
+- 추가 단위 테스트 2건 (전체 795 = 793 + 2)
+  - `leaves/approvals/ApprovalsView.test.tsx`: `shouldShowNoApproveOrRejectButtonsForProcessedLeave` (承認済み行에 承認·却下 없음, 詳細은 활성)
+  - `admin/attendance/AdminAttendanceView.test.tsx`: `shouldRenderDecorativePencilAndSingleLineSmEditButton` (修正 `whitespace-nowrap`, 아이콘 슬롯 `aria-hidden`)
+- 이미 있던 단언(확인만): 本人 행 承認·却下 disabled + 詳細 활성, 修正 클릭→수정 모달, 사원명 링크 `href=/admin/users/{id}`, 削除만 danger 스타일, 시스템 부서 編集·削除 미표시
+- e2e: `e2e/button-visual.spec.ts`에 B10 추가 (360·1024, 2건 신규). 전체 7 passed / 0 failed / 0 skipped (기존 5건 + B10 2건)
+  - B10 구성: 全体勤怠管理 목록 GET은 고정 1행으로 응답(`/api/v1/admin/attendance**`, 긴 사원명 포함). 그 외 GET은 실제 백엔드, POST·PATCH·DELETE 차단, 로그인만 실제
+  - 修正은 모달을 열고 Escape로 닫기까지만 함. 保存 없음
+- 실행 명령:
+  - `npx vitest run` (PowerShell, `frontend/`) → 53 files, 795 passed / 0 failed (exit 0)
+  - `npx tsc --noEmit` → exit 0
+  - `npm run lint` → exit 0
+  - `npx playwright test e2e/button-visual.spec.ts` (PLAYWRIGHT_BASE_URL=http://localhost:3000) → exit 0 (7 passed)
+
+### B10 측정값 (CSS px, SCR-008 修正 버튼)
+
+| 뷰포트 | 표시 형식 | 버튼 높이 | 버튼 폭 | 행 높이 | white-space | 표 scrollWidth / clientWidth |
+|---|---|---|---|---|---|---|
+| 360 | 카드(li) | 36 | 74 | 180 | nowrap | 해당 없음(표 숨김) |
+| 1024 | 표(tr) | 36 | 74 | 61.5 | nowrap | 644 / 644 (가로 넘침 없음) |
+
+- 판정: 修正 높이 36(sm), 한 줄(nowrap), 아이콘 포함. 1024 표는 가로 넘침 없음
+- 측정 원본: `frontend/test-results/button-visual-B10-幅-{360|1024}px-*/measurements.jsonl`
+- 캡처: 같은 폴더 `{width}-admin-attendance.png` (목록 상태, 모달 열기 전)
+
+### 미실행·미확인
+
+- 개발 DB에 쓰는 기존 spec(approvals, departments-responsive, attendance, login, password, dashboard*, leaves, leave-*, attendance-sheet-layout 등)은 미실행. 쓰기 여부 불확실. C6 e2e 회귀(`approvals`·`departments-responsive`·`attendance`)는 확인하지 못함
+- 修正 버튼의 "폭 약 +20px" 변화 수치는 이전 상태와 비교하지 않음(변경 전 측정 없음)
+- `npm run build` 미실행(지시에 따라)
+- 3000·6000 서버는 건드리지 않음. 구현 코드·커밋 없음
