@@ -20,3 +20,5 @@
 | C6 테스트 | tester | — | 201(Run6 기준) | N/A | PASS (Vitest 795, button-visual 7) | 0 |
 | C7 구현 | frontend | — | 104 | 166837 | 벨·MonthNavigator·출근부 월 이동 | 0 |
 | C7 테스트 | tester | — | 646 | 285295 | 기존 spec 1건 실패 → 기준 비교로 기존 문제 판정, PASS (Vitest 797) | 0 |
+| C8 검토 | frontend | — | 61 | 180711 | 변경 없음(측정값 근거) | 0 |
+| C8 검증 | tester | — | N/A | N/A | PASS (button-c8 4, 수정 필요 없음) | 0 |

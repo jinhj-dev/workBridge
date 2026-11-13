@@ -66,3 +66,15 @@
 - 검증: `npx eslint .` exit 0(경고 0) / `npx tsc --noEmit` exit 0 / build 금지로 미실행 / vitest·e2e 미실행. 화면 확인: 생략(로그인 필요).
 - tester 전달: ① T6 단위: 前月·翌月 aria-label·클릭, 今月 disabled(`month===currentMonth`), 벨 Link href `/leaves/approvals`·aria-label(승인 대기 건수)·빨간 점 유무. ② 기존 테스트 영향 가능(미실행): 클래스 단언(`size-9` 등)이 있으면 갱신. ③ e2e `attendance-sheet-layout`(모바일 360 헤더가 줄바꿈 없이 들어가는지, 월 이동 40px 높이 — 헤더 +4px)·`leave-calendar-mobile`·`leave-visual`·`leave-management`·`leave-sidebar-submenu`. ④ MonthNavigator 사용처(휴가 캘린더)는 이미 40이라 크기 불변, Chevron 굵기만 변화.
 - 문서 갱신 예정: 09 §6 `MonthNavigator`·`TopBar`(벨 = ghost)·`AttendanceSheetView` 관련 기록. 설계 문서 항목 1과 동일.
+
+## C8 (모바일 반응형 검증)
+- 변경 파일: **없음(변경 없음)**. 코드를 바꾸지 않아 lint·tsc는 C7 직후 상태(exit 0/0)에서 재실행 불필요로 판단, 미실행. build 금지.
+- 판단 근거(test-report Run 5~8 수치와 코드 읽기. 측정 원본 `test-results/button-visual-*/measurements.jsonl`은 이후 실행·정리로 현재 존재하지 않아 report 표를 근거로 함):
+  - ② PageHeader 한 줄: /leaves·/admin/departments 見出し 높이=line-height(30/30@360, 36/36@768+)로 1행, 버튼 top 차이 < 버튼 높이 → 통과(Run 5, 4폭). 部署を追加 48, 条件をクリア 40, 出勤·退勤 48 통과. 修正(B10): 360 카드 74px·nowrap·행 180, 1024 표 scrollWidth=clientWidth(644) → 가로 넘침 없음(Run 7). 벨·MonthNavigator·出勤簿 월 이동 40 통과(Run 8).
+  - ① 모달 footer: C4에서 footer 래퍼 무변경, Button은 `<button>` 1개, md·lg에는 `whitespace-nowrap` 없음(코드 확인) → D4 개수 판정·긴 문구 줄바꿈 구조적으로 불변. 단 360 실측은 없음.
+  - ③ 카드형 목록 행 동작: 修正 카드 행 360 실측(위)만 있음. 承認·却下·詳細(ApprovalsView 카드 `flex-wrap`)·부서 RowActions(`flex-wrap`)는 줄바꿈 가능한 래퍼 유지라 구조상 문제 없음, 실측은 없음.
+  - ④ 검색 버튼: 코드상 3곳 모두 `w-full sm:w-auto`(sm 미만 전폭). 실측 없음.
+  - 기록(판정 없음): 360에서 条件をクリア와 SearchInput이 다른 줄(중심 차이 106~108, Run 5·6). 768 이상은 0.
+- 미충족 의심(수정은 하지 않음, 측정 필요): ⑤ 텍스트 링크 BT04(ログアウト)·BT32·33(사원명 링크)·BT38(CardLink「すべて見る」)은 text variant가 `inline`+`text-sm/5`(line-height 20, padding 없음)라 높이 20 < 24. WCAG 2.5.8은 24px 원 간격 예외로 통과할 수 있으나 실측 전이라 판정 불가. 측정에서 24×24도 간격 예외도 미충족인 곳만 `className="py-0.5"`(Link는 `buttonClass(...)` 뒤에 붙임)를 적용하고, Button의 py-*는 ESLint 금지 목록이므로 해당 줄에 `eslint-disable-next-line` + 일본어 사유 주석이 필요.
+- tester 전달(E3·E4): ① 360/768/1024/1440에서 SCR-001~004·008~010 + 모달 9종 캡처. 모달 footer(2열·3개 이상 우측 정렬)·긴 확정 문구 줄바꿈 ② 검색 버튼 3곳 sm 미만 전폭(`getBoundingClientRect().width ≈ 컨테이너 폭`) ③ 승인·부서 카드형 행 동작 줄바꿈 ④ **텍스트 링크 4종(BT04·32·33·38)의 getBoundingClientRect 폭·높이와 인접 타깃과의 거리** — 높이 < 24이고 간격 예외도 불성립한 곳을 알려주면 frontend가 py-0.5를 적용 ⑤ `overflow-hidden` 안 버튼(표 셀·카드)의 포커스 링 잘림(키보드 Tab 후 캡처) ⑥ 대상 외 BT16·34·40은 측정만 ⑦ 키보드 도달(E4).
+- 문서 갱신 예정: PLAN 단계 7 결과 요약(위 근거·미확인 항목 포함). 문서 반영 모드에서.
