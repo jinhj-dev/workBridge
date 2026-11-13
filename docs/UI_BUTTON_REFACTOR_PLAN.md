@@ -1,6 +1,6 @@
 # UI 버튼 단계별 리팩터링 계획 (UI_BUTTON_REFACTOR_PLAN)
 
-> 상태: **v3 — 확정 계획(사용자 결정 B1~B17 반영, 2026-11-13)**. 값은 `docs/UI_BUTTON_PATTERNS.md` §11 결정 사항 기준이다(결정 원문 `.claude/work/button-audit/decisions.md`). 변경 내역은 §8.
+> 상태: **v4 — 단계 1~8 구현 완료(2026-11-14, 브랜치 `feature/button-refactor`, 리뷰 APPROVE). 진행 상태는 §8, 머지 전 미검증 항목은 §8.3**. 계획 확정은 v3(사용자 결정 B1~B17 반영, 2026-11-13). 값은 `docs/UI_BUTTON_PATTERNS.md` §11 결정 사항 기준이다(결정 원문 `.claude/work/button-audit/decisions.md`). 변경 내역은 §9.
 > 근거: 조사 `docs/UI_BUTTON_AUDIT.md`(버튼 ID BT01~BT80), 표준 `docs/UI_BUTTON_PATTERNS.md`, frontend 검토 `.claude/work/button-audit/frontend-review.md`(이하 REVIEW). 모달 표준 `docs/UI_MODAL_PATTERNS.md` v3과 일치시킨다.
 > 이 문서는 계획만 담는다. 코드·`docs/09_DESIGN_SYSTEM.md`는 수정하지 않았다.
 
@@ -204,10 +204,61 @@ SCR-009 キャンセル이 제출 중 활성인 점(AUDIT BT03)은 동작 변경
 
 ---
 
-## 8. 변경 이력
+## 8. 진행 상태 (2026-11-14)
+
+작업 기록: `.claude/work/button-refactor/`(구현 `frontend.md` C1~C9, 테스트 `test-report.md` Run 1~11, 리뷰 `review.md` Round 2 APPROVE). 단계 결과는 청크 C1~C9로 진행했다.
+
+### 8.1 단계별 결과
+
+| 단계 | 청크 | 상태 | 결과 요약 |
+|---|---|---|---|
+| 1 | C1 | 완료 | `components/Button.tsx` 신규(Tailwind 기본 spacing), ESLint `no-restricted-syntax` 3 selector(`files: src/**/*.tsx`). 사용처 0, 화면 변화 없음. `Button.test.tsx` 38건 |
+| 2-a | C2 | 완료(단독 커밋) | `globals.css` `@theme`에 `--spacing-btn-*`·`--radius-btn` 추가, 맵을 토큰 클래스로 치환(계산값 동일). 빌드 CSS에 토큰 클래스 생성 확인 |
+| 2-b | C3 | 완료 | `SectionError` [再試行] → `Button size="sm"`(px 16→12) |
+| 3 | C4 | 완료 | 모달 8파일 footer 전부 `Button`(md), 모달 X = `ghost` 아이콘 전용(radius 4→8). footer 래퍼 무변경 |
+| 4 | C5 | 완료 | BT01~03·05~12 이행(44 폐지: 休暇申請·部署を追加·出勤·退勤 lg 48, 条件をクリア md 40, 검색 3곳 lg·아이콘 없음·`sm` 미만 전폭). B3 ①~④ 4폭 측정 통과(Run 5·6) |
+| 4 보정 | C5 Fix 1 | 완료 | `SearchInput`이 `inputClass`의 `h-12`와 충돌해 실제 48px이던 문제 수정. **사용자 결정: SearchInput은 44px 유지**(09 §6 기재값). `form.tsx`에 `inputBaseClass` 신설 |
+| 5 | C6 | 완료 | 표 행 동작 `Button sm`(勤怠 修正 = `primaryOutline` + Pencil, B10), 사원명 링크·CardLink = `buttonClass({variant:'text'})`, BT04 ログアウト = `text`. `PencilIcon`을 `admin/departments/icons.tsx` → `components/leave/leaveIcons.tsx`로 이동. B10 360 카드·1024 표 측정 통과(Run 7) |
+| 6 | C7 | 완료 | 벨 = `buttonClass({variant:'ghost',iconOnly:true})`(radius 8), `MonthNavigator`·출근부 前月·翌月 = `Button iconOnly`(출근부 36→40), 今月 sm→md, 출근부 로컬 `Chevron` 삭제(`leaveIcons` 사용) |
+| 7 | C8 | 완료(코드 변경 없음) | 아래 8.2 |
+| 8 | C9 + 문서 | 완료 | `form.tsx` 버튼 상수 8개 삭제(사용처 0 grep 확인), `form.test.tsx` 단언을 `Button.test.tsx`로 이전. 09 §2.3·§3·§5-11·§6과 context.md 갱신(문서 반영 모드) |
+| 리뷰 보정 | Review Fix 1 | 완료 | `inputBaseClass`에서 좌우 padding·글자 크기도 분리(`inputClass = h-12 px-4 text-base/6 + inputBaseClass`), `SearchInput`은 `h-11 pr-4 pl-10 text-sm/5` 직접 지정(같은 속성 중복 지정 0, 보이는 값 동일). `eslint.config.mjs` 공백 복구 |
+
+### 8.2 단계 7(모바일 반응형) 결과 요약
+
+측정은 읽기 전용 e2e `e2e/button-visual.spec.ts`·`e2e/button-c8.spec.ts`(360/768/1024/1440, 쓰기 요청 차단)로 했다.
+
+- ② PageHeader 한 줄: `/leaves`·`/admin/departments` 제목 높이 = line-height(1행), 버튼 top 차이 < 버튼 높이 → 4폭 통과. 部署を追加 48·条件をクリア 40·出勤·退勤 48 통과.
+- ① 모달 footer: 4종(休暇申請·出勤確認·勤怠修正·部署作成)에서 2개 버튼 2열(같은 top) 4폭 통과. 구조상 footer 래퍼 무변경·Button 단일 요소라 D4 판정 불변.
+- ③ 카드형 행: 勤怠 修正 360 카드(버튼 한 줄, 행 180)·1024 표(가로 넘침 없음) 통과. 승인·부서 카드 행은 데이터 의존이라 미측정(`flex-wrap` 래퍼 유지).
+- ④ 검색 버튼 3곳: `sm` 미만 내용폭과 같은 전폭(286/286) 통과.
+- ⑤ 텍스트 링크 터치 영역(B7): BT04 ログアウト 높이 20·최근접 거리 26, BT38 CardLink 높이 20·거리 51 이상 → 24px 원 간격 예외 성립. BT32·33 사원명 링크는 높이 ≥ 24 또는 간격 예외. **`py-0.5` 적용 대상 없음**.
+- ⑥ 포커스 링: 修正 버튼은 overflow 래퍼가 없어 잘림 없음. 다른 overflow 래퍼 안 버튼은 미측정.
+- 360에서 条件をクリア와 SearchInput은 다른 줄에 배치됨(기록만, 768 이상은 같은 줄·중심 차이 0).
+- 미측정: 모달 9종 중 5종(상세 데이터·행 조작 필요), 긴 확정 문구 줄바꿈, 대상 외 BT16·34·40.
+
+### 8.3 머지 전 미검증 항목 (리뷰 #5)
+
+- DB를 쓰는 e2e spec(`leave-calendar-mobile`, `leave-management`, `leaves`, `attendance`, `attendance-status`, `login`, `password`, `dashboard`, `dashboard-renewal`, `approvals`, `departments`·`departments-manager`·`departments-responsive`·`departments-list-modal`·`departments-members-modal`) 미실행.
+- `npm run test:e2e` 전체 미실행.
+- E4 키보드 도달(링크 Enter, 버튼 Enter·Space, 포커스 링) 미실행.
+- `npm run build`: C2 시점 1회만 exit 0, 이후(C3~C9·Review Fix 1) 미실행.
+- 실행한 것: 단위 Vitest 54 files 801 passed, `tsc`·`lint` exit 0, 읽기 전용 e2e 6 spec 68 passed(Run 11).
+
+### 8.4 후속 과제 (범위 밖, 미수정)
+
+- `leaves/LeaveHistoryList.tsx` `dateInputClass`(`${inputClass} h-11 px-3 text-sm/5`)가 `inputClass`의 `h-12`·`px-4`·`text-base/6`과 같은 속성을 중복 지정(SearchInput과 같은 유형의 클래스 충돌).
+- `iconInputClass`(`pl-11`)를 `inputClass`(`px-4`)와 함께 쓰는 기존 사용처의 padding 중복 지정.
+- `e2e/leave-visual.spec.ts` `shouldCaptureScrolledBottomAtPc1440` 간헐 실패(변경 전 기준에서도 실패, 데이터·환경 의존 기존 문제).
+- SCR-009 キャンセル이 제출 중에도 활성(AUDIT BT03, 동작 변경이라 범위 밖, §4).
+
+---
+
+## 9. 변경 이력
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
 | v1 | 2026-11-13 | 최초 계획안 |
 | v2 | 2026-11-13 | frontend 검토 반영. ① 단계 1을 **`form.tsx` 무변경 가산**으로 변경(별칭 출력 동일 불성립, R1·B15), 별칭 비교 테스트 삭제 ② 단계 2를 "토큰 치환 커밋(B6, `toHaveCSS` 검증) + `SectionError` 단독 이행"으로 재구성(Q10) ③ 모달 X를 단계 6→3으로 이동, Notice X를 단계 6에서 제외(E7) ④ ESLint `className` 규칙을 단계 1에 추가(R2·B16) ⑤ 테스트 누락 보강: `form.test.tsx:46-47`, `svg.animate-spin`(`ConfirmDialog.test.tsx:80,85`·`FormModal.test.tsx:67,72`), `Modal.test.tsx:60`, `DashboardView.test.tsx:337`, `AttendanceView.test.tsx`, e2e `leave-management`·`leave-sidebar-submenu`(E8·Q12) ⑥ 배치 클래스 유지 목록(BT01 `mt-1`, BT10 래퍼 `lg:mt-6` 등, E4·E5) ⑦ 이행 대상 53건 명시(E2) ⑧ B3·B8·B10·B14 확인 조건을 해당 단계에 추가 |
 | v3 | 2026-11-13 | **사용자 결정 B1~B17 반영**(전부 권장안). 상태를 확정 계획으로 변경, §0 선행 조건을 완료로 표시, §1 기준을 "결정 기준"으로, 단계 2의 B6 대체 경로(단계 8 연기·미도입) 문구 삭제, 단계 6의 B8 선택지 표현을 결정값으로 정리, 단계 5에 B10 캡처 첨부 조건 명시 |
+| v4 | 2026-11-14 | 구현 완료 반영. 상태를 단계 1~8 완료로 변경, §8 진행 상태 신설(변경 이력은 §9로 이동)(단계별 결과·단계 7 결과 요약·C5 Fix 1 SearchInput 44px 사용자 결정·Review Fix 1·머지 전 미검증 항목·후속 과제) 추가 |
