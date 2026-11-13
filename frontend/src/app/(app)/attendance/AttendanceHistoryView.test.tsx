@@ -72,6 +72,21 @@ describe('AttendanceHistoryView(SCR-003)', () => {
     expect(screen.getByLabelText(messages.dateRange.endDate)).toHaveValue('2026-11-09');
   });
 
+  it('shouldSubmitPeriodWhenEnterPressedInDateInput', async () => {
+    apiFetch.mockResolvedValue(pageOf([record()]));
+    const user = userEvent.setup();
+    render(<AttendanceHistoryView />);
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledTimes(1));
+
+    const startDate = screen.getByLabelText(messages.dateRange.startDate);
+    fireEvent.change(startDate, { target: { value: '2026-11-02' } });
+    await user.click(startDate);
+    await user.keyboard('{Enter}');
+
+    expect(router.push).toHaveBeenCalledTimes(1);
+    expect(String(router.push.mock.calls[0][0])).toContain('startDate=2026-11-02');
+  });
+
   it('shouldShowOrderErrorAndNotNavigateWhenStartAfterEnd', async () => {
     apiFetch.mockResolvedValue(pageOf([record()]));
     render(<AttendanceHistoryView />);

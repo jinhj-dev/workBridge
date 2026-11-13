@@ -10,11 +10,11 @@ import {
   MISSING_ROW_CLASS,
 } from '@/components/attendance/attendanceStatus';
 import { Badge } from '@/components/Badge';
+import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import {
   inputClass,
   labelClass,
-  primaryButtonClass,
   secondaryButtonClass,
   selectClass,
   textButtonClass,
@@ -302,9 +302,9 @@ export function AdminAttendanceView() {
             error={rangeError}
           />
           <div className="sm:col-span-2 lg:col-span-1 lg:mt-6">
-            <button type="submit" className={`${primaryButtonClass} h-12 w-full px-8 sm:w-auto`}>
+            <Button variant="primary" size="lg" type="submit" className="w-full sm:w-auto">
               {messages.dateRange.search}
-            </button>
+            </Button>
           </div>
         </form>
       </Card>

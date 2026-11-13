@@ -12,3 +12,7 @@
 | C3 테스트 | tester | — | N/A | N/A | PASS (Vitest 783) | 0 |
 | C4 구현 | frontend | — | 175 | 115936 | 모달 8파일 footer·X | 0 |
 | C4 테스트 | tester | — | N/A | N/A | PASS (Vitest 786, e2e modal-a11y 2) | 0 |
+| C5 구현 | frontend | — | 170 | 135047 | 페이지 주 버튼 8파일 | 0 |
+| C5 테스트 | tester | — | 894 | 207074 | FAIL (SearchInput 실제 48px, 기존 문제) | 0 |
+| C5 Fix 1 | frontend | — | 93 | 140494 | SearchInput 44px(사용자 결정), inputBaseClass 분리 | 1 |
+| C5 재테스트 | tester | — | N/A | N/A | PASS (Vitest 793, button-visual 5) | 1 |

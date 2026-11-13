@@ -187,6 +187,28 @@ describe('LoginForm 送信中の制御', () => {
   });
 });
 
+describe('LoginForm 送信中の表示', () => {
+  it('shouldShowSpinnerAndKeepLabelWhileLoggingIn', async () => {
+    let resolveLogin: (res: Response) => void = () => {};
+    mockApi({
+      '/auth/login': () =>
+        new Promise<Response>((resolve) => {
+          resolveLogin = resolve;
+        }),
+    });
+    const ui = await renderForm();
+    await fillAndSubmit(ui, '00001', 'pw');
+
+    const button = screen.getByRole('button', { name: t.submit });
+    expect(button).toBeDisabled();
+    expect(button.querySelector('svg.animate-spin')).not.toBeNull();
+    expect(button).toHaveTextContent(t.submit);
+
+    resolveLogin(json(200, { accessToken: 't', user }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/dashboard'));
+  });
+});
+
 describe('LoginForm 成功時と認証の復元', () => {
   it('shouldRedirectToDashboardWithoutDialogWhenLoginSucceeds', async () => {
     mockApi({ '/auth/login': () => json(200, { accessToken: 't', user }) });

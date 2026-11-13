@@ -3,10 +3,10 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/Badge';
+import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import {
   dangerOutlineButtonClass,
-  primaryButtonClass,
   primaryOutlineButtonClass,
   secondaryButtonClass,
   selectClass,
@@ -489,16 +489,9 @@ export function DepartmentsView() {
           title={t.title}
           icon={<LayersIcon />}
           action={
-            <button
-              type="button"
-              onClick={() => openForm(null)}
-              className={`${primaryButtonClass} inline-flex h-10 items-center gap-2 px-4 text-sm/5 sm:px-6`}
-            >
-              <span aria-hidden="true" className="size-5">
-                <PlusIcon />
-              </span>
+            <Button variant="primary" size="lg" icon={<PlusIcon />} onClick={() => openForm(null)}>
               {t.create}
-            </button>
+            </Button>
           }
         />
         <p className="text-sm/5 text-general-80">{t.description}</p>
@@ -532,14 +525,9 @@ export function DepartmentsView() {
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              onClick={handleClear}
-              disabled={!hasConditions}
-              className={`${secondaryButtonClass} h-11 px-4 text-sm/5 disabled:cursor-not-allowed disabled:text-general-60 disabled:hover:bg-white`}
-            >
+            <Button variant="secondary" onClick={handleClear} disabled={!hasConditions}>
               {t.clear}
-            </button>
+            </Button>
           </div>
         }
       >

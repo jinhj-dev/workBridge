@@ -11,7 +11,7 @@ import {
 import { StatusFilterButtons } from '@/components/attendance/StatusFilterButtons';
 import { Badge } from '@/components/Badge';
 import { Card } from '@/components/Card';
-import { primaryButtonClass } from '@/components/form';
+import { Button } from '@/components/Button';
 import { Pagination } from '@/components/Pagination';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
@@ -254,9 +254,9 @@ export function AttendanceHistoryView() {
               onChange={handleStatusChange}
             />
           </div>
-          <button type="submit" className={`${primaryButtonClass} h-12 px-8 sm:mt-6`}>
+          <Button variant="primary" size="lg" type="submit" className="w-full sm:w-auto sm:mt-6">
             {messages.dateRange.search}
-          </button>
+          </Button>
         </form>
       </Card>
 

@@ -180,6 +180,22 @@ describe('DepartmentsView(SCR-010 部署管理)', () => {
     expect(router.push).toHaveBeenCalledWith('/admin/departments');
   });
 
+  it('shouldDisableClearWhenNoConditions', async () => {
+    nav.search = '';
+    mockList([EMPTY_DEPT]);
+    renderView();
+    await waitFor(() => tableRow('開発部'));
+    expect(screen.getByRole('button', { name: t.clear })).toBeDisabled();
+  });
+
+  it('shouldEnableClearWhenNameConditionExists', async () => {
+    nav.search = 'name=a';
+    mockList([EMPTY_DEPT]);
+    renderView();
+    await waitFor(() => tableRow('開発部'));
+    expect(screen.getByRole('button', { name: t.clear })).toBeEnabled();
+  });
+
   it('shouldShowSummaryCounts', async () => {
     mockList([EMPTY_DEPT]);
     renderView();

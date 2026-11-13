@@ -320,4 +320,26 @@ describe('PasswordChangeForm 送信結果', () => {
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/dashboard'));
     expect(button).toBeEnabled();
   });
+
+  it('shouldShowSpinnerAndKeepLabelWhileSubmitting', async () => {
+    let resolvePatch: (res: Response) => void = () => {};
+    mockApi({
+      '/auth/password': () =>
+        new Promise<Response>((resolve) => {
+          resolvePatch = resolve;
+        }),
+    });
+    const ui = await renderForm();
+    await ui.type(screen.getByLabelText(t.currentPassword), CURRENT);
+    await ui.type(screen.getByLabelText(t.newPassword), NEXT);
+    await ui.type(screen.getByLabelText(t.confirmPassword), `${NEXT}{Enter}`);
+
+    const button = screen.getByRole('button', { name: t.submit });
+    expect(button).toBeDisabled();
+    expect(button.querySelector('svg.animate-spin')).not.toBeNull();
+    expect(button).toHaveTextContent(t.submit);
+
+    resolvePatch(new Response(null, { status: 204 }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/dashboard'));
+  });
 });

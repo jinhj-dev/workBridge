@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { primaryButtonClass } from '@/components/form';
+import { Button } from '@/components/Button';
 import { LeaveApplyModal } from '@/components/leave/LeaveApplyModal';
 import { PlusIcon } from '@/components/leave/leaveIcons';
 import { UmbrellaIcon } from '@/components/layout/navIcons';
@@ -59,16 +59,9 @@ export function LeaveManagementLayout({ children }: { children: ReactNode }) {
           title={t.title}
           icon={<UmbrellaIcon />}
           action={
-            <button
-              type="button"
-              onClick={openApply}
-              className={`${primaryButtonClass} flex h-11 items-center gap-1.5 px-4 text-sm/5 md:h-12 md:gap-2 md:px-6 md:text-base/6`}
-            >
-              <span aria-hidden="true" className="size-5">
-                <PlusIcon />
-              </span>
+            <Button variant="primary" size="lg" icon={<PlusIcon />} onClick={openApply}>
               {messages.leaves.applyButton}
-            </button>
+            </Button>
           }
         />
         {holdBody ? <SkeletonLines count={5} /> : children}

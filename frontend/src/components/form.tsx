@@ -3,8 +3,11 @@ import { messages } from '@/messages/ja';
 
 // ログイン・パスワード変更などのカード型フォームで共通に使う見た目
 // フォーカスリングは内側に描く(外側の box-shadow は小数倍率でフォーカス解除後に残像が残るため)
-export const inputClass =
-  'h-12 w-full rounded-lg border border-input-border bg-white px-4 text-base/6 text-general-100 outline-none focus-visible:border-primary-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-100 aria-invalid:border-danger-100 aria-invalid:focus-visible:ring-danger-100';
+// 高さを除いた入力欄の共通クラス(高さを変える入力欄は h-12 と衝突しないようこちらを使う)
+export const inputBaseClass =
+  'w-full rounded-lg border border-input-border bg-white px-4 text-base/6 text-general-100 outline-none focus-visible:border-primary-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-100 aria-invalid:border-danger-100 aria-invalid:focus-visible:ring-danger-100';
+
+export const inputClass = `h-12 ${inputBaseClass}`;
 
 // 09 §3 Dropdown(Regular)。Input と同じ高さ・枠線
 export const selectClass = `${inputClass} cursor-pointer`;
