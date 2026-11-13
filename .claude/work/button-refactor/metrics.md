@@ -10,3 +10,5 @@
 | C2 테스트 | tester | — | N/A | N/A | PASS (Vitest 779) | 0 |
 | C3 구현 | frontend | — | 82 | 90894 | SectionError → Button sm | 0 |
 | C3 테스트 | tester | — | N/A | N/A | PASS (Vitest 783) | 0 |
+| C4 구현 | frontend | — | 175 | 115936 | 모달 8파일 footer·X | 0 |
+| C4 테스트 | tester | — | N/A | N/A | PASS (Vitest 786, e2e modal-a11y 2) | 0 |

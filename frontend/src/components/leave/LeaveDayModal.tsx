@@ -1,7 +1,7 @@
 'use client';
 
 import { CalendarIcon } from '@/components/CalendarIcon';
-import { modalSecondaryButtonClass } from '@/components/form';
+import { Button } from '@/components/Button';
 import { LeaveCategoryBadge } from '@/components/leave/LeaveCategoryBadge';
 import { Modal } from '@/components/Modal';
 import type { LeaveCalendarItem } from '@/lib/api/types';
@@ -26,9 +26,9 @@ export function LeaveDayModal({ open, title, items, onClose }: LeaveDayModalProp
       icon={<CalendarIcon />}
       onClose={onClose}
       footer={
-        <button type="button" onClick={onClose} className={modalSecondaryButtonClass}>
+        <Button variant="secondary" onClick={onClose}>
           {messages.common.close}
-        </button>
+        </Button>
       }
     >
       <ul className="divide-y divide-general-40">

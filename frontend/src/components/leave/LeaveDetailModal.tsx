@@ -2,6 +2,7 @@
 
 import { Fragment, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Button } from '@/components/Button';
 import { CalendarIcon } from '@/components/CalendarIcon';
 import { DetailTable, DetailTableRow } from '@/components/DetailTable';
 import {
@@ -9,16 +10,12 @@ import {
   FieldError,
   confirmMessageClass,
   labelClass,
-  modalDangerButtonClass,
-  modalPrimaryButtonClass,
-  modalSecondaryButtonClass,
   textareaClass,
 } from '@/components/form';
 import { LeaveStatusBadge } from '@/components/leave/LeaveStatusBadge';
 import { Modal } from '@/components/Modal';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
-import { Spinner } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
 import { ApiError, NetworkError, apiFetch } from '@/lib/api/client';
 import type { Leave } from '@/lib/api/types';
@@ -185,8 +182,8 @@ export function LeaveDetailModal({
     if (shownStep === 'cancel') {
       return (
         <>
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             disabled={submitting}
             onClick={() => {
               setReturnFocus('cancel');
@@ -194,27 +191,24 @@ export function LeaveDetailModal({
             }}
             autoFocus
             data-autofocus=""
-            className={modalSecondaryButtonClass}
           >
             {t.cancel.back}
-          </button>
-          <button
-            type="button"
-            disabled={submitting}
+          </Button>
+          <Button
+            variant="danger"
+            loading={submitting}
             onClick={() => void submit(`/leaves/${leaveId}/cancel`, undefined, t.cancel.success)}
-            className={modalDangerButtonClass}
           >
-            {submitting && <Spinner />}
             {t.cancel.submit}
-          </button>
+          </Button>
         </>
       );
     }
     if (shownStep === 'approve' || shownStep === 'reject') {
       return (
         <>
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             disabled={submitting}
             onClick={() => {
               if (initialStep === 'detail') {
@@ -225,60 +219,54 @@ export function LeaveDetailModal({
                 handleClose();
               }
             }}
-            className={modalSecondaryButtonClass}
           >
             {messages.common.cancel}
-          </button>
-          <button
-            type="button"
-            disabled={submitting}
+          </Button>
+          <Button
+            variant="primary"
+            loading={submitting}
             onClick={
               shownStep === 'approve'
                 ? () => void submit(`/leaves/${leaveId}/approve`, undefined, t.approve.success)
                 : handleReject
             }
             {...(shownStep === 'approve' ? { autoFocus: true, 'data-autofocus': '' } : {})}
-            className={modalPrimaryButtonClass}
           >
-            {submitting && <Spinner />}
             {shownStep === 'approve' ? t.approve.submit : t.reject.submit}
-          </button>
+          </Button>
         </>
       );
     }
     return (
       <>
-        <button type="button" onClick={handleClose} className={modalSecondaryButtonClass}>
+        <Button variant="secondary" onClick={handleClose}>
           {messages.common.close}
-        </button>
+        </Button>
         {canCancel && (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             onClick={() => setStep('cancel')}
             autoFocus={returnFocus === 'cancel'}
-            className={modalSecondaryButtonClass}
           >
             {t.detail.cancel}
-          </button>
+          </Button>
         )}
         {canProcess && (
           <>
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               onClick={() => setStep('reject')}
               autoFocus={returnFocus === 'reject'}
-              className={modalSecondaryButtonClass}
             >
               {t.detail.reject}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="primary"
               onClick={() => setStep('approve')}
               autoFocus={returnFocus === 'approve'}
-              className={modalPrimaryButtonClass}
             >
               {t.detail.approve}
-            </button>
+            </Button>
           </>
         )}
       </>

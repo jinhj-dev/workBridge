@@ -253,6 +253,43 @@ describe('LeaveDetailModal 承認', () => {
     await waitFor(() => expect(onProcessed).toHaveBeenCalledTimes(1));
   });
 
+  it('shouldShowSpinnerAndDisableBackAndCloseWhileApproveSubmitting', async () => {
+    let resolveApprove: (value: Leave) => void = () => {};
+    const { ui, dialog, handlers } = await renderModal(APPROVER);
+    handlers[`/leaves/${LEAVE_ID}/approve`] = () =>
+      new Promise<Leave>((resolve) => {
+        resolveApprove = resolve;
+      });
+
+    await ui.click(within(dialog).getByRole('button', { name: t.detail.approve }));
+    const submit = within(dialog).getByRole('button', { name: t.approve.submit });
+    await ui.click(submit);
+
+    expect(submit).toBeDisabled();
+    expect(submit.querySelector('svg.animate-spin')).not.toBeNull();
+    expect(within(dialog).getByRole('button', { name: messages.common.cancel })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: messages.common.close })).toBeDisabled();
+    resolveApprove(leave({ status: 'APPROVED' }));
+    await waitFor(() => expect(onProcessed).toHaveBeenCalledTimes(1));
+  });
+
+  it('shouldReenableApproveButtonAfterUnexpectedFailure', async () => {
+    const { ui, dialog, handlers } = await renderModal(APPROVER);
+    handlers[`/leaves/${LEAVE_ID}/approve`] = () => {
+      throw new ApiError(500, 'INTERNAL_ERROR', 'サーバーエラー');
+    };
+
+    await ui.click(within(dialog).getByRole('button', { name: t.detail.approve }));
+    const submit = within(dialog).getByRole('button', { name: t.approve.submit });
+    await ui.click(submit);
+
+    await waitFor(() => expect(toast()).toHaveTextContent('サーバーエラー'));
+    expect(submit).toBeEnabled();
+    expect(submit.querySelector('svg.animate-spin')).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onProcessed).not.toHaveBeenCalled();
+  });
+
   it('shouldToastCloseAndRefreshWhenAlreadyProcessed', async () => {
     const { ui, dialog, handlers } = await renderModal(APPROVER);
     handlers[`/leaves/${LEAVE_ID}/approve`] = () => {

@@ -1,6 +1,6 @@
 import { Badge } from '@/components/Badge';
 import { DetailTable, DetailTableRow } from '@/components/DetailTable';
-import { modalPrimaryButtonClass, modalSecondaryButtonClass } from '@/components/form';
+import { Button } from '@/components/Button';
 import { Modal } from '@/components/Modal';
 import type { DepartmentDetail } from '@/lib/api/types';
 import { formatTokyoDate } from '@/lib/format';
@@ -27,17 +27,13 @@ export function DepartmentDetailModal({ department, onClose, onEdit }: Departmen
       onClose={onClose}
       footer={
         <>
-          <button type="button" onClick={onClose} className={modalSecondaryButtonClass}>
+          <Button variant="secondary" onClick={onClose}>
             {t.detailModal.close}
-          </button>
+          </Button>
           {department && !department.isSystem && (
-            <button
-              type="button"
-              onClick={() => onEdit(department)}
-              className={modalPrimaryButtonClass}
-            >
+            <Button variant="primary" onClick={() => onEdit(department)}>
               {t.editSelected}
-            </button>
+            </Button>
           )}
         </>
       }

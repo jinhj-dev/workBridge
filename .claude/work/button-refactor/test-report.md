@@ -42,3 +42,21 @@ RESULT: PASS
   - `npm run lint` → exit 0
 - 실패: 없음
 - 미실행: `npm run build` (지시에 따라 미실행, 3000 개발 서버 보호), Playwright e2e
+
+## Run 4 (C4)
+
+- 대상: C4 모달 내부 버튼 BT42~62 이행 (Modal X, ConfirmDialog, FormModal, LeaveDetailModal, AttendanceEditModal, DepartmentDetailModal, DepartmentMembersModal)
+- 추가 단위 테스트 (3건, 전체 786 = 783 + 3)
+  - `components/FormModal.test.tsx`: `shouldEnableSubmitAgainWhenSubmittingEndsAfterFailure` (제출 실패 후 확정 버튼 재활성, spinner 제거)
+  - `components/leave/LeaveDetailModal.test.tsx`: `shouldShowSpinnerAndDisableBackAndCloseWhileApproveSubmitting` (承認 送信中 spinner, 戻る·X disabled), `shouldReenableApproveButtonAfterUnexpectedFailure` (500 실패 후 承認 재활성, 모달 유지)
+- 기존 단위 테스트(Modal·ConfirmDialog·FormModal·LeaveDetailModal·AttendanceEditModal·DepartmentMembersModal 등)는 변경 없이 통과
+- 추가 e2e (`frontend/e2e/modal-a11y.spec.ts`): `shouldSizeFooterButtons40pxAndCloseIconRadius8px` (확정·취소 버튼 height 40px, X border-radius 8px). 기존 `shouldHandleFocusEscapeAndSubmittingInClockInConfirm`과 같은 route mock 방식이며 POST 없음
+- 실행 명령:
+  - `npx vitest run` (PowerShell, `frontend/`) → 53 files passed, 786 tests passed / 0 failed (exit 0)
+  - `npx tsc --noEmit` → exit 0
+  - `npm run lint` → exit 0
+  - Playwright: `e2e/modal-a11y.spec.ts`만 실행. 환경변수 `PLAYWRIGHT_BASE_URL=http://localhost:3000` 지정(globalSetup의 개발 DB 계정 초기화와 webServer 기동을 건너뜀). E2E 비밀번호는 `.env.local`에서 프로세스 환경변수로만 읽고 출력하지 않음 → 2 passed / 0 failed / 0 skipped
+- 실행하지 않은 spec: 개발 DB에 쓰는 기존 spec(leaves, approvals, departments*, dashboard-renewal, attendance* 등)은 지시에 따라 미실행. 나머지 C4 e2e 회귀(`leaves`·`approvals`·`departments*`)도 같은 이유로 미실행
+- 계획 편차: test-plan E3(`button-visual.spec.ts`)는 C5·C6·C8 범위라 C4에서는 만들지 않음. C4의 E2 계산값 단언은 `modal-a11y.spec.ts`에 추가함(test-plan E2가 허용하는 위치)
+- 실패: 없음
+- 미실행: `npm run build` (지시에 따라 미실행)

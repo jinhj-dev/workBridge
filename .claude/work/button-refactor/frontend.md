@@ -24,3 +24,15 @@
 - 기존 테스트: SectionError 사용 테스트는 `getByRole('button', {name: 再試行})`·클릭 기반이라 영향 없을 것으로 판단(클래스 단언 없음, grep 확인). 미실행.
 - 화면 확인: 생략(백엔드·로그인 필요한 조회 실패 상태 재현을 하지 않음).
 - 문서 갱신 예정: 09 §6 SectionError 행에 Button 사용 기록(설계 문서 항목 1과 동일).
+
+## C4 (모달 내부 버튼 BT42~62)
+- 변경 파일(8): `components/Modal.tsx`(X만), `ConfirmDialog.tsx`, `FormModal.tsx`, `components/leave/LeaveDayModal.tsx`, `components/leave/LeaveDetailModal.tsx`, `app/(app)/admin/attendance/AttendanceEditModal.tsx`, `app/(app)/admin/departments/DepartmentDetailModal.tsx`, `DepartmentMembersModal.tsx`. 변경 파일 전부 prettier 적용.
+- Modal X: `<Button variant="ghost" iconOnly aria-label disabled={busy} className="-m-2" icon={<svg…/>}>`(svg는 슬롯 size-6 + size-full). footer 래퍼(그리드) 무변경.
+- ConfirmDialog: 취소 secondary(`disabled={submitting}`, danger일 때 data-autofocus 유지), 확정 `variant={danger?'danger':'primary'}` `loading={submitting}`(disabled 중복 제거, data-autofocus 위치 유지). FormModal: 취소 secondary, 제출 primary `type="submit" form={formId}` `loading`.
+- LeaveDetailModal: 4단계 footer 전부 Button. 取消 확정 danger loading, 承認·却下する primary loading(`disabled={submitting}` 제거), 취소/戻る secondary `disabled={submitting}` 유지. 조건부 렌더(canCancel·canProcess)·`autoFocus`·`data-autofocus`·`setStep`·returnFocus·Fragment key 그대로. AttendanceEditModal: 확인 단계 저장 primary loading·autoFocus·data-autofocus 유지, 입력 단계 버튼은 현행대로 type=button. DepartmentDetailModal: `department && !department.isSystem` 조건 유지.
+- 전 footer 버튼 size 기본(md), w-full 없음, Button은 `<button>` 1개라 footer 개수 판정(D4) 불변. `form.tsx` 무변경(modal* 상수는 이 모달들에서 import 제거만).
+- 시각 변화: 모달 X radius 4→8(B9). 그 외 높이 40·px16·gap8 동일(토큰 계산값 동일).
+- 검증: `npx eslint .` exit 0 / `npx tsc --noEmit` exit 0 / `npm run build` 금지로 미실행 / vitest·e2e 미실행. 
+- 화면 확인: 생략(개발 서버 3000은 응답 200이나 로그인이 필요하고 E2E 계정 환경변수·개발 DB 접근을 쓰지 않음).
+- tester 전달: ① `ConfirmDialog.test.tsx:61,64` `bg-danger-100` 클래스 단언은 Button danger variant(`bg-danger-100`)로 통과 예상. `animate-spin`(ConfirmDialog 80,85 / FormModal 67,72)은 loading 시 Spinner svg 유지로 통과 예상. ② `Modal.test.tsx:60` footer `sm:border-t` 불변. ③ X 버튼 `aria-label=閉じる`·busy 시 disabled 확인. ④ 기존 테스트 중 modal* 클래스(예: `form.test.tsx:46-47`)는 C9까지 form.tsx 무변경이라 영향 없음. ⑤ 단위 T3 + e2e E1(`modal-a11y`·`leaves`·`approvals`·`departments*`), E2 `toHaveCSS` 36/40/48·X radius 8px 단언 추가 필요.
+- 문서 갱신 예정: 09 §6 Modal 행(X = ghost)·ConfirmDialog/FormModal 등(설계 문서 항목 1과 동일), 차이 없음.

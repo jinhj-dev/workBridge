@@ -1,15 +1,10 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import {
-  confirmMessageClass,
-  modalDangerButtonClass,
-  modalPrimaryButtonClass,
-  modalSecondaryButtonClass,
-} from '@/components/form';
+import { Button } from '@/components/Button';
+import { confirmMessageClass } from '@/components/form';
 import { Modal } from '@/components/Modal';
 import { Notice } from '@/components/Notice';
-import { Spinner } from '@/components/Spinner';
 import { messages } from '@/messages/ja';
 
 interface ConfirmDialogProps {
@@ -52,25 +47,22 @@ export function ConfirmDialog({
       onClose={onClose}
       footer={
         <>
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             disabled={submitting}
             onClick={onClose}
             data-autofocus={danger ? '' : undefined}
-            className={modalSecondaryButtonClass}
           >
             {cancelLabel}
-          </button>
-          <button
-            type="button"
-            disabled={submitting}
+          </Button>
+          <Button
+            variant={danger ? 'danger' : 'primary'}
+            loading={submitting}
             onClick={onConfirm}
             data-autofocus={danger ? undefined : ''}
-            className={danger ? modalDangerButtonClass : modalPrimaryButtonClass}
           >
-            {submitting && <Spinner />}
             {confirmLabel}
-          </button>
+          </Button>
         </>
       }
     >
