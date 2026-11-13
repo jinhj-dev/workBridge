@@ -85,3 +85,6 @@
 - `docs/UI_MODAL_PATTERNS.md` — 모달 공통 패턴(유형·외형·아이콘·부품·접근성, 결정 D1~D15·U1~U5) — frontend, reviewer
 - `docs/UI_MODAL_REFACTOR_PLAN.md` — 모달 리팩터링 단계 계획·진행 상태 — frontend, tester, reviewer
 - `docs/UI_MODAL_AUDIT.md` — 모달 9종(M01~M09) 전수 조사(리팩터링 전 기준) — frontend, reviewer
+- `docs/UI_BUTTON_AUDIT.md` — 버튼 80건(BT01~BT80) 전수 조사·불일치 — frontend, reviewer
+- `docs/UI_BUTTON_PATTERNS.md` — 버튼 Variant·Size·상태·Props 표준(v3 확정, 사용자 결정 B1~B17) — frontend, reviewer
+- `docs/UI_BUTTON_REFACTOR_PLAN.md` — 버튼 리팩터링 8단계 계획·회귀 테스트 — frontend, tester, reviewer
