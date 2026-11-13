@@ -27,3 +27,18 @@ RESULT: PASS
   - `npm run lint` → exit 0
 - 실패: 없음
 - 미실행: `npm run build`, Playwright e2e. C2 계산값(36/40/48px, radius 8px) 단언은 C4 e2e `toHaveCSS`에서 추가 예정
+
+## Run 3 (C3)
+
+- 대상: C3 SectionError의 [再試行]을 `Button size="sm"`으로 이행 (`frontend/src/components/SectionError.tsx`)
+- 작성한 테스트: `frontend/src/components/SectionError.test.tsx` (신규, 4건)
+  - 기본 문구(`messages.common.loadError`), 전달 문구 표시
+  - 再試行 버튼 `type="button"`·`h-btn-sm` 단언
+  - 再試行 클릭 시 `onRetry` 1회 호출
+- 기존 화면 테스트: 再試行을 클릭해 재조회하는 기존 케이스가 이미 있음 (DashboardView, LeavesView, ApprovalsView, AttendanceHistoryView, DepartmentsView, DepartmentMembersModal, LeaveCalendarView, ApproverSelect, DepartmentFormModal, AttendanceSheetView). 이번 실행에 포함되어 통과
+- 실행 명령 (PowerShell, `frontend/`):
+  - `npx vitest run` (전체) → 53 files passed, 783 tests passed / 0 failed (exit 0)
+  - `npx tsc --noEmit` → exit 0
+  - `npm run lint` → exit 0
+- 실패: 없음
+- 미실행: `npm run build` (지시에 따라 미실행, 3000 개발 서버 보호), Playwright e2e

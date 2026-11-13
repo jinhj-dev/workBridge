@@ -16,3 +16,11 @@
 - 검증: `npx eslint .` exit 0 / `npx tsc --noEmit` exit 0 / `npm run build` exit 0. 빌드 CSS(.next/static/chunks)에 `.h-btn-*`·`.size-btn-*`·`.px-btn-x-*`·`.gap-btn-gap(-sm)`·`.rounded-btn` 생성 확인. vitest·e2e 미실행.
 - tester 전달: `Button.test.tsx`의 크기·radius 기대값을 토큰 클래스로 갱신 필요(h-9/h-10/h-12→h-btn-sm/md/lg, px-3/4/6→px-btn-x-*, size-9/10/12→size-btn-*, gap-1/gap-2(버튼 gap)→gap-btn-gap-sm/gap-btn-gap, `rounded-lg`→`rounded-btn`). 계산값(36/40/48px, radius 8px)은 C4 e2e `toHaveCSS`.
 - 문서 갱신 예정: 09 §2.3 버튼 크기 토큰 행(B6) — 설계 문서 "문서 갱신 예정" 1과 동일, 차이 없음.
+
+## C3 (SectionError 이행)
+- 변경 파일: `frontend/src/components/SectionError.tsx` 1개. BT77 [再試行] `<button className={secondaryButtonClass h-9 px-4 text-sm/5}>` → `<Button size="sm" onClick={onRetry}>`(secondary 기본, type=button). `form` 의 `secondaryButtonClass` import 제거, `Button` import 추가. `messages.common.retry`·Notice `action` 슬롯 위치·`onRetry` 그대로.
+- 시각 변화: px 16→12(높이 36 동일).
+- 검증: `npx eslint .` exit 0 / `npx tsc --noEmit` exit 0. `npm run build` 미실행(지시), vitest·e2e 미실행.
+- 기존 테스트: SectionError 사용 테스트는 `getByRole('button', {name: 再試行})`·클릭 기반이라 영향 없을 것으로 판단(클래스 단언 없음, grep 확인). 미실행.
+- 화면 확인: 생략(백엔드·로그인 필요한 조회 실패 상태 재현을 하지 않음).
+- 문서 갱신 예정: 09 §6 SectionError 행에 Button 사용 기록(설계 문서 항목 1과 동일).

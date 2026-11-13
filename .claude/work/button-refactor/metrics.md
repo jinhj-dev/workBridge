@@ -8,3 +8,5 @@
 | C1 테스트 | tester | — | 239 | 51708 | PASS (Vitest 779) → 커밋 51294f6 | 0 |
 | C2 구현 | frontend | — | 117 | 86426 | 크기 토큰·Button 치환 (build 실행됨) | 0 |
 | C2 테스트 | tester | — | N/A | N/A | PASS (Vitest 779) | 0 |
+| C3 구현 | frontend | — | 82 | 90894 | SectionError → Button sm | 0 |
+| C3 테스트 | tester | — | N/A | N/A | PASS (Vitest 783) | 0 |

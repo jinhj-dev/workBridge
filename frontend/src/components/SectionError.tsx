@@ -1,4 +1,4 @@
-import { secondaryButtonClass } from '@/components/form';
+import { Button } from '@/components/Button';
 import { Notice } from '@/components/Notice';
 import { messages } from '@/messages/ja';
 
@@ -15,13 +15,9 @@ export function SectionError({
     <Notice
       variant="error"
       action={
-        <button
-          type="button"
-          onClick={onRetry}
-          className={`${secondaryButtonClass} h-9 px-4 text-sm/5`}
-        >
+        <Button size="sm" onClick={onRetry}>
           {messages.common.retry}
-        </button>
+        </Button>
       }
     >
       {message}
