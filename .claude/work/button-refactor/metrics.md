@@ -18,3 +18,5 @@
 | C5 재테스트 | tester | — | N/A | N/A | PASS (Vitest 793, button-visual 5) | 1 |
 | C6 구현 | frontend | — | 190 | 157596 | 표 안 버튼·텍스트 링크·PencilIcon 이동 | 0 |
 | C6 테스트 | tester | — | 201(Run6 기준) | N/A | PASS (Vitest 795, button-visual 7) | 0 |
+| C7 구현 | frontend | — | 104 | 166837 | 벨·MonthNavigator·출근부 월 이동 | 0 |
+| C7 테스트 | tester | — | 646 | 285295 | 기존 spec 1건 실패 → 기준 비교로 기존 문제 판정, PASS (Vitest 797) | 0 |

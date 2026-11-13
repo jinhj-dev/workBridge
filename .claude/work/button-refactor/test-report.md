@@ -177,3 +177,64 @@ RESULT: PASS
 - 修正 버튼의 "폭 약 +20px" 변화 수치는 이전 상태와 비교하지 않음(변경 전 측정 없음)
 - `npm run build` 미실행(지시에 따라)
 - 3000·6000 서버는 건드리지 않음. 구현 코드·커밋 없음
+
+## Run 8 (C7)
+
+- 대상: C7 아이콘 버튼 (ベル TopBar, 出勤簿 월 이동, 休暇カレンダー MonthNavigator, 今月·Chevron)
+- 전체 결과: RESULT FAIL. 실패 1건은 기존 spec `e2e/leave-visual.spec.ts`의 `shouldCaptureScrolledBottomAtPc1440`(원인 미확정, 아래 참고). C7 신규 단언은 모두 통과
+- 단위 테스트: 전체 Vitest 53 files, 797 passed / 0 failed (직전 795에서 +2)
+  - 추가 `components/layout/AppShell.test.tsx`: `shouldLinkBellToApprovalsWithCountAndRedDotWhenPending`(href·承認待ちN件 이름·빨간 점 aria-hidden), `shouldLinkBellWithoutRedDotWhenNoPending`(이름 休暇承認へ移動, 점 없음)
+  - 이미 있던 단언(확인만, 변경 없음): 前月·翌月 이름 클릭(출근부·휴가 캘린더), 今月 disabled/enabled(출근부), 월 변경 후 재조회. 깨진 기존 단언 없음(`size-9` 등 클래스 단언 없음)
+- e2e: `e2e/button-visual.spec.ts` C7 신규 2건(360·1440). 결과 2 passed / 0 failed
+  - 벨: `a[href="/leaves/approvals"]` border-radius 8px 통과(360·1440)
+  - 휴가 캘린더 MonthNavigator: 前月·翌月 height 40px 통과(360·1440)
+  - 출근부 월 이동: 1440에서 前月·翌月·今月 height 40px 통과. 360에서는 출근부가 마운트되지 않음(md 기준, 구간 밖은 履歴 표시) → 측정 대상 아님(아래 수치 참고)
+- 실행: `e2e` 4개 spec을 `PLAYWRIGHT_BASE_URL=http://localhost:3000`으로 실행(globalSetup의 DB 초기화와 webServer 기동 건너뜀)
+- 실행 명령:
+  - `npx vitest run` (PowerShell, `frontend/`) → 53 files, 797 passed / 0 failed (exit 0)
+  - `npx tsc --noEmit` → exit 0
+  - `npm run lint` → exit 0
+  - `npx playwright test e2e/button-visual.spec.ts e2e/attendance-sheet-layout.spec.ts e2e/leave-sidebar-submenu.spec.ts e2e/leave-visual.spec.ts` → 실행 58건 중 56 passed / 2 failed. 실패 2건 중 button-visual C7 360은 출근부 가정 오류였고 수정 후 통과. 남은 1건이 leave-visual
+
+### 실행한 spec 과 미실행 spec
+
+- 실행(읽기 전용 확인 완료, 쓰기 요청 없음): `button-visual.spec.ts`, `attendance-sheet-layout.spec.ts`(스크린샷은 `.claude/work/attendance-sheet-ui/screenshots`에 저장), `leave-sidebar-submenu.spec.ts`(스크린샷은 환경변수 미지정으로 저장 안 함), `leave-visual.spec.ts`(beforeAll은 skip 조건만. 스크린샷은 `.claude/work/` 하위에 저장)
+- 미실행: `leave-calendar-mobile.spec.ts`. `beforeAll`이 `npm run db:e2e-leave-calendar-fixture`(개발 DB 쓰기)를 실행하므로 쓰기 가능성이 확실해 미실행
+- 미실행(기존): login, password, dashboard*, attendance*, leaves, departments*, approvals 등 쓰기 가능 spec
+
+### 실패 1건 (기존 spec, 원인 미확정)
+
+- `leave-visual.spec.ts` › `shouldCaptureScrolledBottomAtPc1440`: `/leaves/calendar`(1440x900)에서 최하단 스크롤 값이 0. 기대값은 0 초과
+- 추정: 페이지 높이가 뷰포트 안에 들어가 스크롤이 생기지 않음. 픽스처 데이터(휴가 캘린더 샘플)에 의존할 가능성. 이 spec은 `leave-calendar-mobile`이 만드는 픽스처를 전제할 수 있으나 이 spec 자체에는 설정이 없음
+- C7 변경(아이콘 굵기, 벨 radius)은 페이지 높이를 바꾸지 않으므로 회귀 가능성은 낮다고 보지만, 확인하지는 못함(변경 전 기준 실행 없음)
+- 담당: 미정. 환경(픽스처) 확인 또는 spec 전제 조건 확인이 필요. 구현 문제로는 판정하지 않음
+
+### B C7 측정값 (CSS px)
+
+| 항목 | 360 | 1440 |
+|---|---|---|
+| 벨 `a[href=/leaves/approvals]` 높이·폭 / radius | 40 / 40 / 8px | 40 / 40 / 8px |
+| 출근부 前月·翌月 높이 | 측정 안 함(미마운트, 件数 0) | 40 / 40 |
+| 출근부 今月 높이 | 측정 안 함 | 40 (toHaveCSS 통과) |
+| 출근부 헤더 h1 높이 / line-height | 측정 안 함 | 34 / 34 (1행) |
+| 출근부 前月 상단 차이 | 측정 안 함 | 3 |
+| 출근부 가로 넘침 | 측정 안 함 | 0 |
+| 휴가 캘린더 前月·翌月 높이 | 40 / 40 | 40 / 40 |
+
+- 360 헤더 줄바꿈 수치: 출근부 자체가 360에 없으므로 비교할 현행 값이 없다. 360 헤더 줄바꿈 확인은 출근부(md 이상) 범위 밖이라 보류
+- 캡처: `frontend/test-results/button-visual-C7-幅-{360|1440}px-*/` 아래 `attendance-month-nav.png`, `calendar-month-nav.png`
+- 측정 원본: 같은 폴더의 `measurements.jsonl`
+
+### 미확인
+
+- `npm run build` 미실행(지시에 따라)
+- 3000·6000 서버는 건드리지 않음. 구현 코드·커밋 없음
+
+### Run 8 판정 보완 (leave-visual 회귀 여부)
+
+- 방법: C7 구현 3파일(`TopBar.tsx`, `MonthNavigator.tsx`, `AttendanceSheetView.tsx`)만 `git stash`(이름 c7-baseline)로 되돌리고, 나머지(테스트·기록 파일)는 그대로 둔 상태에서 `leave-visual.spec.ts`의 `shouldCaptureScrolledBottomAtPc1440`만 같은 조건(PLAYWRIGHT_BASE_URL=http://localhost:3000)으로 실행. 15초 대기 후 실행, 실행 직후 `git stash pop`으로 복원
+- 기준(C7 전) 결과: 실패. `Expected: > 0 / Received: 0`(최하단 스크롤 없음). C7 적용 시 실패와 동일
+- 판정: C7 회귀 아님. 기존 문제(데이터·뷰포트 의존)로 기록. 기존 실패를 제외하고 RESULT: PASS
+- stash 복원 확인: `git stash pop` 성공(`Dropped refs/stash@{0}`), `git stash list` 비어 있음. `git status`에서 `TopBar.tsx`·`MonthNavigator.tsx`·`AttendanceSheetView.tsx`가 다시 수정 상태(M)
+- 기존 실패 기록: `leave-visual.spec.ts` › `shouldCaptureScrolledBottomAtPc1440`(기준·C7 모두 실패). 원인 후보는 캘린더 페이지 높이가 뷰포트 안에 들어가는 상태(샘플 휴가 픽스처 부재 가능성). 수정하지 않음
+- 결과 집계 정정: Run 8 본문의 "RESULT: FAIL" 판정은 위 판정에 따라 PASS(기존 실패 제외)로 바꿨다. 실행 수치(58건 중 56 passed / 2 failed)는 그대로 둔다

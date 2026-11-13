@@ -101,6 +101,24 @@ describe('AppShell 承認待ちバッジ', () => {
     await waitFor(() => expect(leavesLink()).toHaveTextContent('99+'));
   });
 
+  it('shouldLinkBellToApprovalsWithCountAndRedDotWhenPending', async () => {
+    apiFetch.mockResolvedValue({ items: [], page: 1, limit: 1, totalCount: 3, totalPages: 3 });
+    renderShell('authenticated', EMPLOYEE);
+    const bell = await screen.findByRole('link', { name: nav.pendingCount(3) });
+    expect(bell).toHaveAttribute('href', '/leaves/approvals');
+    // 件数がある間だけ赤い点を出す(装飾なので aria-hidden)
+    const dot = bell.querySelector('span.bg-danger-100');
+    expect(dot).not.toBeNull();
+    expect(dot).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('shouldLinkBellWithoutRedDotWhenNoPending', async () => {
+    renderShell('authenticated', EMPLOYEE);
+    const bell = await screen.findByRole('link', { name: nav.approvalsLink });
+    expect(bell).toHaveAttribute('href', '/leaves/approvals');
+    expect(bell.querySelector('span.bg-danger-100')).toBeNull();
+  });
+
   it('shouldHideBadgeWhenRefreshReturnsZero', async () => {
     apiFetch.mockResolvedValue({ items: [], page: 1, limit: 1, totalCount: 2, totalPages: 2 });
     auth.status = 'authenticated';

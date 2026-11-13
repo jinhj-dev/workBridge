@@ -259,3 +259,79 @@ for (const width of [360, 1024] as const) {
     });
   });
 }
+
+// C7: アイコン・月移動ボタン。ベル(TopBar)の角丸、出勤簿の月移動(40px)と 360 のヘッダー、休暇カレンダーの月移動(40px)。
+// 月の移動は GET のみ。ボタンを押して月を変える以外は操作しない。
+const SHEET = messages.attendance.sheet;
+const CALENDAR = messages.leaveCalendar;
+
+for (const width of [360, 1440] as const) {
+  test.describe(`C7 幅 ${width}px`, () => {
+    test.use({ viewport: { width, height: 900 } });
+    test.skip(!E2E_ADMIN.password, 'E2E_ADMIN_PASSWORD が未設定のため実行しない');
+
+    test('shouldSizeMonthNavigatorsAt40pxAndBellRadius8px', async ({ page }, testInfo) => {
+      await blockWrites(page);
+      await page.goto('/login');
+      await login(page);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+      // ベル(承認画面へのリンク)の角丸は ghost の 8px
+      const bell = page.locator('a[href="/leaves/approvals"]').first();
+      await expect(bell).toHaveCSS('border-radius', '8px');
+      const bellBox = await measureBox(bell);
+      record(testInfo, width, 'C7-bell', { height: bellBox.height, width: bellBox.width });
+
+      // 出勤簿の月移動: 前月・翌月・今月
+      await navigateInApp(page, '/attendance');
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      // 出勤簿(月移動つき)は md 以上だけ表示する。狭い幅では履歴の表示になるため件数だけ記録する
+      if (width < 768) {
+        const narrowCount = await page.getByRole('button', { name: SHEET.prevMonth }).count();
+        record(testInfo, width, 'C7-sheet-narrow', { monthNavCount: narrowCount });
+      } else {
+      const prev = page.getByRole('button', { name: SHEET.prevMonth });
+      const next = page.getByRole('button', { name: SHEET.nextMonth });
+      const thisMonth = page.getByRole('button', { name: SHEET.thisMonth });
+      await expect(prev).toBeVisible();
+      const title = page.getByRole('heading', { level: 1 });
+      const titleBox = await measureBox(title);
+      const titleLineHeight = parseFloat(
+        await title.evaluate((el) => getComputedStyle(el).lineHeight),
+      );
+      const prevBox = await measureBox(prev);
+      const nextBox = await measureBox(next);
+      const overflowX = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      record(testInfo, width, 'C7-sheet-header', {
+        titleHeight: titleBox.height,
+        titleLineHeight,
+        prevTopDiff: Math.abs(prevBox.y - titleBox.y),
+        prevHeight: prevBox.height,
+        nextHeight: nextBox.height,
+        overflowX,
+      });
+      await expect(prev).toHaveCSS('height', '40px');
+      await expect(next).toHaveCSS('height', '40px');
+      await expect(thisMonth).toHaveCSS('height', '40px');
+      await capture(page, testInfo, width, 'attendance-month-nav');
+      }
+
+      // 休暇カレンダーの月移動(MonthNavigator)も 40px
+      await navigateInApp(page, '/leaves/calendar');
+      const calPrev = page.getByRole('button', { name: CALENDAR.prevMonth });
+      const calNext = page.getByRole('button', { name: CALENDAR.nextMonth });
+      await expect(calPrev).toBeVisible();
+      const calPrevBox = await measureBox(calPrev);
+      const calNextBox = await measureBox(calNext);
+      record(testInfo, width, 'C7-calendar-month-nav', {
+        prevHeight: calPrevBox.height,
+        nextHeight: calNextBox.height,
+      });
+      await expect(calPrev).toHaveCSS('height', '40px');
+      await expect(calNext).toHaveCSS('height', '40px');
+      await capture(page, testInfo, width, 'calendar-month-nav');
+    });
+  });
+}

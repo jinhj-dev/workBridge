@@ -10,8 +10,9 @@ import {
 import { WorkTimeline, WorkTimelineAxis } from '@/components/attendance/WorkTimeline';
 import { WORK_PATTERN_BADGE } from '@/components/attendance/workPattern';
 import { Badge } from '@/components/Badge';
+import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { secondaryButtonClass } from '@/components/form';
+import { ChevronLeftIcon, ChevronRightIcon } from '@/components/leave/leaveIcons';
 import { LeaveDetailModal } from '@/components/leave/LeaveDetailModal';
 import { LeaveStatusBadge } from '@/components/leave/LeaveStatusBadge';
 import { SectionError } from '@/components/SectionError';
@@ -39,23 +40,6 @@ import { MonthlySummarySection } from './MonthlySummarySection';
 const t = messages.attendance;
 const s = t.sheet;
 const TODAY_REFRESH_MS = 60_000;
-
-function Chevron({ direction }: { direction: 'left' | 'right' }) {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-5">
-      <path
-        d={direction === 'left' ? 'M15 6l-6 6 6 6' : 'M9 6l6 6-6 6'}
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-const iconButtonClass = `${secondaryButtonClass} flex size-9 items-center justify-center`;
-const textNavButtonClass = `${secondaryButtonClass} h-9 px-4 text-sm/5 disabled:cursor-not-allowed disabled:text-general-60 disabled:hover:bg-white`;
 
 // 休日扱いの行(土日・祝日・承認済みの終日休暇)は灰色にする
 function isGreyRow(day: SheetDay): boolean {
@@ -379,36 +363,27 @@ export function AttendanceSheetView() {
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <h1 className="text-h5 font-bold text-general-100">{t.title}</h1>
         <div className="flex items-center gap-1 sm:gap-2">
-          <button
-            type="button"
+          <Button
+            iconOnly
+            icon={<ChevronLeftIcon />}
             aria-label={s.prevMonth}
             onClick={() => goToMonth(shiftMonth(month, -1))}
-            className={iconButtonClass}
-          >
-            <Chevron direction="left" />
-          </button>
+          />
           <span
             aria-live="polite"
             className="text-center text-base/6 font-medium whitespace-nowrap text-general-100 tabular-nums sm:min-w-28"
           >
             {formatMonthLabel(month)}
           </span>
-          <button
-            type="button"
+          <Button
+            iconOnly
+            icon={<ChevronRightIcon />}
             aria-label={s.nextMonth}
             onClick={() => goToMonth(shiftMonth(month, 1))}
-            className={iconButtonClass}
-          >
-            <Chevron direction="right" />
-          </button>
-          <button
-            type="button"
-            disabled={month === currentMonth}
-            onClick={() => goToMonth(currentMonth)}
-            className={textNavButtonClass}
-          >
+          />
+          <Button disabled={month === currentMonth} onClick={() => goToMonth(currentMonth)}>
             {s.thisMonth}
-          </button>
+          </Button>
         </div>
       </div>
 
