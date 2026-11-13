@@ -19,33 +19,33 @@ const BASE_CLASS =
 // 色・hover・フォーカス色・radius・文字の太さ・disabled。Tailwind の静的スキャン用に完全なリテラルで書く
 const VARIANT_CLASS: Record<ButtonVariant, string> = {
   primary:
-    'rounded-lg bg-primary-100 font-bold text-white hover:bg-primary-90 focus-visible:outline-primary-100 disabled:bg-primary-60',
+    'rounded-btn bg-primary-100 font-bold text-white hover:bg-primary-90 focus-visible:outline-primary-100 disabled:bg-primary-60',
   secondary:
-    'rounded-lg border border-general-50 bg-white font-bold text-general-100 hover:bg-general-30 focus-visible:outline-primary-100 disabled:text-general-60 disabled:hover:bg-white',
+    'rounded-btn border border-general-50 bg-white font-bold text-general-100 hover:bg-general-30 focus-visible:outline-primary-100 disabled:text-general-60 disabled:hover:bg-white',
   primaryOutline:
-    'rounded-lg border border-primary-100 bg-white font-bold text-primary-100 hover:bg-primary-30 focus-visible:outline-primary-100 disabled:border-general-50 disabled:text-general-60 disabled:hover:bg-white',
+    'rounded-btn border border-primary-100 bg-white font-bold text-primary-100 hover:bg-primary-30 focus-visible:outline-primary-100 disabled:border-general-50 disabled:text-general-60 disabled:hover:bg-white',
   danger:
-    'rounded-lg bg-danger-100 font-bold text-white hover:bg-danger-100/90 focus-visible:outline-danger-100 disabled:bg-danger-100/50',
+    'rounded-btn bg-danger-100 font-bold text-white hover:bg-danger-100/90 focus-visible:outline-danger-100 disabled:bg-danger-100/50',
   dangerOutline:
-    'rounded-lg border border-danger-100 bg-white font-bold text-danger-100 hover:bg-danger-30 focus-visible:outline-danger-100 disabled:border-general-50 disabled:text-general-60 disabled:hover:bg-white',
+    'rounded-btn border border-danger-100 bg-white font-bold text-danger-100 hover:bg-danger-30 focus-visible:outline-danger-100 disabled:border-general-50 disabled:text-general-60 disabled:hover:bg-white',
   ghost:
-    'rounded-lg text-general-80 hover:bg-general-30 focus-visible:outline-primary-100 disabled:text-general-60 disabled:hover:bg-transparent',
+    'rounded-btn text-general-80 hover:bg-general-30 focus-visible:outline-primary-100 disabled:text-general-60 disabled:hover:bg-transparent',
   // 文字だけの操作。枠・背景・高さを持たず、フォーカスリング用に rounded(4)
   text: 'rounded text-sm/5 font-medium text-primary-100 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100 disabled:text-general-60 disabled:hover:no-underline',
 };
 
 // 高さ・左右 padding・文字・アイコンとの間隔(sm のみ折り返し禁止)
 const SIZE_CLASS: Record<ButtonSize, string> = {
-  sm: 'h-9 gap-1 px-3 text-sm/5 whitespace-nowrap',
-  md: 'h-10 gap-2 px-4 text-sm/5',
-  lg: 'h-12 gap-2 px-6 text-base/6',
+  sm: 'h-btn-sm gap-btn-gap-sm px-btn-x-sm text-sm/5 whitespace-nowrap',
+  md: 'h-btn-md gap-btn-gap px-btn-x-md text-sm/5',
+  lg: 'h-btn-lg gap-btn-gap px-btn-x-lg text-base/6',
 };
 
 // アイコン専用(正方形・padding なし)
 const ICON_ONLY_CLASS: Record<ButtonSize, string> = {
-  sm: 'size-9',
-  md: 'size-10',
-  lg: 'size-12',
+  sm: 'size-btn-sm',
+  md: 'size-btn-md',
+  lg: 'size-btn-lg',
 };
 
 // アイコンスロットの大きさ(sm 16 / md・lg 20 / ghost のアイコン専用 24)

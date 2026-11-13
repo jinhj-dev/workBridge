@@ -11,7 +11,7 @@ const ICON = <svg data-testid="icon" viewBox="0 0 24 24" />;
 describe('Button 色 variant', () => {
   it('shouldApplyPrimaryTokensWhenVariantPrimary', () => {
     render(<Button variant="primary">送信</Button>);
-    expect(screen.getByRole('button')).toHaveClass('bg-primary-100', 'text-white');
+    expect(screen.getByRole('button')).toHaveClass('bg-primary-100', 'text-white', 'rounded-btn');
   });
 
   it('shouldApplyDangerTokensWhenVariantDanger', () => {
@@ -56,15 +56,15 @@ describe('Button 色 variant', () => {
   it('shouldUseSecondaryAndMdWhenNoVariantOrSize', () => {
     render(<Button>標準</Button>);
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('border-general-50', 'h-10');
+    expect(button).toHaveClass('border-general-50', 'h-btn-md');
   });
 });
 
 describe('Button サイズ', () => {
   it.each([
-    ['sm', 'h-9'],
-    ['md', 'h-10'],
-    ['lg', 'h-12'],
+    ['sm', 'h-btn-sm'],
+    ['md', 'h-btn-md'],
+    ['lg', 'h-btn-lg'],
   ] as const)('shouldApplyHeightWhenSize%s', (size, heightClass) => {
     render(<Button size={size}>文字</Button>);
     expect(screen.getByRole('button')).toHaveClass(heightClass);
@@ -79,14 +79,14 @@ describe('Button サイズ', () => {
   });
 
   it.each([
-    ['sm', 'size-9'],
-    ['md', 'size-10'],
-    ['lg', 'size-12'],
+    ['sm', 'size-btn-sm'],
+    ['md', 'size-btn-md'],
+    ['lg', 'size-btn-lg'],
   ] as const)('shouldApplySquareSizeWhenIconOnlySize%s', (size, squareClass) => {
     render(<Button iconOnly size={size} icon={ICON} aria-label="閉じる" />);
     const button = screen.getByRole('button', { name: '閉じる' });
     expect(button).toHaveClass(squareClass);
-    expect(button).not.toHaveClass('px-3', 'px-4', 'px-6');
+    expect(button).not.toHaveClass('px-btn-x-sm', 'px-btn-x-md', 'px-btn-x-lg');
   });
 });
 
@@ -263,7 +263,7 @@ describe('buttonClass', () => {
 
   it('shouldReturnIconOnlySquareClassWhenGhostIconOnly', () => {
     const className = buttonClass({ variant: 'ghost', iconOnly: true });
-    expect(className).toContain('size-10');
+    expect(className).toContain('size-btn-md');
     expect(className).toContain('text-general-80');
     expect(className).not.toContain('px-');
   });
