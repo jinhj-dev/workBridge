@@ -296,3 +296,41 @@ RESULT: PASS
 
 - `npm run build` 미실행(지시에 따라)
 - 3000·6000 서버는 건드리지 않음. 구현 코드 수정·커밋 없음
+
+## Run 10 (C9·최종 회귀)
+
+- 대상: C9 `form.tsx` 버튼 상수 삭제 후 테스트 정리와 최종 회귀
+- 결과: RESULT PASS. 단위·타입·린트 모두 통과, 읽기 전용 e2e 64 passed / 0 failed / 0 skipped
+- 테스트 정리(C9):
+  - `components/form.test.tsx`: 삭제된 상수 `modalDangerButtonClass`·`modalSecondaryButtonClass` import와 그 단언을 제거. `confirmMessageClass` 단언은 유지(describe 이름만 `確認文のクラス`로 변경)
+  - `components/Button.test.tsx`: secondary variant에 `disabled:text-general-60` 단언 추가. danger variant의 `bg-danger-100`·`disabled:bg-danger-100/50` 단언은 기존에 이미 있어 그대로 유지
+  - 결과: tsc exit 2 → exit 0 회복
+- 단위 테스트: 전체 Vitest 53 files, 797 passed / 0 failed (Run 9와 동일 개수. form.test의 단언 1개를 Button.test로 옮김)
+- tsc: exit 0 / lint: exit 0
+- 실행 조건: `PLAYWRIGHT_BASE_URL=http://localhost:3000`(globalSetup 건너뜀, webServer 미기동). 로그인만 실제 백엔드. 모든 spec은 읽기 전용(쓰기 요청 차단 또는 GET만)
+- 읽기 전용 e2e 실행 결과 (6 spec, 64건, 0 failed):
+  - `modal-a11y.spec.ts` 2 passed
+  - `button-visual.spec.ts` 9 passed (B3·B10·C7 포함, 로그인 입력 48px·검색 44px 포함)
+  - `button-c8.spec.ts` 4 passed (360·768·1024·1440)
+  - `attendance-sheet-layout.spec.ts` 8 passed
+  - `leave-sidebar-submenu.spec.ts` 2 passed
+  - `leave-visual.spec.ts` 39 passed
+- `leave-visual` 기존 실패 1건(`shouldCaptureScrolledBottomAtPc1440`) 분리 기재: Run 8에서 실패, 같은 날 변경 전 기준(C7 3파일 stash)에서도 동일 실패로 확인. 이번 최종 회귀에서는 통과. 데이터·환경 의존으로 간헐적이며 C9 회귀로 보지 않음. 수정하지 않음
+- 스크린샷·측정 파일 쓰기: `attendance-sheet-layout`·`leave-visual`은 기존 설계대로 `.claude/work/` 하위에 PNG를 저장함(DB 쓰기 아님). `button-visual`·`button-c8`은 `test-results/`와 `screenshots/c8/`에 저장
+
+### 미실행 목록 (DB를 쓰는 spec 또는 전체 e2e — 사용자 취침 중 승인 없음)
+
+- `e2e/leave-calendar-mobile.spec.ts`: beforeAll이 `db:e2e-leave-calendar-fixture`(DB 쓰기)를 실행
+- `e2e/leave-management.spec.ts`: beforeAll 픽스처(DB 쓰기 가능성)
+- `e2e/leaves.spec.ts`: `db:e2e-leaves-reset`(DB 쓰기)
+- `e2e/attendance.spec.ts`, `e2e/attendance-status.spec.ts`: `db:e2e-attendance-reset`·`db:e2e-attendance-fixture`(DB 쓰기)
+- `e2e/login.spec.ts`, `e2e/password.spec.ts`: 비밀번호 변경·로그인 시도 등 쓰기 가능
+- `e2e/dashboard.spec.ts`, `e2e/dashboard-renewal.spec.ts`: 출근 등 쓰기 가능
+- `e2e/approvals.spec.ts`: 승인·却下 처리(쓰기)
+- `e2e/departments.spec.ts`, `departments-manager.spec.ts`, `departments-responsive.spec.ts`, `departments-list-modal.spec.ts`, `departments-members-modal.spec.ts`: 부서 CRUD 등 쓰기 가능
+- `npm run test:e2e` 전체: 위 DB 쓰기 spec을 포함하므로 실행하지 않음
+
+### 미확인
+
+- `npm run build` 미실행(지시에 따라)
+- 3000·6000 서버는 건드리지 않음. 구현 코드·커밋 없음

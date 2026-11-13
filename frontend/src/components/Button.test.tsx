@@ -37,6 +37,7 @@ describe('Button 色 variant', () => {
     render(<Button variant="secondary">キャンセル</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('border-general-50', 'bg-white', 'text-general-100');
+    expect(button).toHaveClass('disabled:text-general-60');
   });
 
   it('shouldApplyGhostTokensWhenVariantGhost', () => {
