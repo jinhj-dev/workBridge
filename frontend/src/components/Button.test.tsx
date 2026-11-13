@@ -51,7 +51,9 @@ describe('Button 色 variant', () => {
     render(<Button variant="text">もっと見る</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('text-primary-100', 'hover:underline');
-    expect(button).not.toHaveClass('border', 'bg-white', 'bg-primary-100');
+    expect(button).not.toHaveClass('border');
+    expect(button).not.toHaveClass('bg-white');
+    expect(button).not.toHaveClass('bg-primary-100');
   });
 
   it('shouldUseSecondaryAndMdWhenNoVariantOrSize', () => {
@@ -87,7 +89,10 @@ describe('Button サイズ', () => {
     render(<Button iconOnly size={size} icon={ICON} aria-label="閉じる" />);
     const button = screen.getByRole('button', { name: '閉じる' });
     expect(button).toHaveClass(squareClass);
-    expect(button).not.toHaveClass('px-btn-x-sm', 'px-btn-x-md', 'px-btn-x-lg');
+    // アイコン専用は左右 padding を持たないため、どのサイズの px クラスも付かない
+    for (const paddingClass of ['px-btn-x-sm', 'px-btn-x-md', 'px-btn-x-lg']) {
+      expect(button).not.toHaveClass(paddingClass);
+    }
   });
 });
 
@@ -226,7 +231,8 @@ describe('Button text variant クラス', () => {
   it('shouldNotHaveInlineFlexOrNoWrapWhenTextWithoutIcon', () => {
     render(<Button variant="text">リンク</Button>);
     const button = screen.getByRole('button');
-    expect(button).not.toHaveClass('inline-flex', 'whitespace-nowrap');
+    expect(button).not.toHaveClass('inline-flex');
+    expect(button).not.toHaveClass('whitespace-nowrap');
   });
 
   it('shouldHaveInlineFlexWhenTextWithIcon', () => {
@@ -282,8 +288,12 @@ describe('Button 型 (@ts-expect-error で不正な組み合わせを検証)', (
   });
 
   it('shouldRejectIconOnlyWithChildren', () => {
-    // @ts-expect-error iconOnly では children を渡せない
-    const element = <Button iconOnly icon={ICON} aria-label="前月">文字</Button>;
+    const element = (
+      // @ts-expect-error iconOnly では children を渡せない
+      <Button iconOnly icon={ICON} aria-label="前月">
+        文字
+      </Button>
+    );
     expect(element).toBeDefined();
   });
 });

@@ -258,7 +258,7 @@ RESULT: PASS
 | ② 検索 — 休暇管理 | sm 미만 1.0 | 1.00 (286/286) | 0.12 | 0.12 | 0.07 | 통과 |
 | ② 検索 — 全体勤怠 | sm 미만 1.0 | 1.00 (286/286) | 0.12 | 0.39 | 0.23 | 통과 |
 | ④ BT38 CardLink「すべて見る」 높이·중심 최근접 거리 | 높이 24 또는 거리 ≥ 12 | 20 / 173 | 20 / 229 | 20 / 341 | 20 / 51 | 통과(간격 예외) |
-| ④ BT04 ログアウト(메뉴 항목) | 同 | 40 / 20 | 40 / 20 | 40 / 20 | 40 / 20 | 통과(높이 40) |
+| ④ BT04 (잘못된 대상: 상단바 메뉴 항목. 정정은 Run 11) | 同 | 40 / 20 | 40 / 20 | 40 / 20 | 40 / 20 | 무효(대상 오류) |
 | ④ BT32 사원명 링크(표시 중) | 同 | 40 / 10 | 57 / 132 | 57 / 180 | 17 / 176 | 통과(360은 높이 40) |
 | ④ BT33 | — | 미측정 | 미측정 | 미측정 | 미측정 | 미측정(아래 참고) |
 | ⑤ 修正 포커스 링 잘림 | 잘림 없음 | 없음 | 없음 | 없음 | 없음 | 통과(overflow 래퍼 없음) |
@@ -334,3 +334,54 @@ RESULT: PASS
 
 - `npm run build` 미실행(지시에 따라)
 - 3000·6000 서버는 건드리지 않음. 구현 코드·커밋 없음
+
+## Run 11 (Review Fix 1)
+
+- 대상: review.md tester 항목 #3·#4·#6·#7·#8과 frontend.md "Review Fix 1" 확인 사항
+- 결과: RESULT PASS. 단위 801 passed / 0 failed(54 files), tsc exit 0, lint exit 0, 읽기 전용 e2e 68 passed / 0 failed / 0 skipped
+- 정정: Run 9의 "BT04 ログアウト 높이 40 통과" 행은 잘못된 대상(상단바 사용자 메뉴의 항목)을 측정한 결과였다. 아래 Run 11의 BT04 측정이 올바른 값이다. Run 9의 "py-0.5 적용 불필요" 결론은 올바른 대상으로 다시 확인되어 유지된다(아래 참고)
+
+### 항목별 처리
+
+- #3 Button.test.tsx: 다중 `not.toHaveClass`를 클래스별 단언으로 분리(:54 `border`·`bg-white`·`bg-primary-100`, :90 `px-btn-x-sm/md/lg`를 반복문으로 개별 단언, :229 `inline-flex`·`whitespace-nowrap` 개별). 개수 38 유지. `@ts-expect-error` 2건은 prettier 정리 후 다시 오류 위치에 맞춤(tsc exit 0)
+- #4 BT04 재측정: `/password`(PasswordChangeForm)의 실제 ログアウト text 버튼. 실제 로그인 응답의 `user.mustChangePassword`만 true로 고쳐 `/password`를 연다(개발 DB 상태는 바꾸지 않음. 900002 계정은 쓰지 않음). 버튼은 누르지 않았다
+- #4 BT33 측정: 360 카드형 사원명 링크(md 미만), BT32는 표 사원명 링크(md 이상)로 키를 나눠 기록
+- #6 button-visual.spec.ts: Prettier 적용(`prettier --check` 통과). 기존 `else` 들여쓰기 문제 해소
+- #7 공통 헬퍼: `frontend/e2e/button-helpers.ts`로 추출(`login`·`blockWrites`·`navigateInApp`·`measureBox`·`captureScreenshot`·`appendMeasurement`). button-visual·button-c8 모두 사용. c8 측정 jsonl은 실행 시작(`beforeAll`)에 비우고 다시 쓴다(누적 없음). 측정 줄의 뷰포트 키는 `viewport`
+- #8 SearchInput 단위 테스트: `components/SearchInput.test.tsx` 신규 4건. `h-11` 있음, `h-12` 없음, `h-*`는 정확히 `h-11` 하나, `pl-10`·`text-sm/5`, 입력 시 onChange
+
+### Review Fix 1 확인 사항 (toHaveCSS, 실제 브라우저)
+
+- SearchInput(休暇管理·全体勤怠가 아닌 SCR-010 부서 검색): 높이 44px / 왼쪽 padding 40px / 오른쪽 padding 16px / 글자 14px / 줄간격 20px → 전부 통과
+- 일반 입력(로그인 사원번호): 높이 48px / 왼쪽 padding 16px / 글자 16px / 줄간격 24px → 통과(비밀번호 입력도 높이 48px 통과)
+- `form.test.tsx`에는 `inputClass` 문자열 단언이 없어 `h-12 px-4 text-base/6` 확인 대상 없음
+
+### BT04·BT33·BT32 측정값 (CSS px)
+
+| 항목 | 뷰포트 | 높이 | 폭 | 중심 최근접 거리 | 24px 규칙 | 판정 |
+|---|---|---|---|---|---|---|
+| BT04 ログアウト(/password, text 버튼) | 360 / 768 / 1024 / 1440 | 20 | 70 | 26 | 높이 < 24, 간격 예외 성립(≥ 12) | 통과(간격 예외) |
+| BT33 사원명 링크(카드) | 360 | 40 | 186 | 56 | 높이 ≥ 24 | 통과 |
+| BT32 사원명 링크(표) | 768 / 1024 / 1440 | 57 / 57 / 17 | 112 / 84 / 236 | 133 / 181 / 176 | 높이 ≥ 24 또는 간격 예외 | 통과 |
+
+- BT04는 높이 20px로 24px 미만이지만, 가장 가까운 다른 대상까지 거리 26px(≥ 12)이라 24px 원 간격 예외가 성립. 따라서 `py-0.5` 적용은 필요하지 않다. 프론트 수정 불필요
+- 참고: 위 값은 `frontend/e2e/button-c8.spec.ts` 측정 결과이며, 원본은 `.claude/work/button-refactor/screenshots/c8/measurements.jsonl`(45줄, 실행마다 덮어씀). PNG 48장(폭별 12장)은 같은 폴더(gitignore 대상). `/password` 캡처는 `c8-{폭}-SCR-009-password.png`
+
+### e2e 실행
+
+- 실행 명령: `PLAYWRIGHT_BASE_URL=http://localhost:3000`으로 6 spec 실행(`modal-a11y`, `button-visual`, `button-c8`, `attendance-sheet-layout`, `leave-sidebar-submenu`, `leave-visual`)
+- 결과: 68 passed / 0 failed / 0 skipped (`button-c8` 8건 = 비밀번호 화면 4 + 측정 4)
+- DB 쓰기 spec은 미실행(아래 미실행 목록)
+
+### 단위 테스트 실행 메모
+
+- 1차 실행은 워커 기동 시간 초과(`Timeout waiting for worker`)로 5 파일 실패. 2차 실행(같은 코드)은 54 files / 801 passed로 통과. 부하에 따른 간헐 실패로 보고, 코드 문제는 없음
+
+### 미실행 목록(변경 없음, 사용자 승인 없음)
+
+- DB를 쓰는 spec 및 전체 `npm run test:e2e`: `leave-calendar-mobile`, `leave-management`, `leaves`, `attendance`, `attendance-status`, `login`, `password`, `dashboard`, `dashboard-renewal`, `approvals`, `departments`·`departments-manager`·`departments-responsive`·`departments-list-modal`·`departments-members-modal`
+- `npm run build` 미실행(지시에 따라)
+
+### 미확인
+
+- 3000·6000 서버는 건드리지 않음. 구현 코드 수정·커밋 없음

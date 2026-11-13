@@ -1,18 +1,27 @@
-import { appendFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
+import { writeFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import type { Locator, Page, TestInfo } from '@playwright/test';
 import { messages } from '../src/messages/ja';
 import { E2E_ADMIN } from './accounts';
+import {
+  appendMeasurement,
+  blockWrites,
+  captureScreenshot,
+  login,
+  measureBox,
+  navigateInApp,
+} from './button-helpers';
 
 // C8 モバイル反応の検証(読み取り専用)。GET 以外は中断し、モーダルは開いて閉じるまでで送信しない。
+// パスワード変更画面(BT04)は、実際のログイン応答の mustChangePassword だけを true に書き換えて開く(開発 DB は変えない)。
 // 測定値は jsonl、画面は PNG として .claude/work/button-refactor/screenshots/c8/ に保存する(PNG は gitignore 対象)。
+// 測定ファイルは実行開始時に空にし、再実行のたびに置き換える。
 
 const OUT_DIR = path.resolve(__dirname, '../../.claude/work/button-refactor/screenshots/c8');
-const TODAY_PATH = '**/api/v1/attendance/today*';
+const MEASUREMENTS_FILE = path.join(OUT_DIR, 'measurements.jsonl');
 const ADMIN_ATTENDANCE_PATH = '**/api/v1/admin/attendance**';
 const WIDTHS = [360, 768, 1024, 1440] as const;
-const SCREENSHOT_NAME_PREFIX = 'c8';
 const FIXED_ADMIN_ATTENDANCE = {
   items: [
     {
@@ -37,74 +46,28 @@ const FIXED_ADMIN_ATTENDANCE = {
   totalPages: 1,
 };
 
-mkdirSync(OUT_DIR, { recursive: true });
-
-async function login(page: Page): Promise<void> {
-  await page.getByLabel(messages.login.empId).fill(E2E_ADMIN.empId);
-  await page.getByLabel(messages.login.password).fill(E2E_ADMIN.password);
-  const loginResponse = page.waitForResponse('**/api/v1/auth/login');
-  await page.getByRole('button', { name: messages.login.submit }).click();
-  const body = (await (await loginResponse).json()) as {
-    user: { role: string; mustChangePassword: boolean };
-  };
-  expect(body.user.mustChangePassword).toBe(false);
-}
-
-async function blockWrites(page: Page): Promise<void> {
-  await page.route('**/api/v1/**', (route) => {
-    const request = route.request();
-    if (request.method() === 'GET' || request.url().endsWith('/api/v1/auth/login')) {
-      return route.continue();
-    }
-    return route.abort();
-  });
-  await page.route(TODAY_PATH, (route) =>
-    route.request().method() === 'GET'
-      ? route.fulfill({ status: 200, contentType: 'application/json', body: 'null' })
-      : route.fallback(),
-  );
-}
-
-// 全画面の再読み込みは行わない(refresh 呼び出しを避ける)。アプリ内リンクを押して遷移する
-async function navigateInApp(page: Page, href: string): Promise<void> {
-  await page
-    .locator(`a[href="${href}"]`)
-    .first()
-    .evaluate((el) => (el as HTMLAnchorElement).click());
-  await page.waitForURL(`**${href}`);
-}
+// 実行ごとに測定ファイルを作り直す(以前の実行の測定が残らないように)
+test.beforeAll(() => {
+  writeFileSync(MEASUREMENTS_FILE, '', { flag: 'w' });
+});
 
 function record(width: number, key: string, values: Record<string, unknown>): void {
-  // viewport は要素の width と衝突しないよう別名にする
-  const line = JSON.stringify({ viewport: width, key, ...values });
-  console.log(`[c8] ${line}`);
-  appendFileSync(path.join(OUT_DIR, 'measurements.jsonl'), `${line}\n`);
+  appendMeasurement(MEASUREMENTS_FILE, width, key, values);
 }
 
 async function capture(page: Page, testInfo: TestInfo, width: number, name: string): Promise<void> {
-  const file = path.join(OUT_DIR, `${SCREENSHOT_NAME_PREFIX}-${width}-${name}.png`);
-  // 読み込み中のスケルトンを撮らないよう、通信が落ち着くまで待つ(落ち着かなければそのまま撮る)
-  await page.waitForLoadState('networkidle').catch(() => undefined);
-  await page.screenshot({ path: file });
-  await testInfo.attach(`${width}-${name}`, { path: file, contentType: 'image/png' });
+  const file = path.join(OUT_DIR, `c8-${width}-${name}.png`);
+  await captureScreenshot(page, testInfo, file, `${width}-${name}`);
 }
 
-async function boxOf(locator: Locator) {
-  const box = await locator.boundingBox();
-  if (!box) throw new Error('boundingBox を取得できない(表示されていない可能性)');
-  return box;
-}
-
-// 検索ボタン: 直近の親要素の幅に対する比率(sm 未満は全幅が期待)。フォーム幅も参考に記録する
+// 検索ボタン: 直近の親要素の内容幅(padding を除く)に対する比率(sm 未満は全幅が期待)
 async function searchButtonFill(button: Locator) {
-  const buttonWidth = (await boxOf(button)).width;
-  // 親の内側(padding を除いた内容幅)に対する比率。フォームの padding で外側幅と内容幅がずれるため内容幅を使う
+  const buttonWidth = (await measureBox(button)).width;
   const { contentWidth, formWidth } = await button.evaluate((el) => {
     const parent = el.parentElement;
     if (!parent) return { contentWidth: -1, formWidth: -1 };
     const cs = getComputedStyle(parent);
-    const content =
-      parent.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const content = parent.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     return {
       contentWidth: content,
       formWidth: el.closest('form')?.getBoundingClientRect().width ?? -1,
@@ -124,7 +87,8 @@ async function targetMetrics(locator: Locator) {
     const r = el.getBoundingClientRect();
     const cx = r.left + r.width / 2;
     const cy = r.top + r.height / 2;
-    const selector = 'a[href],button,input,select,textarea,[role="button"],[role="link"],[role="menuitem"]';
+    const selector =
+      'a[href],button,input,select,textarea,[role="button"],[role="link"],[role="menuitem"]';
     let minFromCenter = Number.POSITIVE_INFINITY;
     for (const other of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
       if (other === el || el.contains(other) || other.contains(el)) continue;
@@ -140,6 +104,11 @@ async function targetMetrics(locator: Locator) {
       clearanceFromCenter: Number.isFinite(minFromCenter) ? minFromCenter : -1,
     };
   });
+}
+
+// 24px 以上、または 24px 円の間隔例外が成り立つか
+function meetsTargetSizeRule(metrics: { height: number; clearanceFromCenter: number }): boolean {
+  return metrics.height >= 24 || metrics.clearanceFromCenter >= 12;
 }
 
 // フォーカス時のリングが、スクロール・オーバーフロー枠(hidden/clip/auto/scroll)で切れていないか(リングは 2px+offset 2px = 4px)
@@ -170,7 +139,7 @@ async function focusRingClipping(locator: Locator) {
   });
 }
 
-// モーダルのフッター: 2 列(同じ top)か、3 個以上の折り返し、ボタン幅、はみ出し
+// モーダルのフッター: 2 列(同じ top)か、ボタン幅、はみ出し
 async function footerMetrics(dialog: Locator) {
   return dialog.evaluate((el) => {
     const dr = el.getBoundingClientRect();
@@ -201,22 +170,47 @@ for (const width of WIDTHS) {
     test.use({ viewport: { width, height: 900 } });
     test.skip(!E2E_ADMIN.password, 'E2E_ADMIN_PASSWORD が未設定のため実行しない');
 
-    test('shouldMeasureMobileButtonsAndModalsAndCapture', async ({ page }, testInfo) => {
-      test.setTimeout(180_000);
+    // BT04 ログアウト(PasswordChangeForm の text 変形)。mustChangePassword の応答に書き換えて /password を開くだけ
+    test('shouldMeasurePasswordScreenLogoutLinkAndCapture', async ({ page }, testInfo) => {
       await blockWrites(page);
+      await page.goto('/login');
+      await login(page, E2E_ADMIN, { forceMustChangePassword: true });
+      await expect(page).toHaveURL(/\/password$/);
 
-      // SCR-001 ログイン(認証不要)
+      const logout = page.getByRole('button', { name: messages.password.logout });
+      await expect(logout).toBeVisible();
+      const metrics = await targetMetrics(logout);
+      const ok = meetsTargetSizeRule(metrics);
+      record(width, 'C8-BT04-password-logout', { ...metrics, meets24pxRule: ok });
+      expect.soft(ok, 'BT04: 高さ 24 未満かつ間隔例外も不成立').toBe(true);
+      await capture(page, testInfo, width, 'SCR-009-password');
+      // ログアウトは押さない(読み取りのみ)
+    });
+
+    test('shouldMeasureMobileButtonsAndModalsAndCapture', async ({ page }, testInfo) => {
+      await blockWrites(page);
+      await page.route(ADMIN_ATTENDANCE_PATH, (route) =>
+        route.request().method() === 'GET'
+          ? route.fulfill({
+              status: 200,
+              contentType: 'application/json',
+              body: JSON.stringify(FIXED_ADMIN_ATTENDANCE),
+            })
+          : route.fallback(),
+      );
       await page.goto('/login');
       await expect(page.getByLabel(messages.login.empId)).toBeVisible();
       await capture(page, testInfo, width, 'SCR-001-login');
 
-      await login(page);
+      await login(page, E2E_ADMIN);
       const dashboardTitle = page.getByRole('heading', { level: 1 });
       await expect(dashboardTitle).toBeVisible();
 
       // SCR-002 ダッシュボード
       await capture(page, testInfo, width, 'SCR-002-dashboard');
-      const clockIn = page.getByRole('button', { name: messages.dashboard.attendance.clockInAction });
+      const clockIn = page.getByRole('button', {
+        name: messages.dashboard.attendance.clockInAction,
+      });
       const clockInMetrics = await targetMetrics(clockIn);
       record(width, 'C8-dashboard-clock-in', clockInMetrics);
       expect.soft(clockInMetrics.height).toBeCloseTo(48, 0);
@@ -224,27 +218,17 @@ for (const width of WIDTHS) {
       // BT38 CardLink「すべて見る」(テキストリンク)
       const viewAll = page.getByRole('link', { name: /すべて見る/ }).first();
       if (await viewAll.count()) {
-        const m = await targetMetrics(viewAll);
-        const ok = m.height >= 24 || m.clearanceFromCenter >= 12;
-        record(width, 'C8-text-link-BT38-cardlink-viewAll', { ...m, meets24pxRule: ok });
-        expect.soft(ok, 'テキストリンク BT38: 高さ 24 未満かつ間隔例外も不成立').toBe(true);
-      } else {
-        record(width, 'C8-text-link-BT38-cardlink-viewAll', { notFound: true });
+        const metrics = await targetMetrics(viewAll);
+        const ok = meetsTargetSizeRule(metrics);
+        record(width, 'C8-BT38-cardlink-viewAll', { ...metrics, meets24pxRule: ok });
+        expect.soft(ok, 'BT38: 高さ 24 未満かつ間隔例外も不成立').toBe(true);
       }
-
-      // BT04 ログアウト(ユーザーメニュー内、開くだけ・押さない)
-      await page.getByRole('button', { name: new RegExp(messages.nav.userMenu) }).first().click();
-      const logoutLink = page.locator('#user-menu').getByText(messages.nav.logout, { exact: true }).first();
-      await expect(logoutLink).toBeVisible();
-      const logoutMetrics = await targetMetrics(logoutLink);
-      const logoutOk = logoutMetrics.height >= 24 || logoutMetrics.clearanceFromCenter >= 12;
-      record(width, 'C8-text-link-BT04-logout', { ...logoutMetrics, meets24pxRule: logoutOk });
-      expect.soft(logoutOk, 'テキストリンク BT04: 高さ 24 未満かつ間隔例外も不成立').toBe(true);
-      await page.keyboard.press('Escape');
 
       // 出勤確認モーダル(開いて閉じるまで。登録は押さない)
       await clockIn.click();
-      const clockDialog = page.getByRole('dialog', { name: messages.dashboard.attendance.confirmClockInTitle });
+      const clockDialog = page.getByRole('dialog', {
+        name: messages.dashboard.attendance.confirmClockInTitle,
+      });
       await expect(clockDialog).toBeVisible();
       const clockFooter = await footerMetrics(clockDialog);
       record(width, 'C8-modal-clock-in-confirm', clockFooter);
@@ -252,11 +236,13 @@ for (const width of WIDTHS) {
       await capture(page, testInfo, width, 'modal-clock-in-confirm');
       await closeWithEscape(page, clockDialog);
 
-      // SCR-003 出勤(検索フォーム)
+      // SCR-003 出勤(検索フォーム。md 以上は出勤簿のため照会が無い)
       await navigateInApp(page, '/attendance');
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       await capture(page, testInfo, width, 'SCR-003-attendance');
-      const attendanceSearch = page.getByRole('button', { name: messages.dateRange.search }).first();
+      const attendanceSearch = page
+        .getByRole('button', { name: messages.dateRange.search })
+        .first();
       if (await attendanceSearch.count()) {
         const fill = await searchButtonFill(attendanceSearch);
         record(width, 'C8-search-attendance', fill);
@@ -267,7 +253,9 @@ for (const width of WIDTHS) {
       await navigateInApp(page, '/leaves');
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       await capture(page, testInfo, width, 'SCR-004-leaves');
-      const leaveSearch = page.getByRole('button', { name: messages.leaves.history.search }).first();
+      const leaveSearch = page
+        .getByRole('button', { name: messages.leaves.history.search })
+        .first();
       if (await leaveSearch.count()) {
         const fill = await searchButtonFill(leaveSearch);
         record(width, 'C8-search-leaves', fill);
@@ -289,16 +277,7 @@ for (const width of WIDTHS) {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       await capture(page, testInfo, width, 'SCR-004-calendar');
 
-      // SCR-008 全体勤怠(固定 1 行、修正ボタンと社員名リンク)
-      await page.route(ADMIN_ATTENDANCE_PATH, (route) =>
-        route.request().method() === 'GET'
-          ? route.fulfill({
-              status: 200,
-              contentType: 'application/json',
-              body: JSON.stringify(FIXED_ADMIN_ATTENDANCE),
-            })
-          : route.fallback(),
-      );
+      // SCR-008 全体勤怠(固定 1 行)
       await navigateInApp(page, '/admin/attendance');
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       await capture(page, testInfo, width, 'SCR-008-admin-attendance');
@@ -310,14 +289,14 @@ for (const width of WIDTHS) {
         if (width < 640) expect.soft(fill.ratioToParent).toBeGreaterThanOrEqual(0.98);
       }
 
-      // BT32・BT33 社員名リンク(テキストリンク)
-      // 表示中のリンクだけ(狭い幅は表が隠れてカードのリンクになる)
+      // BT33 カード形式の社員名リンク(md 未満)/ BT32 表の社員名リンク(md 以上)。表示中のリンクだけを測る
       const nameLink = page.locator('a[href^="/admin/users/"]:visible').first();
       if (await nameLink.count()) {
-        const m = await targetMetrics(nameLink);
-        const ok = m.height >= 24 || m.clearanceFromCenter >= 12;
-        record(width, 'C8-text-link-BT32-name', { ...m, meets24pxRule: ok });
-        expect.soft(ok, 'テキストリンク BT32: 高さ 24 未満かつ間隔例外も不成立').toBe(true);
+        const metrics = await targetMetrics(nameLink);
+        const ok = meetsTargetSizeRule(metrics);
+        const key = width < 768 ? 'C8-BT33-name-card' : 'C8-BT32-name-table';
+        record(width, key, { ...metrics, meets24pxRule: ok });
+        expect.soft(ok, `${key}: 高さ 24 未満かつ間隔例外も不成立`).toBe(true);
       }
 
       // 修正ボタンのフォーカスリング切れ(表・カードの枠の中か)

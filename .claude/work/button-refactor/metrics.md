@@ -24,3 +24,6 @@
 | C8 검증 | tester | — | N/A | N/A | PASS (button-c8 4, 수정 필요 없음) | 0 |
 | C9 구현 | frontend | — | 120 | 186902 | form.tsx 버튼 상수 8개 삭제(사용처 0) | 0 |
 | C9·최종 회귀 | tester | — | 815(C8 기준) | 341331(C8 기준) | PASS (Vitest 797, 읽기 전용 e2e 64) | 0 |
+| 리뷰 Round 1 | reviewer | — | 330 | 180430 | CHANGES_REQUESTED (중간 5, 낮음 4) | 0 |
+| Review Fix 1 | frontend | — | 123 | 194409 | 입력 클래스 충돌 해소·eslint 공백 | 1 |
+| Review Fix 1 테스트 | tester | — | N/A | N/A | PASS (Vitest 801, e2e 68) | 1 |

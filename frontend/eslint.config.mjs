@@ -9,7 +9,7 @@ const BUTTON_FORBIDDEN_CLASS =
 const BUTTON_CLASS_MESSAGE =
   'Button の className は配置用クラスのみ指定できます(UI_BUTTON_PATTERNS §4.6)';
 
-const eslintConfig =defineConfig([
+const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   // Override default ignores of eslint-config-next.

@@ -31,7 +31,7 @@ export function SearchInput({ id, label, value, onChange, placeholder }: SearchI
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete="off"
-        className={`${inputBaseClass} h-11 pl-10 text-sm/5 placeholder:text-general-70`}
+        className={`${inputBaseClass} h-11 pr-4 pl-10 text-sm/5 placeholder:text-general-70`}
       />
     </div>
   );
