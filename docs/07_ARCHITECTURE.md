@@ -55,6 +55,7 @@ Database
   - 비밀번호 변경 Guard: `mustChangePassword = true`이면 `/auth/*` 외 API 차단
   - 호출 순서: 전역 인증 Guard(`JwtAuthGuard`)가 인증 → 비밀번호 변경 Guard → Role Guard 순으로 호출한다
 - 리소스 단위 권한(휴가 승인자, 신청자 등)은 Service 계층에서 검증
+- 권한 판단은 `users.role`(ADMIN/EMPLOYEE)만 쓴다. 役職(직책, `job_titles`)은 표시용이며 인증·권한에 쓰지 않는다(FR-JOB-001)
 - Frontend: 라우트 가드로 03_SCREEN_LIST의 Screen Access Rules를 적용하되, 최종 권한 판단은 서버가 한다.
 
 ## 4. Error Handling
@@ -69,6 +70,7 @@ Database
 - 인증 및 권한 검증
 - DTO 입력값 검증
 - 민감정보 로그 출력 금지
+  - 사원 등록·수정(users repository)의 예상 밖 DB 오류는 오류 이름·코드만 로그에 남기고 공통 500으로 바꾼다(Prisma 오류 메시지·스택에 들어갈 수 있는 `passwordHash` 등 쿼리 인자를 남기지 않기 위함). 다른 repository는 그대로 다시 던진다. 같은 정책이 더 필요해지면 `common/` 헬퍼로 옮긴다
 
 ## 6. Deployment
 

@@ -61,8 +61,8 @@
 | I-1 A·B·C | **대상 도메인(무엇을 다루는가)**의 아이콘 | 部署 → 건물(`BuildingIcon`), 所属社員 → 사람들(`PeopleIcon`), 休暇 → 달력(`CalendarIcon`), 勤怠 → 시계 |
 | I-2 D 독립형 | **동작(무엇을 하는가)**의 아이콘 | 삭제 → 휴지통, 出勤 → 들어가기(`EnterIcon`), 退勤 → 나가기(`ExitIcon`) |
 | I-3 단계형 | 부모 모달 아이콘 유지(단계 사이 변경 금지) | M06 승인·却下·取消 단계 = 달력 |
-| I-4 색 | 위험 동작을 포함해 **항상** `bg-primary-30` 박스 + `text-primary-100`(시안 `compare-d8-delete`). 위험 신호는 버튼 색(D5)과 warning Notice가 담당 | |
-| I-5 형태 | 40px 박스 `rounded-md`, 아이콘 24, `aria-hidden` | `Modal.tsx:64-71` |
+| I-4 색 | 위험 동작을 포함해 **항상** `bg-primary-30` 박스 + `text-primary-100`(시안 `compare-d8-delete`). 위험 신호는 버튼 색(D5)과 warning Notice가 담당. **예외 E1**: SCR-006 社員管理 모달 5종은 `iconVariant="circle"`(`bg-violet-30` 원형, §9.3) | |
+| I-5 형태 | 40px 박스 `rounded-md`, 아이콘 24, `aria-hidden`(`iconVariant="square"`, 기본). 예외 E1 circle은 48px `rounded-full`, 아이콘 24 | `Modal.tsx` |
 | I-6 자산 | 같은 도메인은 같은 아이콘 파일을 쓴다. 신규 아이콘 파일은 만들지 않고 기존 자산을 재사용한다(2026-11-13 정정: 휴지통·勤怠 시계는 이미 있음 — `admin/departments/icons.tsx` `TrashIcon`, `components/layout/navIcons.tsx` `ClockIcon`, 둘 다 24 viewBox·`currentColor`·stroke 1.75). 모달별 사용 파일은 09 §6 `Modal` 행에 기록 | `departments/icons.tsx`, `components/CalendarIcon.tsx`, `dashboard/icons.tsx`, `layout/navIcons.tsx` |
 
 모달별 아이콘(확정 기준 적용): M01 건물 / M02 건물 / M03 사람들 / M04 휴지통 / M05 달력 / M06 달력 / M07 달력 / M08 시계 / M09 出勤 들어가기·退勤 나가기.
@@ -75,7 +75,7 @@
 
 | 항목 | 규칙(확정) |
 |---|---|
-| 배치(D2) | **`FormTable` + `FormTableRow`**(라벨 열 `10rem` 회색 셀 14/20 Medium `general-80`, 값 셀 흰색, 행 구분선, `sm` 미만 1열). `FormRow`·라벨 위 스택은 모달에서 쓰지 않는다 |
+| 배치(D2) | **`FormTable` + `FormTableRow`**(라벨 열 `10rem` 회색 셀 14/20 Medium `general-80`, 값 셀 흰색, 행 구분선, `sm` 미만 1열). `FormRow`·라벨 위 스택은 모달에서 쓰지 않는다. **예외 E1**: SCR-006 社員追加·社員編集은 라벨 위 스택 `FormStack`/`FormStackRow`(§9.3) |
 | 플레이스홀더(D2) | 部署登録 방식: 텍스트·textarea·검색 선택 입력에 `messages`의 placeholder를 둔다(예: 「部署名を入力してください」). 날짜·`Select`는 각 컨트롤 기본 표시 |
 | 설명문(D2) | `description` 필수(1문장, 「〜を登録します。」 형태) |
 | 입력 장식 아이콘 | `IconField`는 기존 M01 유지. 신규 폼의 표준 여부는 §9.2 U3 |
@@ -257,7 +257,7 @@ disabled 대비: WCAG 1.4.3은 비활성 컴포넌트를 대비 요구에서 제
 | Overlay / 구분선 / 그림자 | `general-100/50` / `general-40` / `shadow-card-soft` |
 | 제목 | `text-h6`, `text-h5`(`text-xl/7` 임의 조합 금지) |
 | 본문 / 표·라벨 / 힌트 | `text-base/6` / `text-sm/5` / `text-xs/4` |
-| 아이콘 박스 | `bg-primary-30` `text-primary-100`(위험 동작 포함) |
+| 아이콘 박스 | `bg-primary-30` `text-primary-100`(위험 동작 포함). 예외 E1 circle은 `bg-violet-30` `text-primary-100` |
 | 읽기 전용 요약 | `bg-general-30`, `rounded-xl`, dt `general-80` / dd `general-100` |
 | 위험 버튼 | `danger-100`, `danger-100/90`, `danger-100/50` |
 | 안내 | `Notice`의 `notice-*` |
@@ -268,7 +268,8 @@ disabled 대비: WCAG 1.4.3은 비활성 컴포넌트를 대비 요구에서 제
 - 모달 안 hex·임의 px 신규 사용(기존 `FormTable.tsx:23` `sm:pt-[26px]`는 현행 유지, 신규 추가 금지)
 - footer 버튼 크기·색의 화면별 재정의
 - `Modal`을 거치지 않는 모달성 오버레이·`<dialog>` 직접 사용(내비게이션 드로어·팝오버 메뉴·콤보박스 목록·Tooltip·Toast는 대상 외, AUDIT §1.3)
-- 중첩 dialog, 아이콘 없는 모달, 모달 안 `FormRow`·라벨 위 스택 배치
+- 중첩 dialog, 아이콘 없는 모달, 모달 안 `FormRow`·라벨 위 스택 배치(예외 E1의 SCR-006 `FormStack`만 허용, §9.3)
+- `iconVariant="circle"`·`FormStack`을 SCR-006(`app/(app)/admin/users/`) 밖에서 사용
 - 수정 불가 값을 비활성 입력으로 표시
 - Notice 이외 스타일의 안내 문구
 
@@ -354,3 +355,12 @@ disabled 대비: WCAG 1.4.3은 비활성 컴포넌트를 대비 요구에서 제
 | U3 | 입력 장식 아이콘(`IconField`)을 폼 표준으로 할지(D2의 "部署登録처럼"이 플레이스홀더·설명문만 지정) | 표준으로 하지 않음(M01 기존 유지, 신규는 선택). **적용(권장안)**: 표준 아님, M01만 유지 |
 | U4 | SCR-010 등록 제목: 명세 「部署の登録」 vs 코드 「部署登録」(AUDIT §9 D6) | 코드(「部署登録」) 기준으로 명세 갱신. **적용(권장안)**: SCR-010 명세를 「部署登録」으로 갱신 |
 | U5 | 시안의 「部署の編集」은 部署コード를 수정 불가로 가정했으나 현재는 편집 가능 | 이번 범위 밖. 원하면 별도 기능 변경(feature-dev)으로 |
+
+### 9.3 승인된 예외
+
+| ID | 범위 | 내용 | 근거 |
+|---|---|---|---|
+| E1 | **SCR-006 社員管理 한정**(`app/(app)/admin/users/`의 社員追加·社員編集·社員詳細·社員削除·役職確認 5종). 다른 화면 모달은 바꾸지 않는다 | ① 제목 아이콘 `iconVariant="circle"`(淡紫 `bg-violet-30` 원형 48px, 아이콘 `text-primary-100` 24) — `Modal`·`FormModal`·`ConfirmDialog` 공통 prop, 기본값 `square`(기존 외형) / ② 입력 모달(社員追加·社員編集)은 `FormStack`/`FormStackRow`(라벨 위 스택, 라벨 16/24 Bold + `RequiredMark`, 행 간격 16)로 배치, 社員詳細은 `DetailTable` 그대로 / ③ 라디오 선택은 users 로컬 `RadioCardGroup`(라디오 카드) | 2026-11 사용자 결정(社員管理 화면은 레퍼런스 화상 외형 우선, 화면 안에서 통일). 09 §5 12 |
+
+- E1에서도 유지하는 규칙: 유형(A·B·D·단계형)과 size, 제목·X·footer 구조, footer `Button` variant·size(D5·D8), `description` 필수(A), `busy`·초기 포커스·단계 전환 포커스(§7), 중첩 dialog 금지, 수정 불가 값을 비활성 입력으로 표시하지 않음(社員追加의 自動生成 社員ID는 텍스트 표시), 안내는 `Notice`.
+- 社員削除의 LAST_ADMIN 오류는 `ConfirmDialog` 구조상 Notice 대신 토스트로 표시한다(社員編集은 폼 위 `Notice error`).
