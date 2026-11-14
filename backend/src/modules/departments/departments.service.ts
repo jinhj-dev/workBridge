@@ -1,5 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { AppException } from '../../common/exceptions/app.exception.js';
+import { escapeLikePattern } from '../../common/validation/like-pattern.js';
 import { toPage, toSkipTake } from '../../common/pagination/pagination.js';
 import type { Page } from '../../common/pagination/pagination.js';
 import { toUserSummary } from '../../common/mappers/user-summary.js';
@@ -13,11 +14,6 @@ import type { ManagerCandidatesQueryDto } from './dto/manager-candidates-query.d
 import type { UpdateDepartmentDto } from './dto/update-department.dto.js';
 import { DepartmentsRepository } from './departments.repository.js';
 import type { DepartmentWriteResult, DuplicateField } from './departments.repository.js';
-
-// LIKE のワイルドカード(%, _)とエスケープ文字(\)を文字そのものとして一致させる
-function escapeLikePattern(value: string): string {
-  return value.replace(/[\\%_]/g, '\\$&');
-}
 
 const PROTECTED_MESSAGE = '未所属部署は変更・削除できません。';
 

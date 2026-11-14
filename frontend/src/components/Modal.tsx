@@ -15,6 +15,7 @@ interface ModalProps {
   size?: 'md' | 'lg' | 'xl'; // md: 最大 420px(既定) / lg: 最大 640px / xl: 最大 800px(5 列の表など)
   subtitle?: ReactNode; // タイトル直下の補足(バッジなど)
   description?: ReactNode; // タイトル直下の説明文(あると dialog の aria-describedby に結びつく)
+  iconVariant?: 'square' | 'circle'; // circle: 淡紫の円形アイコン(48px)。社員管理のモーダル用。既定は square
   busy?: boolean; // 送信中。Esc・閉じる(X)での閉じる操作を止める
 }
 
@@ -33,6 +34,7 @@ export function Modal({
   size = 'md',
   subtitle,
   description,
+  iconVariant = 'square',
   busy = false,
 }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -71,6 +73,7 @@ export function Modal({
 
   // md は確認・一覧向けに余白と見出しを一段小さくする
   const compact = size === 'md';
+  const circle = iconVariant === 'circle';
   return (
     <dialog
       ref={ref}
@@ -89,7 +92,7 @@ export function Modal({
         <div className="flex min-w-0 items-center gap-3">
           <span
             aria-hidden="true"
-            className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary-30 text-primary-100 [&>svg]:size-6"
+            className={`flex shrink-0 items-center justify-center text-primary-100 [&>svg]:size-6 ${circle ? 'size-12 rounded-full bg-violet-30' : 'size-10 rounded-md bg-primary-30'}`}
           >
             {icon}
           </span>

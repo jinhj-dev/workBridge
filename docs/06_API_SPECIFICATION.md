@@ -479,63 +479,132 @@ Response 200
 
 ## 5. 사원 관리 (Admin Users)
 
+사원 관리 API(API-USER-*)는 모두 ADMIN 전용이다(EMPLOYEE 403 FORBIDDEN, 비로그인 401, 비밀번호 변경 필요 403 PASSWORD_CHANGE_REQUIRED). 응답에 `passwordHash`·Refresh Token·평문 비밀번호는 넣지 않는다. 요청 Body는 알 수 없는 필드를 거부한다(strict, 400 VALIDATION_ERROR. 이때 `details[].field`는 `""`이고 message는 zod 기본 영어 문구 — 화면 문구로 쓰지 않음).
+
+`JobTitleRef`(API-DEPT-008과 같은 형식)
+```json
+{ "id": "uuid", "name": "マネージャー", "tone": "VIOLET" }
+```
+- `tone`: `GRAY` | `BLUE` | `VIOLET` | `PINK` | `LAVENDER` | `GREEN` | `YELLOW` | `ORANGE`(05 §0)
+
+`UserListItem`
+```json
+{ "id": "uuid", "empId": "10001", "name": "山田 太郎", "hireDate": "2026-04-01",
+  "departmentId": "uuid", "departmentName": "開発部",
+  "role": "EMPLOYEE", "approvalRequired": true, "isActive": true,
+  "employmentStatus": "ACTIVE",
+  "jobTitle": { "id": "uuid", "name": "エンジニア", "tone": "GRAY" },
+  "contactEmail": "yamada@example.com",
+  "createdAt": "2026-01-02T09:00:00+09:00" }
+```
+- `employmentStatus`: `ACTIVE`(在籍中: 활성·입사일 ≤ 오늘) / `UPCOMING`(入社予定: 활성·입사일 > 오늘) / `INACTIVE`(無効: 비활성). 저장하지 않고 Asia/Tokyo 오늘 기준으로 계산(FR-USER-001)
+- `jobTitle`(`JobTitleRef`)·`contactEmail`은 항상 키를 포함하고 미설정이면 `null`. `departmentName`은 non-null
+
+`UserDetail` = `UserListItem` + 
+```json
+{ "mustChangePassword": true, "updatedAt": "2026-11-14T10:00:00+09:00",
+  "pendingApprovalCount": 0, "leaveGrants": [{ "year": 2026, "grantedDays": 15 }] }
+```
+- `pendingApprovalCount`: 이 사원이 승인자로 할당된 PENDING 휴가 수. `leaveGrants`: year 내림차순, 없으면 `[]`
+
 ### API-USER-001: 사원 목록
 - `GET /admin/users` · ADMIN · FR-USER-001
-- Query: `name`, `empId`, `departmentId`, `role`, `approvalRequired`(true/false), `isActive`(true/false), `hireDateFrom`, `hireDateTo`, `page`, `limit`
-- `isActive`를 생략하면 활성·비활성 전체를 반환한다. 화면 기본값("활성")은 화면이 `isActive=true`를 명시적으로 보낸다(SCR-006).
-- `hireDateFrom`·`hireDateTo`: YYYY-MM-DD, 양끝 포함, 한쪽만 지정 가능. 형식 오류이거나 `hireDateFrom > hireDateTo`이면 400 VALIDATION_ERROR
+- Query(모두 선택, 모든 조건 AND)
+  - `keyword`: 앞뒤 공백 제거 후 최대 100자. 사원번호·이름·`contactEmail` 중 하나라도 부분 일치(대소문자 무시). `%`·`_`·`\`는 와일드카드가 아닌 문자 그대로. 빈 값이면 조건 없음(2026-11 추가)
+  - `jobTitleId`: UUID(2026-11 추가)
+  - `status`: `ACTIVE` | `UPCOMING` | `INACTIVE`(`employmentStatus` 정의와 같음, 2026-11 추가)
+  - `name`(최대 100자), `empId`(최대 50자), `departmentId`(UUID), `role`(`ADMIN`|`EMPLOYEE`), `approvalRequired`(`true`|`false`), `isActive`(`true`|`false`), `hireDateFrom`, `hireDateTo`, `page`, `limit`
+- `approvalRequired`·`isActive`는 `true`/`false`만 허용한다(빈 문자열은 400). 미지정이면 파라미터를 생략한다.
+- `isActive`·`status`를 생략하면 활성·비활성 전체를 반환한다. SCR-006 화면은 기본 「すべて」이므로 상태 조건 없이 조회하고, 상태 필터는 `status`를 쓴다(`limit=10`).
+- `hireDateFrom`·`hireDateTo`: YYYY-MM-DD, 양끝 포함, 한쪽만 지정 가능
 - 정렬: 입사일 오름차순, 같은 날이면 사원번호 오름차순
-- Response 200: 페이지네이션
-```json
-{ "id": "uuid", "name": "홍길동", "empId": "00001", "hireDate": "2026-04-01", "departmentId": "uuid", "departmentName": "개발팀",
-  "role": "EMPLOYEE", "approvalRequired": true, "isActive": true, "createdAt": "2026-01-02T09:00:00+09:00" }
-```
-- (구현 시 적용) 항목에 `jobTitle`(`{ id, name, tone }` 또는 null)·`contactEmail`(string 또는 null)을 추가한다. 형식은 API-DEPT-008과 같다
+- Response 200: 페이지네이션(`UserListItem[]`)
+
+| HTTP | Code | 설명 |
+|---|---|---|
+| 400 | VALIDATION_ERROR | Query 형식 오류(field = Query 이름). `hireDateFrom > hireDateTo`(field `hireDateFrom`, 「開始日は終了日より後にできません。」), `keyword` 100자 초과(「検索キーワードは 100 文字以内で入力してください。」) |
+
+### API-USER-006: 사원 요약 (2026-11 신규)
+- `GET /admin/users/summary` · ADMIN · FR-USER-001
+- Response 200: `{ "employeeCount": 120, "adminCount": 8, "hiredThisMonthCount": 3 }`
+  - `employeeCount`: 활성 사원 수(入社予定 포함. API-DEPT-007 `memberCount`와 같은 기준)
+  - `adminCount`: 활성이고 `role = ADMIN`인 사원 수(役職이 아니라 인증 권한 기준)
+  - `hiredThisMonthCount`: 활성이고 입사일이 Asia/Tokyo 기준 이번 달(1일~말일)인 사원 수
+  - 검색 조건과 무관하다
+- 라우트는 `:id`보다 먼저 선언한다(`next-emp-id`도 같다)
+
+### API-USER-007: 다음 자동 채번 예정 번호 (2026-11 신규)
+- `GET /admin/users/next-emp-id` · ADMIN · FR-USER-001
+- Response 200: `{ "empId": "10101" }`. 기존 5자리 숫자 사원번호의 최댓값 + 1(5자리 0 채움, 없으면 `00001`, 6자리 이상 번호는 대상 외)
+  - 예정 번호일 뿐 예약하지 않는다. 최종 번호는 API-USER-002 등록 시 확정한다
+  - 채번 불가(99999 초과)면 `{ "empId": null }`(에러 아님)
+- 에러는 공통 권한 에러만 있다
 
 ### API-USER-002: 사원 등록
 - `POST /admin/users` · ADMIN · FR-USER-001
 
 Request
 ```json
-{ "name": "홍길동", "empId": "00001", "initialPassword": "Temp1234", "hireDate": "2026-04-01", "departmentId": "uuid",
-  "role": "EMPLOYEE", "approvalRequired": true }
+{ "empIdMode": "AUTO", "empId": null, "name": "山田 太郎", "initialPassword": "Temp1234",
+  "jobTitleId": "uuid", "contactEmail": "yamada@example.com", "departmentId": "uuid",
+  "hireDate": "2026-12-01", "role": "EMPLOYEE", "approvalRequired": true }
 ```
-- name, empId, initialPassword, hireDate, departmentId, role, approvalRequired 필수. 未所属 부서도 지정할 수 있다
-- hireDate: YYYY-MM-DD, 실재하는 날짜, 미래 날짜 허용, 기본값 없음. 누락·형식 오류는 400 VALIDATION_ERROR
-- (구현 시 적용) 선택 항목 `jobTitleId`·`contactEmail`(FR-USER-001)
-  - `jobTitleId`: 존재하는 직책 ID(UUID) 또는 null(미설정). 직책 목록 API는 미정
-  - `contactEmail`: 문자열 또는 null. 앞뒤 공백 제거 후 이메일 형식·254자 이하, 빈 문자열은 null로 저장. 위반 시 400 VALIDATION_ERROR. 서버에서 반드시 검증한다(DB에는 형식 제약이 없다, 05 §2)
-- Response 201: 사원 상세(API-USER-003과 같은 구조). `isActive = true`, `mustChangePassword = true`
+- 필드 규칙(위반은 400 VALIDATION_ERROR, `details[{field,message}]`)
+  - `empIdMode`: 필수 `AUTO` | `MANUAL`(2026-11 추가). AUTO는 서버가 채번(05 §8 「사원번호 자동 채번」)
+  - `empId`: MANUAL이면 필수. 앞뒤 공백 제거 후 숫자 1~50자리. 「社員IDを入力してください。」/「社員IDは数字(50 桁以内)で入力してください。」. AUTO이면 무시(null·생략 허용)
+  - `name`: 필수, 앞뒤 공백 제거 후 1~100자, 제어 문자 불가. 「社員名を入力してください。」/「社員名は 100 文字以内で入力してください。」/「社員名に使用できない文字が含まれています。」
+  - `jobTitleId`: **필수** UUID(2026-11 변경, 이전 선택). 「役職を選択してください。」
+  - `contactEmail`: **필수**(2026-11 변경, 이전 선택). 앞뒤 공백 제거 후 이메일 형식·254자 이하, 중복 허용. 「メールアドレスを入力してください。」/「メールアドレスの形式が正しくありません。」
+  - `departmentId`: 필수 UUID(未所属 허용). 「部署を選択してください。」
+  - `hireDate`: 필수, 실재하는 YYYY-MM-DD, 미래 허용, 기본값 없음. 「入社日を選択してください。」
+  - `role`(`ADMIN`|`EMPLOYEE`), `approvalRequired`(boolean): 필수
+  - `initialPassword`: 필수 문자열(최대 128자), FR-AUTH-003 규칙을 서버에서 검증(field `initialPassword`). 「初期パスワードを入力してください。」/「パスワードは8文字以上で、英字と数字を含めてください。」/「パスワードは72バイト以内で入力してください。」. 앞뒤 공백은 제거하지 않는다. 검증 오류 details에 입력값을 넣지 않는다
+- 처리: 비밀번호 bcrypt 해시(트랜잭션 밖) → 트랜잭션(AUTO는 advisory lock → 채번) → INSERT(`isActive = true`, `mustChangePassword = true`). 평문 비밀번호는 응답·로그·예외 message에 넣지 않는다. 메일 발송·재발급 API는 없다
+- 판정 순서: 입력 검증(400) → INSERT 시 FK·UNIQUE 위반 판별
+- Response 201: `UserDetail`(확정된 `empId` 포함)
 
 | HTTP | Code | 설명 |
 |---|---|---|
-| 409 | DUPLICATE_EMP_ID | 사원번호 중복 |
-| 400 | INVALID_DEPARTMENT | 존재하지 않는 부서 |
+| 400 | VALIDATION_ERROR | 「入力内容に誤りがあります。」 + details |
+| 400 | INVALID_DEPARTMENT | 존재하지 않는 부서. 「部署を選び直してください。」 |
+| 400 | INVALID_JOB_TITLE | 존재하지 않는 직책. 「役職を選び直してください。」(2026-11 추가) |
+| 409 | DUPLICATE_EMP_ID | 사원번호 중복(MANUAL). 「この社員IDは既に使用されています。」 |
+| 409 | EMP_ID_EXHAUSTED | 자동 채번 불가(AUTO, 99999 초과 또는 재채번 3회 실패). 「社員IDを自動で採番できません。直接入力してください。」(2026-11 추가) |
 
 ### API-USER-003: 사원 상세
 - `GET /admin/users/:id` · ADMIN · FR-USER-002
-- Response 200: 목록 항목 + `mustChangePassword`, `updatedAt`, `pendingApprovalCount`(이 사용자에게 할당된 PENDING 건수), `leaveGrants: [{ "year": 2026, "grantedDays": 15 }]`
-  - (구현 시 적용) 목록 항목과 같이 `jobTitle`·`contactEmail`을 포함한다
-- 404 NOT_FOUND
-
-### API-USER-004: 사원 수정
-- `PATCH /admin/users/:id` · ADMIN · FR-USER-002
-- Request(변경할 필드만): `name`, `empId`, `hireDate`, `departmentId`, `role`, `approvalRequired`, `isActive`
-- (구현 시 적용) `jobTitleId`·`contactEmail`도 변경할 수 있다. null은 해제. 검증은 API-USER-002와 같다
-- `hireDate`를 지정하면 API-USER-002와 같은 규칙으로 검증한다(null 불가)
-- `departmentId: null`은 허용하지 않는다(400 VALIDATION_ERROR)
-- Response 200: 사원 상세
-- `isActive`를 false로 바꾸면 FR-USER-002의 비활성화 처리를 같은 트랜잭션에서 수행한다.
-  - 비활성화 처리에는 그 사원이 책임자인 모든 부서(겸임 포함)의 `manager_id`를 NULL로 해제하는 것이 포함된다(05 §8 「부서 등록·수정의 책임자 지정」). 이 API 미구현으로 아직 구현되지 않았다.
-  - `departmentId` 변경(부서 이동)은 부서 책임자 지정에 영향을 주지 않는다.
+- Response 200: `UserDetail`
 
 | HTTP | Code | 설명 |
 |---|---|---|
-| 409 | DUPLICATE_EMP_ID | 사원번호 중복 |
+| 400 | VALIDATION_ERROR | `:id`가 UUID 형식이 아님(`details: [{ "field": "id", "message": "社員 ID の形式が正しくありません。" }]`, API-USER-004도 같다) |
+| 404 | NOT_FOUND | 「社員が見つかりません。」 |
+
+### API-USER-004: 사원 수정
+- `PATCH /admin/users/:id` · ADMIN · FR-USER-002
+- Request(변경할 필드만, 최소 1개 — 빈 객체는 400 「変更する項目を指定してください。」): `name`, `empId`, `jobTitleId`(UUID 또는 null = 해제), `contactEmail`(문자열 또는 null, null·빈 문자열은 해제), `departmentId`, `hireDate`, `role`, `approvalRequired`, `isActive`
+  - 검증 문구는 API-USER-002와 같다. `departmentId: null`·`hireDate: null`은 400
+  - 비밀번호(`initialPassword` 등)는 바꿀 수 없다(strict로 400)
+- Response 200: `UserDetail`
+- 처리(한 트랜잭션, 05 §8 「마지막 활성 ADMIN 보호」「사원 비활성화」)
+  - 대상이 활성 ADMIN이고 `isActive: false` 또는 `role: EMPLOYEE`이면 활성 ADMIN 전원을 먼저 잠근 뒤 판정 → 남는 활성 ADMIN이 없으면 409 LAST_ADMIN
+  - `isActive` true → false: 이 사원이 신청한 PENDING 휴가 CANCELLED(처리자 = 요청 ADMIN), 이 사원이 책임자인 모든 부서(겸임 포함) `manager_id` NULL, 이 사원의 Refresh Token 폐기. 이 사원에게 할당된 다른 사원의 PENDING은 그대로
+  - false → true(재활성화)는 플래그만 바꾼다
+  - `departmentId` 변경(부서 이동)은 부서 책임자 지정에 영향을 주지 않는다
+  - `jobTitleId` 변경은 `role`·권한에 영향을 주지 않는다
+- SCR-006의 「削除」는 이 API에 `{ "isActive": false }`를 보내는 논리 삭제다. 물리 삭제 API(`DELETE /admin/users/:id`)는 없다(404)
+
+| HTTP | Code | 설명 |
+|---|---|---|
+| 400 | VALIDATION_ERROR | 형식 오류, 빈 객체, `departmentId: null`, `hireDate: null`, 알 수 없는 필드 |
 | 400 | INVALID_DEPARTMENT | 존재하지 않는 부서 |
-| 409 | LAST_ADMIN | 마지막 활성 ADMIN의 비활성화 또는 강등 |
+| 400 | INVALID_JOB_TITLE | 존재하지 않는 직책 |
+| 404 | NOT_FOUND | 「社員が見つかりません。」 |
+| 409 | DUPLICATE_EMP_ID | 사원번호 중복 |
+| 409 | LAST_ADMIN | 마지막 활성 ADMIN의 비활성화 또는 강등. 「最後の管理者は無効化・権限変更できません。」 |
 
 ### API-USER-005: 부여 연차 등록/수정
+- **미구현**(2026-11 사원 관리 구현 범위 밖. 10 로드맵 잔여 과제)
 - `PUT /admin/users/:id/leave-grants/:year` · ADMIN · FR-LEAVE-006
 - Request: `{ "grantedDays": 15 }` (0 이상, 0.5 단위)
 - Response 200: `{ "year": 2026, "grantedDays": 15 }`
@@ -645,10 +714,10 @@ Request
   "jobTitle": { "id": "uuid", "name": "マネージャー", "tone": "VIOLET" },
   "contactEmail": "yamada@example.com" }
 ```
-- `jobTitle`: 役職 `{ id, name, tone }`. `tone`은 `GRAY` | `BLUE` | `VIOLET` | `PINK`(05 §2-1). 미설정이면 `null`
+- `jobTitle`: 役職 `JobTitleRef` `{ id, name, tone }`. `tone`은 8값(`GRAY` | `BLUE` | `VIOLET` | `PINK` | `LAVENDER` | `GREEN` | `YELLOW` | `ORANGE`, 05 §0). 미설정이면 `null`
 - `contactEmail`: 連絡先(사내 이메일). 미설정이면 `null`
 - `jobTitle`·`contactEmail`은 항상 키를 포함한다. 입사일·권한 등 다른 사원 정보는 넣지 않는다
-- 役職·連絡先은 이 API(ADMIN 전용)에서만 반환한다. `UserSummary`·API-AUTH-004·API-DEPT-001·`DepartmentDetail.manager`·API-DEPT-009에는 넣지 않는다
+- 役職·連絡先은 ADMIN 전용 API(이 API와 API-USER-001~004)에서만 반환한다. `UserSummary`·API-AUTH-004·API-DEPT-001·`DepartmentDetail.manager`·API-DEPT-009에는 넣지 않는다
 - 400 VALIDATION_ERROR: `:id`가 UUID 형식이 아님, `page`·`limit` 범위 오류
 - 404 NOT_FOUND 「部署が見つかりません。」
 
@@ -658,3 +727,59 @@ Request
 - Response 200: `UserSummary[]` — 활성 사원 전체(요청자 본인·ADMIN 포함, 소속 무관), 사원번호 오름차순, **최대 100건**(고정, Query로 변경 불가)
 - 400 VALIDATION_ERROR: `keyword`가 100자 초과
 - API-LEAVE-002는 USER 권한·본인 제외라 쓰지 않는다
+
+---
+
+## 6. 직책 관리 (Admin Job Titles, 2026-11 신규)
+
+모두 ADMIN 전용(권한 에러는 API-USER-*와 같음) · FR-JOB-001. 직책의 등록·수정·삭제는 사원의 `role`·권한·인증에 영향을 주지 않는다(users 행을 바꾸지 않음).
+
+`JobTitle`
+```json
+{ "id": "uuid", "name": "マネージャー", "tone": "VIOLET", "userCount": 12,
+  "createdAt": "2026-11-12T09:00:00+09:00", "updatedAt": "2026-11-12T09:00:00+09:00" }
+```
+- `tone`: `JobTitleRef`와 같은 8값
+- `userCount`: 이 직책을 참조하는 사원 수(활성·비활성 모두. 삭제 가능 판단과 같은 기준)
+
+입력 규칙(등록·수정 공통, 위반은 400 VALIDATION_ERROR)
+- `name`: 앞뒤 공백 제거 후 1~50자, 제어 문자(줄바꿈·탭 등) 불가. 「役職名を入力してください。」/「役職名は 50 文字以内で入力してください。」/「役職名に使用できない文字が含まれています。」. 중복은 공백 제거 후 값으로 비교
+- `tone`: 8값 중 하나. 「色を選択してください。」
+- 알 수 없는 필드는 거부한다(strict)
+
+`:id` 형식 오류 응답(API-JOB-003·004 공통): `details: [{ "field": "id", "message": "役職 ID の形式が正しくありません。" }]`
+
+### API-JOB-001: 직책 목록
+- `GET /admin/job-titles` · ADMIN
+- Response 200: `JobTitle[]`(페이지네이션 없음), 등록일 오름차순 → 이름 오름차순
+
+### API-JOB-002: 직책 등록
+- `POST /admin/job-titles` · ADMIN
+- Request: `{ "name": "人事", "tone": "GREEN" }`(둘 다 필수)
+- Response 201: `JobTitle`(`userCount` 0)
+
+| HTTP | Code | 설명 |
+|---|---|---|
+| 400 | VALIDATION_ERROR | 위 입력 규칙 위반(제어 문자 포함) |
+| 409 | DUPLICATE_JOB_TITLE_NAME | 「この役職名は既に登録されています。」 |
+
+### API-JOB-003: 직책 수정
+- `PATCH /admin/job-titles/:id` · ADMIN
+- Request(변경할 필드만, 최소 1개): `{ "name"?, "tone"? }`. 빈 객체는 400 「変更する項目を指定してください。」
+- Response 200: `JobTitle`. 변경한 색은 이 직책을 쓰는 모든 배지(API-USER-001·003, API-DEPT-008 응답)에 바로 반영된다
+
+| HTTP | Code | 설명 |
+|---|---|---|
+| 400 | VALIDATION_ERROR | `:id` 형식, 빈 객체, 위 입력 규칙 위반(제어 문자 포함) |
+| 404 | NOT_FOUND | 「役職が見つかりません。」 |
+| 409 | DUPLICATE_JOB_TITLE_NAME | 「この役職名は既に登録されています。」 |
+
+### API-JOB-004: 직책 삭제
+- `DELETE /admin/job-titles/:id` · ADMIN
+- Response 204. 사용 중 판정은 사전 건수 확인 + DELETE의 FK 위반(동시 배정 대비) 모두 409로 변환한다
+
+| HTTP | Code | 설명 |
+|---|---|---|
+| 400 | VALIDATION_ERROR | `:id` 형식 |
+| 404 | NOT_FOUND | 「役職が見つかりません。」 |
+| 409 | JOB_TITLE_IN_USE | 참조 사원 1명 이상(비활성 포함). 「この役職を使用している社員が存在するため、削除できません。」 |

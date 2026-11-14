@@ -7,7 +7,7 @@ import { SYSTEM_DEPARTMENT_CODE } from '../src/modules/departments/department.co
 import { assertValidPassword, JOB_TITLES } from './initial-data.js';
 
 export const SAMPLE_USER_COUNT = 100;
-const FIRST_EMP_NUMBER = 10001;
+export const FIRST_EMP_NUMBER = 10001;
 
 // 均等に割り振る所属部署(code)
 const DEPARTMENT_CODES = ['GA', 'DEV', 'SALES', 'HR'];

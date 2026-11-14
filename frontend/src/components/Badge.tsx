@@ -10,7 +10,9 @@ export type BadgeVariant =
   | 'positive'
   | 'caution'
   | 'violet'
-  | 'pink';
+  | 'pink'
+  | 'lavender'
+  | 'yellow';
 export type BadgeShape = 'rounded' | 'pill';
 
 // 09 §2.1 のバッジ配色。success・danger の文字色は WCAG AA の対比を満たすため General 100 にする
@@ -27,6 +29,9 @@ export const BADGE_VARIANT_CLASS: Record<BadgeVariant, string> = {
   // 役職バッジ用(SCR-010 所属社員確認)。tone の VIOLET・PINK に対応
   violet: 'bg-violet-30 text-violet-110',
   pink: 'bg-pink-30 text-pink-110',
+  // 役職の tone LAVENDER・YELLOW(SCR-006 役職確認)
+  lavender: 'bg-lavender-30 text-lavender-110',
+  yellow: 'bg-yellow-30 text-yellow-110',
 };
 
 const BADGE_SHAPE_CLASS: Record<BadgeShape, string> = {

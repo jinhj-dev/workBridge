@@ -322,7 +322,7 @@ describe('役職と連絡先', () => {
     ]);
   });
 
-  it('job_titles の列構成と job_title_tone の ENUM 値(GRAY・BLUE・VIOLET・PINK)を確認する', async () => {
+  it('job_titles の列構成と job_title_tone の ENUM 値(8種)を確認する', async () => {
     const columns = await prisma.$queryRaw<
       {
         column_name: string;
@@ -352,7 +352,16 @@ describe('役職と連絡先', () => {
       JOIN pg_type t ON t.oid = e.enumtypid
       WHERE t.typname = 'job_title_tone'
       ORDER BY e.enumsortorder`;
-    expect(values.map((v) => v.enumlabel)).toEqual(['GRAY', 'BLUE', 'VIOLET', 'PINK']);
+    expect(values.map((v) => v.enumlabel)).toEqual([
+      'GRAY',
+      'BLUE',
+      'VIOLET',
+      'PINK',
+      'LAVENDER',
+      'GREEN',
+      'YELLOW',
+      'ORANGE',
+    ]);
   });
 
   it('job_titles は参照のない役職を削除でき、tone に ENUM 外の値・長すぎる name を拒否する', async () => {

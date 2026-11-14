@@ -1,4 +1,4 @@
-import { selectClass } from '@/components/form';
+import { inputBaseClass, selectClass } from '@/components/form';
 
 interface SelectProps<T extends string> {
   id: string;
@@ -10,6 +10,7 @@ interface SelectProps<T extends string> {
   describedBy?: string;
   required?: boolean;
   disabled?: boolean;
+  size?: 'md' | 'sm'; // sm: 高さ 44・小さい文字(一覧の絞り込み用。既定は md)
   autoFocus?: boolean; // モーダルを開いた直後の初期フォーカス(data-autofocus。React の autoFocus は開く前に確定して効かない)
 }
 
@@ -24,8 +25,10 @@ export function Select<T extends string>({
   describedBy,
   required,
   disabled,
+  size = 'md',
   autoFocus,
 }: SelectProps<T>) {
+  const small = size === 'sm';
   return (
     <div className="relative">
       <select
@@ -37,7 +40,7 @@ export function Select<T extends string>({
         aria-required={required || undefined}
         disabled={disabled}
         data-autofocus={autoFocus ? '' : undefined}
-        className={`${selectClass} appearance-none pr-10 disabled:cursor-not-allowed disabled:bg-general-30 disabled:text-general-80`}
+        className={`${small ? `${inputBaseClass} h-11 cursor-pointer pr-9 pl-3 text-sm/5` : `${selectClass} pr-10`} appearance-none disabled:cursor-not-allowed disabled:bg-general-30 disabled:text-general-80`}
       >
         {placeholder && (
           <option value="" disabled>
@@ -58,7 +61,7 @@ export function Select<T extends string>({
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="pointer-events-none absolute top-1/2 right-4 size-5 -translate-y-1/2 text-general-80"
+        className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-general-80 ${small ? 'right-3 size-4' : 'right-4 size-5'}`}
       >
         <path d="m6 9 6 6 6-6" />
       </svg>

@@ -25,7 +25,9 @@ PostgreSQL 네이티브 ENUM 타입으로 정의한다. 값을 추가할 때는 
 | user_role | ADMIN / EMPLOYEE | users.role |
 | leave_type | ANNUAL / HALF_AM / HALF_PM / SPECIAL / OTHER | leaves.leave_type |
 | leave_status | PENDING / APPROVED / REJECTED / CANCELLED | leaves.status |
-| job_title_tone | GRAY / BLUE / VIOLET / PINK (기본 GRAY) | job_titles.tone |
+| job_title_tone | GRAY / BLUE / VIOLET / PINK / LAVENDER / GREEN / YELLOW / ORANGE (기본 GRAY) | job_titles.tone |
+
+job_title_tone의 LAVENDER·GREEN·YELLOW·ORANGE는 마이그레이션 `extend_job_title_tone`(2026-11)에서 `ADD VALUE`로 추가했다(기존 4값·기존 행 불변). 되돌리려면 타입 재작성이 필요하므로 새 값을 쓰는 행이 없을 때만 가능하다.
 
 ### CHECK 제약의 관리
 
@@ -91,16 +93,20 @@ description·manager_id는 마이그레이션 `add_departments_description_manag
 
 hire_date는 마이그레이션 `add_users_hire_date`에서 기존 행을 `2026-01-01`로 채운 뒤 NOT NULL로 바꿨다. seed 초기 ADMIN과 E2E 계정도 같은 고정값 `2026-01-01`을 쓴다.
 
-job_title_id·contact_email은 마이그레이션 `add_job_titles_and_users_contact`에서 추가했다. 기존 행은 둘 다 NULL(백필 없음)이다. 현재 쓰기 경로는 seed·샘플/E2E 스크립트뿐이며, 사원 등록·수정 API(API-USER-002·004) 구현 시 서버에서 형식·길이를 검증한다.
+job_title_id·contact_email은 마이그레이션 `add_job_titles_and_users_contact`에서 추가했다. 기존 행은 둘 다 NULL(백필 없음)이다. 쓰기 경로는 사원 등록·수정 API(API-USER-002·004, 서버에서 형식·길이 검증)와 seed·샘플/E2E 스크립트이다. 등록 API는 둘 다 필수로 받지만(FR-USER-001), 수정 API는 해제(NULL)를 허용하므로 컬럼은 NULL 허용 그대로다.
+
+emp_id 자동 채번(FR-USER-001): 저장하는 채번 컬럼·시퀀스는 없다. 등록 시 `^[0-9]{5}$`인 emp_id의 최댓값 + 1을 계산한다(동시성은 §8 「사원번호 자동 채번」).
+
+사원 재직 상태(在籍中·入社予定·無効)는 저장하지 않고 `is_active`·`hire_date`와 Asia/Tokyo 오늘로 계산한다(FR-USER-001).
 
 ## 2-1. Table: job_titles
 
-관련 요구사항: FR-USER-001, FR-USER-002, FR-DEPT-001
+관련 요구사항: FR-USER-001, FR-USER-002, FR-DEPT-001, FR-JOB-001
 
 | 컬럼 | 타입 | PK | NULL | 설명 |
 |---|---|---|---|---|
 | id | UUID | O | NO | 직책 ID |
-| name | VARCHAR(50) | | NO | 직책명 |
+| name | VARCHAR(50) | | NO | 직책명. 앞뒤 공백 제거 후 1~50자, 제어 문자(줄바꿈·탭 등) 불가(검증은 애플리케이션, FR-JOB-001) |
 | tone | job_title_tone | | NO | 배지 색 계열(기본 GRAY). 색의 계획명만 저장하며 실제 색은 프론트엔드가 정한다(09_DESIGN_SYSTEM.md) |
 | created_at | TIMESTAMPTZ | | NO | 생성일 |
 | updated_at | TIMESTAMPTZ | | NO | 수정일 |
@@ -110,7 +116,9 @@ job_title_id·contact_email은 마이그레이션 `add_job_titles_and_users_cont
 - name: UNIQUE
 - 감사 컬럼·정렬 순서 컬럼은 두지 않는다.
 
-직책은 현재 seed(운영 초기 데이터, `backend/prisma/initial-data.ts` `JOB_TITLES`)로만 등록·관리한다. 관리 화면과 직책 목록 API는 없다(미정). 마이그레이션은 데이터를 INSERT하지 않는다. seed는 이름 기준으로 중복 없이 등록하며(재실행 시 기존 행 불변), 초기 직책은 다음 4개이다. 색은 이름이 아니라 tone으로 결정한다.
+직책은 ADMIN이 SCR-006 役職確認 모달(API-JOB-001~004)에서 등록·수정·삭제한다(2026-11). 목록 정렬은 created_at 오름차순 → name 오름차순이다(정렬 순서 컬럼 없음). 사원(활성·비활성 무관)이 참조 중인 직책은 삭제할 수 없다(FK RESTRICT, API는 사전 건수 확인 + FK 위반 모두 409 JOB_TITLE_IN_USE). 직책 변경은 users 행을 건드리지 않는다(권한 `role`과 별개).
+
+초기 데이터는 seed(운영 초기 데이터, `backend/prisma/initial-data.ts` `JOB_TITLES`)가 등록한다. 마이그레이션은 데이터를 INSERT하지 않는다. seed는 이름 기준으로 중복 없이 등록하며(재실행 시 기존 행 불변), 초기 직책은 다음 4개이다. 색은 이름이 아니라 tone으로 결정한다.
 
 | name | tone |
 |---|---|
@@ -298,7 +306,27 @@ job_title_id·contact_email은 마이그레이션 `add_job_titles_and_users_cont
 
 ### 마지막 활성 ADMIN 보호 (FR-USER-002)
 
-- ADMIN의 비활성화 또는 EMPLOYEE 변경은 트랜잭션 안에서 `SELECT id FROM users WHERE role = 'ADMIN' AND is_active FOR NO KEY UPDATE`로 활성 ADMIN 행을 모두 잠근 뒤, 애플리케이션에서 건수를 세어 판단한다(FOR UPDATE 계열은 집계 함수와 함께 쓸 수 없다).
+- ADMIN의 비활성화 또는 EMPLOYEE 변경은 트랜잭션 안에서 `SELECT id FROM users WHERE role = 'ADMIN' AND is_active ORDER BY id FOR NO KEY UPDATE`로 활성 ADMIN 행을 모두 잠근 뒤, 애플리케이션에서 건수를 세어 판단한다(FOR UPDATE 계열은 집계 함수와 함께 쓸 수 없다).
+- API-USER-004는 대상이 활성 ADMIN이고 비활성화·EMPLOYEE 변경이 포함되면, 대상 행 잠금보다 **먼저** 활성 ADMIN 전원을 id 순으로 잠근다(동시 상호 비활성화의 데드락 회피). 그 뒤 대상 행을 사용자 단위 잠금으로 잠그고 다시 읽은 값으로 판단한다. 남는 활성 ADMIN이 없으면 409 LAST_ADMIN.
+
+### 사원 비활성화 (FR-USER-002, API-USER-004)
+
+활성 → 비활성 전환 시 한 트랜잭션 안에서 대상 행 잠금(위 순서) 후 다음을 처리한다.
+
+1. `is_active = false`로 UPDATE한다.
+2. 이 사원이 신청한 `PENDING` 휴가를 `CANCELLED`로 바꾼다(processed_by = 요청 ADMIN, processed_at = 현재, §6 상태별 저장 규칙).
+3. 이 사원이 책임자인 모든 부서의 `manager_id`를 NULL로 바꾼다.
+4. 이 사원의 미폐기 refresh token에 `revoked_at = 현재`를 기록한다.
+
+- 이 사원에게 할당된 다른 사원의 `PENDING` 휴가는 바꾸지 않는다. 재활성화(false → true)는 `is_active`만 바꾼다.
+- 화면의 「削除」(SCR-006)도 이 처리다. 사원은 물리 삭제하지 않는다.
+
+### 사원번호 자동 채번 (FR-USER-001, API-USER-002)
+
+- 자동 채번 등록은 한 트랜잭션 안에서 `SELECT pg_advisory_xact_lock(<고정 키>)` → `^[0-9]{5}$` emp_id의 최댓값 조회 → +1(5자리 0 채움) → INSERT 순으로 처리한다. 자동 채번끼리는 이 잠금으로 직렬화된다.
+- 직접 입력 등록은 advisory lock을 쓰지 않는다. 직접 입력과 자동 채번이 같은 번호로 부딪히면(UNIQUE `users_emp_id_key` 위반) 자동 채번 쪽은 최대 3회 재채번하고, 직접 입력 쪽은 409 DUPLICATE_EMP_ID이다.
+- 비밀번호 해시 계산(bcrypt)은 트랜잭션 밖에서 한다(잠금 보유 시간 단축).
+- 화면에 보여 주는 예정 번호(API-USER-007)는 잠금·예약 없이 같은 계산을 한 값이다.
 
 ### 부서 삭제 (FR-DEPT-001)
 
@@ -322,7 +350,7 @@ job_title_id·contact_email은 마이그레이션 `add_job_titles_and_users_cont
 2. `SELECT is_active FROM users WHERE id = $2 FOR NO KEY UPDATE`로 사원 행을 잠근다(사용자 단위 잠금. 동시 비활성화와 직렬화). 없거나 비활성이면 400 INVALID_MANAGER. 소속 부서는 보지 않는다.
 3. 부서를 INSERT/UPDATE한다. 코드·이름 중복은 409.
 
-- 사원 비활성화 시 책임자 해제(FR-USER-002)는 비활성화 트랜잭션 안에서 `UPDATE departments SET manager_id = NULL ... WHERE manager_id = $1`로 처리한다(API-USER-004 미구현으로 아직 구현되지 않음). 사원의 부서 이동은 manager_id를 바꾸지 않는다.
+- 사원 비활성화 시 책임자 해제(FR-USER-002)는 비활성화 트랜잭션 안에서 `UPDATE departments SET manager_id = NULL ... WHERE manager_id = $1`로 처리한다(§8 「사원 비활성화」). 사원의 부서 이동은 manager_id를 바꾸지 않는다.
 - 사용자는 물리 삭제하지 않으므로 RESTRICT FK가 운영에서 문제가 되지 않는다. 테스트 데이터 정리(`TestDataTracker.cleanup()`)는 users 삭제 전에 대상 사원을 가리키는 manager_id를 NULL로 바꾼다.
 
 ## 9. 날짜·시간과 타입 처리

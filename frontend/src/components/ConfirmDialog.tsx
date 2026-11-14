@@ -10,6 +10,7 @@ import { messages } from '@/messages/ja';
 interface ConfirmDialogProps {
   open: boolean;
   icon: ReactNode;
+  iconVariant?: 'square' | 'circle'; // Modal の iconVariant をそのまま渡す(社員管理のみ circle)
   title: string;
   message: ReactNode;
   notice?: ReactNode; // 確認文の下に出す注意(warning)
@@ -26,6 +27,7 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({
   open,
   icon,
+  iconVariant,
   title,
   message,
   notice,
@@ -42,6 +44,7 @@ export function ConfirmDialog({
       open={open}
       title={title}
       icon={icon}
+      iconVariant={iconVariant}
       size="md"
       busy={submitting}
       onClose={onClose}

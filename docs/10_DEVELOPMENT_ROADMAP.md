@@ -27,7 +27,7 @@
 | 5 | 근태 | FR-ATT-001~006 | 완료 | 진행 중 | 진행 중 |
 | 6 | 휴가 신청·조회·취소 | FR-LEAVE-001, 004, 005, 006 | 완료 | 완료 | 진행 중 |
 | 7 | 휴가 승인 | FR-LEAVE-002, 003 | 완료 | 완료 | 완료 |
-| 8 | 사원 관리 | FR-USER-001, 002, FR-LEAVE-006, FR-DEPT-001 | 진행 중 | 진행 중 | 진행 중 |
+| 8 | 사원 관리 | FR-USER-001, 002, FR-JOB-001, FR-LEAVE-006, FR-DEPT-001 | 진행 중 | 진행 중 | 진행 중 |
 | 9 | 대시보드 | FR-DASH-001 | 완료 | 진행 중 | 진행 중 |
 | 10 | 테스트·품질 | 08_TEST_PLAN | 진행 중 | 진행 중 | 진행 중 |
 | 11 | 배포 | 01_PRD §7 | 대기 | 대기 | 대기 |
@@ -102,6 +102,7 @@
 - [ ] SCR-003 출근부 UI 개편 Fix 1 검증: `whitespace-nowrap`(出勤時刻·退勤時刻·実働時間), `workPatternOf` 판별 유니온, `useHorizontalOverflow`·時間帯 영역 조건부 `tabIndex`는 Vitest(관련 12파일 201건)·tsc·lint만 확인. Playwright 재실행·리뷰 재확인 미실시
 - [ ] `e2e/attendance-sheet-layout.spec.ts` 스크린샷 저장 경로: 작업 폴더(`.claude/work/attendance-sheet-ui/screenshots`) 고정 → `testInfo.outputPath(...)`로 변경(리뷰 중간)
 - [ ] SCR-003 768px 레이아웃 시각 확인: 768 스크린샷이 로딩 스켈레톤으로 찍혀 태블릿 안전망 레이아웃을 눈으로 확인한 근거 없음. 캡처 직전 표 표시 확인 후 재캡처, 재마운트·재조회 재현 시 원인 기록(리뷰 중간, 원인 미재현)
+- [ ] SCR-003 출근부 태블릿 폭 가로 overflow(기존 결함): `e2e/attendance-sheet-layout.spec.ts` `shouldNotBreakLayoutAt1024`·`shouldNotBreakLayoutAt768`이 28px·18px(Run 1에서는 41px·31px) 페이지 가로 overflow로 실패. 커밋 6c3d6ec(변경 전)에서도 같은 DB 상태로 재현되며 900001의 2026-11 근태 데이터 상태에 따라 실패 여부가 달라진다. 화면 명세 「横スクロールしない」 위반이므로 테스트는 완화하지 않음(employee-management test-report Run 2 §3·Run 4 §4, 담당 frontend)
 - [ ] `e2e/attendance-sheet-layout.spec.ts` 보강(리뷰 낮음): E3 1366에서 region 넘침·`scrollLeft > 0` 실검증, E7 토요일 색을 `primary-100` rgb로 확인, 66-69행 `pageHorizontalOverflow` 헬퍼 사용, 224행 주석(안전망 위치) 정정
 
 ### 6. 휴가 신청·조회·취소 — 진행 중
@@ -138,18 +139,21 @@
 ### 8. 사원 관리 — 진행 중
 
 백엔드
-- [ ] 사원 목록 API-USER-001 (검색 조건, 페이지네이션)
-- [ ] 사원 등록 API-USER-002 (FR-USER-001, 사원번호 정규화·중복)
-- [ ] 사원 상세 API-USER-003
-- [ ] 사원 수정 API-USER-004 (FR-USER-002: 마지막 활성 ADMIN 보호, 비활성화 처리 — PENDING 취소·토큰 무효화·부서 책임자 자동 해제(겸임 포함). 부서 이동은 책임자 유지)
-- [ ] 부여 연차 등록·수정 API-USER-005 (FR-LEAVE-006, 사용 일수 미만 금지)
+- [x] 사원 목록 API-USER-001 (검색 조건, 페이지네이션. 2026-11 `keyword`·`jobTitleId`·`status`(在籍中·入社予定·無効 계산) 추가, `jobTitle`·`contactEmail`·`employmentStatus` 응답) — employee-management test-report Run 4: backend e2e 514건 통과
+- [x] 사원 등록 API-USER-002 (FR-USER-001: 사원번호 자동 채번(5자리 최댓값+1, advisory lock, 재채번 3회)/직접 입력·중복, 役職·メール·入社日·初期パスワード 필수, 초기 비밀번호는 관리자 입력·서버 정책 검증·해시만 저장·평문 비노출. 메일 발송·재발급 없음)
+- [x] 사원 상세 API-USER-003
+- [x] 사원 수정 API-USER-004 (FR-USER-002: 마지막 활성 ADMIN 보호(활성 ADMIN 선잠금), 비활성화 처리 — PENDING 취소·토큰 무효화·부서 책임자 자동 해제(겸임 포함). 부서 이동은 책임자 유지. 役職 변경은 Role 불변. 화면의 削除 = 비활성화)
+- [x] 사원 요약 API-USER-006·다음 자동 채번 예정 번호 API-USER-007(`next-emp-id`) 신규
+- [x] 직책 관리 API-JOB-001~004 신규 (FR-JOB-001: 이름 1~50자·제어 문자 불가·중복 409, tone 8색 — 마이그레이션 `extend_job_title_tone`으로 enum 4값 추가, 사용 중(비활성 포함) 삭제 409) — e2e `admin-job-titles.e2e-spec.ts`
+- [x] 개발 DB 정리 스크립트 `db:e2e-users-cleanup`(E2E 社員·E2E役職만 삭제: 이름 접두사 AND 13자리 숫자 메일 AND 보호 사번 제외, 다른 사원 기록이 참조하면 아무것도 지우지 않고 exit 1, 사용 중 E2E役職은 보존) — test-report Run 5 테스트 DB 시나리오 A·B 통과
+- [ ] 부여 연차 등록·수정 API-USER-005 (FR-LEAVE-006, 사용 일수 미만 금지) — 2026-11 사원 관리 구현 범위 밖, 미구현
 - [x] 부서 목록 API-DEPT-001
 - [x] 부서 관리 API-DEPT-002~006 (FR-DEPT-001: 코드 대문자 정규화·중복, 未所属 보호, 활성 사원 있는 부서 삭제 금지, 비활성 사원 未所属 이동, 부서 행 잠금 — 05 §8)
 - [x] 부서 관리 재설계 백엔드 (FR-DEPT-001): API-DEPT-002 `sort`·`order`(활성 사원 수 기준 memberCount 정렬, 동률 code 오름차순), 002~005 `description`·`manager`, 004·005 `managerId`(활성 사원만, 400 INVALID_MANAGER, 부서 → 사원 잠금 — 05 §8), API-DEPT-007 요약(未所属 제외)·008 소속 사원·009 책임자 후보(최대 100건) 신규 — backend unit 320건, e2e 408건 통과(test-report Run 3)
 
 프론트엔드
-- [ ] 사원 관리 화면 SCR-006
-- [ ] 사원 상세 화면 SCR-007
+- [x] 사원 관리 화면 SCR-006 (2026-11 레퍼런스 화상 재현: 요약 3개·키워드/部署/役職/ステータス(기본 すべて) 검색·10건 boxed 페이지네이션·xl 이상 표/미만 카드, 모달 社員追加·社員詳細·社員編集·社員削除(=비활성화)·役職確認(8색, 항목별 즉시 저장). 공용 `JobTitleBadge`(役職 색 단일 정의, SCR-010 所属社員確認에도 적용)·`lib/password-policy.ts`, 社員管理 한정 예외(원형 아이콘·`FormStack`·`Pagination boxed`·`StatCard iconCircle`, 09 §5 12·UI_MODAL_PATTERNS E1)) — test-report Run 4: frontend Vitest 64파일 885건, Playwright users*.spec 4파일 42건(1440·1024·390·375) 통과, tsc·lint 오류 0. 리뷰 Round 2 APPROVE·보안 PASS
+- [x] 사원 상세 화면 SCR-007 — 페이지는 만들지 않고 SCR-006 社員詳細·社員編集 모달로 대체(2026-11 사용자 결정). 부여 연차 UI는 API-USER-005와 함께 미구현
 - [x] 부서 관리 화면 SCR-010 (등록·수정 모달, 삭제 확인 모달, 사이드바 部署管理) — Vitest 25건, Playwright `e2e/departments.spec.ts` 4건 통과(임시 DB). 개발 DB에는 이 마이그레이션 미적용
 - [x] 부서 관리 화면 SCR-010 재구성: 헤더·요약 2개(部署数 未所属 제외·所属社員数)·부서명 검색(디바운스)·열 정렬(기본 部署名 오름차순, md 미만 select)·部署責任者/説明 열·選択中の部署情報·所属社員確認 모달·등록/수정 모달 説明·部署責任者(서버 검색, `ApproverSelect` `texts`·`onSearch` 추가). 今月の変更·状態 필터는 범위 밖 — frontend Vitest 45파일 634건, Playwright `departments`·`departments-manager`·`departments-responsive` 19건 포함 31건 통과(test-report Run 3, 개발 DB)
 - [x] SCR-010 목록·모달 추가 수정(사용자 요청): 표 5행 높이 내부 스크롤·헤더 고정(모바일 카드는 페이지 스크롤 유지), 所属社員数 옆 [確認], 액션 [詳細][編集][削除](削除 Danger, 未所属은 詳細만), 部署詳細 모달(조회 전용) 신설·選択中の部署情報 삭제, 所属社員確認 모달 재구성(社員番号·氏名·部署 3열, `limit=100` 전 페이지 수집 후 클라이언트 검색, 인원 수는 부서 전체 기준). 공용 `dangerOutlineButtonClass`·`Modal` `subtitle` 추가. API·DB 변경 없음 — frontend Vitest 45파일 642건, Playwright 부서 5개 spec·휴가 포함 37건 통과(test-report Run 4, 개발 DB). 리뷰 Round 4 APPROVE
@@ -157,8 +161,14 @@
 - [x] 사원 役職·連絡先 표시(employee-position-contact): 직책 마스터(seed 4개, 관리 화면·목록 API 없음)·연락처(사내 이메일) DB 추가, API-DEPT-008 응답 `jobTitle`·`contactEmail`(ADMIN 전용, 다른 API 미노출), 所属社員確認 모달 5열(役職 tone 배지·連絡先, 빈 값 「—」, 入社日 제외, `Modal` size `xl`), 색 토큰 `violet-30/110`·`pink-30/110`·Badge `violet`·`pink`(09 §5 8). 샘플 사원·E2E 계정 값 부여. 실제 사원은 입력 경로가 없어 「—」 — backend unit 323건, e2e 418건, frontend Vitest 656건, Playwright 93건 통과(test-report Run 3). 리뷰 APPROVE·보안 PASS
 
 후속 과제
-- [ ] 사원 관리 화면·API(SCR-006·007, API-USER-002·004) 구현 시 役職·連絡先 입력 경로와 서버 검증 추가: 役職은 직책 목록에서 선택(직책 목록 API 미정), 連絡先은 이메일 형식·254자 이하·빈 값 NULL(02 FR-USER-001·002, 06 API-USER-002·004). DB에 형식 제약이 없으므로 서버 검증 필수(보안 점검 낮음 1건). mailto 링크를 도입하면 형식 검증된 값만 href에 사용
+- [x] 사원 관리 화면·API(SCR-006·007, API-USER-002·004) 구현 시 役職·連絡先 입력 경로와 서버 검증 추가 — 2026-11 employee-management에서 해소(役職은 API-JOB-001 목록에서 선택, 連絡先 서버 검증). mailto 링크를 도입하면 형식 검증된 값만 href에 사용(미도입)
 - [ ] seed e2e의 tone 미덮어쓰기 테스트가 앞 테스트의 직책 등록에 의존(단독 실행 시 실패 가능, 리뷰 Round 2 낮음 1건, 미반영)
+- [ ] 부여 연차 관리(API-USER-005·SCR-007 §3.2)와 승인 필요 여부 변경 안내 「이후 신규 신청부터 적용됩니다.」(SCR-007 §4) 미구현
+- [ ] P2002/P2003 제약 이름 추출 중복: `common/prisma/constraint-name.ts`(users·job-titles)와 `departments.repository.ts:66-75` — departments도 `violatedConstraintOf`로 통일(employee-management 리뷰 Round 1·2 낮음)
+- [ ] 예상 밖 DB 오류를 요약 로그 + 공통 500으로 바꾸는 처리가 `users.repository.ts`에만 있음(비밀번호 해시 보호 목적). 같은 정책이 필요해지면 `common/` 헬퍼로 이동 검토(리뷰 Round 2 낮음, 07 §5)
+- [ ] SCR-008 사원명 링크 대상 `/admin/users/:id`(SCR-007 페이지 미구현): 연결 대상 재결정 필요(03 Screen Flow)
+- [ ] 테스트 보강: `UserDeleteDialog` 전용 단위 테스트 없음(UserDetailModal.test에서 간접 확인), `UserEditModal`의 LAST_ADMIN 외 오류 분기 미작성, 社員編集·詳細·削除의 원형 아이콘·`FormStack` 외형은 스크린샷 육안 확인만(employee-management test-report Run 4 §5)
+- [ ] `db:e2e-users-cleanup` 주의: E2E로 만든 사원의 메일을 바꾸는 테스트를 추가하면 정리 대상에서 빠진다(남을 뿐 안전 측). 샘플 사원 이름을 「E2E社員」으로 바꾸는 테스트 금지(2026-11 Run 1 사고: 샘플 사원 10085 삭제, 휴가·근태 미복구)
 
 ### 9. 대시보드 — 진행 중
 
@@ -191,6 +201,10 @@
   - 추가(2026-11-13 사용자 요청): 날짜·일시 입력 표시 「YYYY年MM月DD日」「HH時MM分」(24시) 통일 — 공용 `DateInput`(09 §6) 신설, DateRangeFields·休暇申請·勤怠修正·휴가 이력 필터 적용. 却下 사유 입력란 플레이스홀더 추가. `.claude/work/date-input/test-report.md` RESULT PASS: Vitest 51파일 741건, tsc·lint 오류 0, Playwright 임시 spec(route mock)으로 겹침 표시 위치 차이 0px 확인(Chromium만, 실제 기본 달력 팝업·Safari·Firefox 미확인)
 - [ ] 버튼 공통 패턴 리팩터링(UI_BUTTON_PATTERNS v3·UI_BUTTON_REFACTOR_PLAN 단계 1~8, 이행 53건, 프론트만·동작·문구 무변경, 브랜치 `feature/button-refactor`) — 구현·리뷰(Round 2 APPROVE) 완료, test-report Run 11: Vitest 54파일 801건 통과, `tsc --noEmit`·`npm run lint` 오류 0, 읽기 전용 Playwright 6 spec 68건 통과(`modal-a11y`·`button-visual`·`button-c8`·`attendance-sheet-layout`·`leave-sidebar-submenu`·`leave-visual`). **머지 전 미검증(리뷰 #5)**: ① DB를 쓰는 e2e spec(`leave-calendar-mobile`·`leave-management`·`leaves`·`attendance`·`attendance-status`·`login`·`password`·`dashboard`·`dashboard-renewal`·`approvals`·`departments`·`departments-manager`·`departments-responsive`·`departments-list-modal`·`departments-members-modal`) 미실행 ② `npm run test:e2e` 전체 미실행 ③ E4 키보드 도달 확인 미실행 ④ `npm run build`(C2 시점 1회만 통과, 이후 미실행). **후속 과제(범위 밖)**: `LeaveHistoryList` `dateInputClass`(`h-11 px-3 text-sm/5`)와 `inputClass`(`h-12 px-4 text-base/6`) 클래스 충돌, `iconInputClass`(`pl-11`)와 `inputClass` `px-4` 중복 지정, `leave-visual` `shouldCaptureScrolledBottomAtPc1440` 간헐 실패(변경 전부터 있던 문제), SCR-009 キャンセル 제출 중 활성(동작 변경이라 범위 밖). 상세는 UI_BUTTON_REFACTOR_PLAN §8
 - [ ] E2E 하네스 정비(`PLAYWRIGHT_BASE_URL` 지정·임시 DB 실행): `e2e/attendance-status.spec.ts` 6건은 이전 실행에서 실패 이력이 있었으나(2026-11-10 이력) 2026-11-11 개발 DB 실행에서 통과(해소). `e2e/leaves.spec.ts`는 `db:e2e-leaves-reset` 스크립트 추가 후 2026-11-12 개발 DB 실행에서 통과(해소). `e2e/dashboard-renewal.spec.ts` 8건은 900002 PENDING 2건 부재·globalSetup의 mustChangePassword 초기화 충돌로 미해결(2026-11-12 휴가관리 통합 test-report Run 2~4)
+  - 2026-11-14 employee-management test-report Run 2: `dashboard-renewal.spec.ts`는 **테스트 DB 전용**으로 실행하면 14/14 통과(테스트용 backend 6100 + 임시 frontend 3300, 픽스처: 900002 mustChangePassword false, 900001·900002 2026년 연차 20일, 실행 전 두 사용자 attendance·leaves 삭제 후 PENDING 2건 재삽입). 개발 DB에서는 globalSetup과 spec 전제가 구조적으로 충돌한다. 테스트 DB 전용 실행 절차(픽스처 리셋 스크립트)를 확정·문서화할 것
+  - `e2e/password.spec.ts` 2건 순서 의존(전체 실행에서만 실패): 앞선 `leave-management.spec.ts`가 900002 비밀번호를 임시값 → 원래값으로 바꾸며 mustChangePassword 해제 상태를 남겨 「初回ログイン → /password」 전제가 깨진다. 커밋 6c3d6ec(변경 전)에서도 재현. 수정 방향(미적용): password.spec 시작 시 또는 leave-management 종료 시 900002 상태 초기화(`db:e2e-accounts` 패턴, `PLAYWRIGHT_BASE_URL` 미지정 시만)
+  - `frontend/playwright.config.ts`는 `.env.local`을 읽지 않는다(Next dev만 로드). `E2E_ADMIN_PASSWORD`·`E2E_INITIAL_PASSWORD`를 셸에 export해야 globalSetup 초기화와 로그인 테스트가 동작한다(미설정이면 users*.spec 41건이 로그인 실패). config에서 로드할지 결정 필요
+  - `e2e/leave-visual.spec.ts` 4건 간헐 실패(전체 실행 후반 관리자 로그인 후 /login 잔류, 단독 재실행 45/45 통과, 원인 미확정)
 - [ ] E2E 핵심 여정 E2E-01~05 (08 §8, Playwright)
 - [ ] CI(GitHub Actions): lint, 타입 검사, unit, e2e(postgres 서비스 컨테이너), build
 
@@ -233,3 +247,4 @@
 | 2026-11-12 | 사원 役職·連絡先: 직책 마스터 `job_titles`(seed 4개, tone ENUM)·`users.job_title_id`(FK RESTRICT)·`contact_email` 추가(마이그레이션 `add_job_titles_and_users_contact`, 기존 행 NULL). API-DEPT-008 응답에 `jobTitle`·`contactEmail`(ADMIN 전용), SCR-010 所属社員確認 모달 5열(入社日 제외, 빈 값 「—」). 사용자 지시로 役職 배지 색 재현을 위해 색 토큰 4개·Badge `violet`·`pink` 추가, 공용 `Modal` size `xl`(800) 추가. 02·04(SCR-006·007·010)·05·06·08·09 반영, API-USER-*·SCR-006/007 입력 항목은 구현 시 적용(test-report Run 3: backend unit 323건, e2e 418건, frontend Vitest 656건, Playwright 93건 통과. 리뷰 APPROVE·보안 PASS(낮음 1건은 §2 #8 후속 과제)) |
 | 2026-11-13 | 모달 공통 패턴 리팩터링(진행 중, 미커밋): 모달 9종을 UI_MODAL_PATTERNS v3로 통일. 공용 `Modal` 외형 1계열(①')·`icon` 필수·`variant` 삭제·`description`·`busy`·`data-autofocus`·footer 개수별 배치, 신규 `ConfirmDialog`·`FormModal`·`ReadOnlySummary`·`FieldHint`·`CharCount`·`modalDangerButtonClass`·`confirmMessageClass`, `Select` `autoFocus`, `ApproverSelect` `describedBy`, `FormRow` 삭제. 단계형 모달 단계 전환 포커스 수정. 문구 3개 추가(`ja.ts`). 미결 U1~U4는 사용자 부재로 권장안 적용. 03·SCR-002·004·008·010·09·UI_MODAL_PATTERNS·UI_MODAL_REFACTOR_PLAN 반영. API·DB 변경 없음(test-report Run 3: frontend tsc·lint 오류 0, Vitest 50파일 724건, Playwright `modal-a11y` 1건 통과. build·기존 E2E 회귀·브라우저 포커스·스크린샷 일부 등 미검증 항목은 §2 #10, 리뷰 Round 2 APPROVE, 보안 점검 SKIP) |
 | 2026-11-14 | 버튼 공통 패턴 리팩터링(진행 중, 브랜치 `feature/button-refactor`): 공용 `Button`·`buttonClass()`(variant 7종·size sm 36/md 40/lg 48, `loading`·`iconOnly`) 신설, 버튼 크기 토큰 `--spacing-btn-*`·`--radius-btn`, ESLint `className` 배치 전용 규칙. 모달 footer·X, 페이지 주 동작, 표 행 동작·텍스트 링크, 아이콘 버튼(벨·월 이동) 이행 53건, 44px 폐지(休暇申請·部署を追加·出勤·退勤 48, 条件をクリア 40), 勤怠 修正 Primary 아웃라인 + Pencil(`PencilIcon`을 `leaveIcons`로 이동), 모달 X·벨 radius 8. `form.tsx` 버튼 상수 8개 삭제, `inputBaseClass` 신설·`SearchInput` 44px 고정(높이 충돌로 48이던 것 수정, 사용자 결정). 09 §2.3·§3·§5-10·§5-11·§6, UI_BUTTON_REFACTOR_PLAN §8 반영(화면 명세 SCR-001~010에는 바뀐 버튼 크기·색 표기가 없어 변경 없음). API·DB 변경 없음(test-report Run 11: Vitest 54파일 801건, tsc·lint 오류 0, 읽기 전용 Playwright 68건 통과. 리뷰 Round 2 APPROVE, 보안 점검 SKIP. **DB 쓰기 e2e·`npm run test:e2e` 전체·E4 키보드·`npm run build` 미검증 — 머지 전 확인 필요**, §2 #10) |
+| 2026-11-14 | 사원 관리(employee-management, 브랜치 `feature/employee-management`): API-USER-001~004 구현(001 `keyword`·`jobTitleId`·`status` 확장, 002 `empIdMode` 자동 채번/직접 입력·役職·メール 필수·관리자 입력 初期パスワード, 004 비활성화 처리·LAST_ADMIN 선잠금), API-USER-006(요약)·007(`next-emp-id`)·API-JOB-001~004(직책 CRUD) 신규, `job_title_tone` 4값 추가(마이그레이션 `extend_job_title_tone`). SCR-006 社員管理 레퍼런스 재현(모달 5종, SCR-007 페이지는 모달로 대체), 공용 `JobTitleBadge`(役職 8색 단일 정의)·토큰 7개·Badge `lavender`·`yellow`, 社員管理 한정 예외(원형 아이콘·`FormStack`·`Pagination boxed`·`StatCard iconCircle`), `Select size`·`PageHeader description`·`Pagination pageSize`. 사용자 결정: 초기 비밀번호 관리자 입력(메일·재발급 없음), 入社日 필수, 社員ID 5자리 최댓값+1, 削除=비활성화, 休職中 없음, 役職確認 항목별 즉시 저장, ステータス 기본 すべて, 役職은 인증 Role과 별개. 02(FR-USER-001·002, FR-JOB-001 신규)·03·04(SCR-006 재작성·SCR-007 대체 표기)·05·06(§5·§6 신규)·07·08·09(§2.1·§4·§5 12·§6)·UI_MODAL_PATTERNS(§9.3 E1) 반영(test-report Run 4·5: backend unit 360건, e2e 514건, frontend Vitest 885건, Playwright users*.spec 42건 통과, 회귀 18 spec 140건 통과·4건 실패는 범위 외 기존 이슈(§2 #5·#10). 리뷰 Round 2 APPROVE·보안 PASS). API-USER-005 부여 연차는 범위 밖으로 미구현 |

@@ -67,14 +67,21 @@ export interface DepartmentSummary {
 }
 
 // API-DEPT-008
-export type JobTitleTone = 'GRAY' | 'BLUE' | 'VIOLET' | 'PINK';
+export type JobTitleTone =
+  'GRAY' | 'BLUE' | 'VIOLET' | 'PINK' | 'LAVENDER' | 'GREEN' | 'YELLOW' | 'ORANGE';
+
+export interface JobTitleRef {
+  id: string;
+  name: string;
+  tone: JobTitleTone;
+}
 
 export interface DepartmentMember {
   id: string;
   empId: string;
   name: string;
   hireDate: string; // YYYY-MM-DD(入社日)
-  jobTitle: { id: string; name: string; tone: JobTitleTone } | null;
+  jobTitle: JobTitleRef | null;
   contactEmail: string | null;
 }
 
@@ -191,4 +198,63 @@ export interface LeaveCalendarResponse {
   month: string; // YYYY-MM
   holidays: { date: string; name: string }[];
   items: LeaveCalendarItem[];
+}
+
+// API-JOB-001〜003(役職管理)
+export interface JobTitle extends JobTitleRef {
+  userCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// API-USER-001〜004(社員管理)
+export type EmploymentStatus = 'ACTIVE' | 'UPCOMING' | 'INACTIVE';
+export type UserRole = 'ADMIN' | 'EMPLOYEE';
+
+export interface UserListItem {
+  id: string;
+  empId: string;
+  name: string;
+  hireDate: string; // YYYY-MM-DD
+  departmentId: string;
+  departmentName: string;
+  role: UserRole;
+  approvalRequired: boolean;
+  isActive: boolean;
+  employmentStatus: EmploymentStatus;
+  jobTitle: JobTitleRef | null;
+  contactEmail: string | null;
+  createdAt: string;
+}
+
+export interface UserDetail extends UserListItem {
+  mustChangePassword: boolean;
+  updatedAt: string;
+  pendingApprovalCount: number;
+  leaveGrants: { year: number; grantedDays: number }[];
+}
+
+export interface UserCreateRequest {
+  empIdMode: 'AUTO' | 'MANUAL';
+  empId: string | null;
+  name: string;
+  initialPassword: string;
+  jobTitleId: string;
+  contactEmail: string;
+  departmentId: string;
+  hireDate: string;
+  role: UserRole;
+  approvalRequired: boolean;
+}
+
+// API-USER-007(次の自動採番の予定番号。採番できないときは null)
+export interface NextEmpId {
+  empId: string | null;
+}
+
+// API-USER-006
+export interface UserSummaryCounts {
+  employeeCount: number;
+  adminCount: number;
+  hiredThisMonthCount: number;
 }

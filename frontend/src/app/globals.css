@@ -46,6 +46,14 @@
   --color-violet-110: #6d28d9;
   --color-pink-30: #fbe8fa;
   --color-pink-110: #a21caf;
+  /* 役職の色(SCR-006 役職確認): 薄紫・黄の配色と、全 tone の色見本(スウォッチ) */
+  --color-lavender-30: #e9eafd;
+  --color-lavender-110: #3f45b8;
+  --color-lavender-100: #8f8aea;
+  --color-yellow-30: #fff6cc;
+  --color-yellow-110: #854d0e;
+  --color-yellow-100: #e0a800;
+  --color-pink-100: #ec4899;
   --color-page-from: #fafbff;
   --color-page-to: #f1f3fc;
 

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, RefObject } from 'react';
 import { useRouter } from 'next/navigation';
 import { ApiError, NetworkError } from '@/lib/api/client';
+import { checkPasswordPolicy } from '@/lib/password-policy';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Button } from '@/components/Button';
 import { FieldError, inputClass, labelClass } from '@/components/form';
@@ -17,21 +18,13 @@ type FieldName = 'currentPassword' | 'newPassword' | 'confirmPassword';
 type FieldErrors = Partial<Record<FieldName, string>>;
 
 const t = messages.password;
-const MAX_PASSWORD_BYTES = 72;
-const MIN_PASSWORD_LENGTH = 8;
 const FIELD_ORDER: FieldName[] = ['currentPassword', 'newPassword', 'confirmPassword'];
 
 // 新しいパスワードの規則(FR-AUTH-003)。サーバーと同じ順序・基準で判定する
 function validateNewPassword(newPassword: string, currentPassword: string): string | undefined {
   if (newPassword === '') return t.validation.required;
-  if (new TextEncoder().encode(newPassword).length > MAX_PASSWORD_BYTES)
-    return t.validation.tooLong;
-  if (
-    [...newPassword].length < MIN_PASSWORD_LENGTH ||
-    !/[A-Za-z]/.test(newPassword) ||
-    !/[0-9]/.test(newPassword)
-  )
-    return t.validation.policy;
+  const violation = checkPasswordPolicy(newPassword);
+  if (violation) return t.validation[violation];
   if (newPassword === currentPassword) return t.validation.sameAsCurrent;
   return undefined;
 }

@@ -94,7 +94,23 @@
 | IT-USER-07 | 사원 비활성화(emp1에게 PENDING 신청 있음) | 신청자 PENDING 건은 CANCELLED, processed_by = 비활성화한 ADMIN, 그 사원을 승인자로 둔 PENDING 건은 유지 |
 | IT-USER-08 | 비활성화 시 발급된 Refresh Token | 모두 무효화되어 갱신 실패 |
 | IT-USER-09 | 비활성 사용자를 승인자로 지정 시도 | 400 INVALID_APPROVER |
-| IT-USER-10 | 부여 연차 저장(0.5 단위, 음수) | 0.5 단위는 200, 음수는 400 VALIDATION_ERROR |
+| IT-USER-10 | 부여 연차 저장(0.5 단위, 음수) | 0.5 단위는 200, 음수는 400 VALIDATION_ERROR (API-USER-005 미구현으로 미구현) |
+| IT-USER-11 | 목록 keyword: empId·이름·연락처 메일 부분 일치(대소문자 무시), `%`·`_` 문자 그대로, 101자 | 각각 일치, 리터럴 일치만, 400 「検索キーワードは 100 文字以内で入力してください。」 |
+| IT-USER-12 | 목록 status(FixedClock): 입사일 ≤ 오늘·> 오늘·비활성 / departmentId·jobTitleId·status AND / 페이지네이션 / 미설정 사원 | ACTIVE·UPCOMING·INACTIVE 분류, AND 결합, totalCount·totalPages, `jobTitle`·`contactEmail` 키가 null로 존재 |
+| IT-USER-13 | summary(API-USER-006): 비활성·入社予定·EMPLOYEE·ADMIN·이번 달/전월 입사 혼합 | employeeCount 활성(入社予定 포함), adminCount 활성 ADMIN, hiredThisMonthCount Asia/Tokyo 이번 달만 |
+| IT-USER-14 | next-emp-id(API-USER-007): 5자리 최댓값 / 6자리(900001)만 / 99999 존재 | +1 5자리 0 채움(없으면 00001), 6자리 무시, `empId: null` |
+| IT-USER-15 | AUTO 등록: 201·bcrypt 해시·응답에 평문·해시 없음·로그에 평문 없음, 그 계정 로그인 → mustChangePassword, 5건 병렬, 사전 점유 번호 재채번, 99999 존재 | 확정 번호 반환·중복 0건, 409 EMP_ID_EXHAUSTED |
+| IT-USER-16 | MANUAL 등록: 앞자리 0 유지·trim, 중복, `00123` ≠ `123` / 필수 누락(役職·メール·入社日·初期パスワード)·정책 위반·72바이트 초과·없는 jobTitleId·제어 문자 이름·strict | 201 / 409 DUPLICATE_EMP_ID / 별개 번호 / 400 details(field별, 입력값 비에코)·400 INVALID_JOB_TITLE |
+| IT-USER-17 | 상세(API-USER-003): leaveGrants 내림차순·pendingApprovalCount / 형식 오류 id / 없는 id | 200 / 400(field `id`) / 404 |
+| IT-USER-18 | 수정(API-USER-004): 필드별 변경, jobTitleId null·contactEmail '' 해제, 役職 변경 시 role 불변, 비밀번호 필드·빈 객체·departmentId null·hireDate null | 200 / null 해제 / role 불변 / 400 |
+| IT-USER-19 | 비활성화: PENDING CANCELLED·책임자 해제·Refresh Token 폐기·타인 PENDING 유지, 비활성 로그인, 재활성화 | 같은 트랜잭션 처리, 403 ACCOUNT_DISABLED, 재활성화 후 로그인 가능 |
+| IT-USER-20 | LAST_ADMIN 동시성: 활성 ADMIN 2명이 서로를 동시에 비활성화 | 1건만 200, 다른 1건 409 LAST_ADMIN(데드락 없음) |
+| IT-USER-21 | 없는 엔드포인트: `DELETE /admin/users/:id`, 비밀번호 재발급 | 404 |
+| IT-JOB-01 | 직책 목록(API-JOB-001): createdAt asc → name asc, userCount 비활성 포함 | 정렬·건수 일치 |
+| IT-JOB-02 | 직책 등록: trim·신규 tone(LAVENDER 등), 공백 제거 후 중복, tone 누락·허용 외, 51자, 제어 문자 | 201 / 409 DUPLICATE_JOB_TITLE_NAME / 400 「色を選択してください。」 / 400 / 400 「役職名に使用できない文字が含まれています。」 |
+| IT-JOB-03 | 직책 수정: tone 변경 → 사원 상세 jobTitle.tone 반영, 중복 이름, 없는 id, 빈 객체·형식 오류 id·제어 문자 | 200·반영 / 409 / 404 / 400 |
+| IT-JOB-04 | 직책 삭제: 미사용 / 활성 사원 사용 중 / 비활성 사원만 사용 중 / 없는 id | 204 / 409 JOB_TITLE_IN_USE / 409 / 404 |
+| IT-JOB-05 | job_title_tone ENUM(마이그레이션 `extend_job_title_tone`) | 8값 GRAY·BLUE·VIOLET·PINK·LAVENDER·GREEN·YELLOW·ORANGE |
 
 ### 5.2 근태 (FR-ATT)
 
@@ -257,7 +273,7 @@
 | IT-DEPT-35 | 권한: EMPLOYEE의 summary·members·manager-candidates 조회, managerId 지정 등록·수정 / 비로그인 | 403(부서 생성·책임자 변경 없음) / 401 |
 | IT-DEPT-36 | 책임자가 지정된 부서 삭제 | 204 |
 | IT-DEPT-37 | 役職·連絡先 공개 범위: 役職·連絡先이 있는 사원으로 API-DEPT-009(책임자 후보)·API-DEPT-001·API-AUTH-004 조회 | 응답에 `jobTitle`·`jobTitleId`·`contactEmail` 키와 연락처 값이 없음(API-DEPT-008에서만 반환) |
-| IT-DEPT-38 | DB 제약(job_titles·users): job_titles.name 중복 / tone 기본값·ENUM 외 값·name 51자 / 사원이 참조 중인 직책 삭제·없는 job_title_id / 미참조 직책 삭제 / contact_email 254자 초과·같은 주소 2명 / 컬럼 정의 | `job_titles_name_key` 위반 / GRAY·`job_title_tone` 오류·길이 오류 / `users_job_title_id_fkey` 위반(RESTRICT) / 삭제됨 / 길이 오류·둘 다 저장(UNIQUE 없음) / job_title_id UUID·contact_email VARCHAR(254) 모두 NULL 허용·기본값 없음, ENUM 값 GRAY·BLUE·VIOLET·PINK |
+| IT-DEPT-38 | DB 제약(job_titles·users): job_titles.name 중복 / tone 기본값·ENUM 외 값·name 51자 / 사원이 참조 중인 직책 삭제·없는 job_title_id / 미참조 직책 삭제 / contact_email 254자 초과·같은 주소 2명 / 컬럼 정의 | `job_titles_name_key` 위반 / GRAY·`job_title_tone` 오류·길이 오류 / `users_job_title_id_fkey` 위반(RESTRICT) / 삭제됨 / 길이 오류·둘 다 저장(UNIQUE 없음) / job_title_id UUID·contact_email VARCHAR(254) 모두 NULL 허용·기본값 없음, ENUM 값 8개(2026-11 확장, IT-JOB-05) |
 
 ## 6. 권한 매트릭스 테스트
 
@@ -274,7 +290,8 @@
 | 승인 대기 scope=all (`status` 지정 포함) | 401 | 403 | 403 | 허용 |
 | 공유 휴가 캘린더 (API-LEAVE-010) | 401 | 허용 | 허용 | 허용(EMPLOYEE와 같은 응답) |
 | 승인·반려 (할당 건) | 401 | 403 | 허용 | 허용 |
-| 사원 관리 `/admin/users` API | 401 | 403 | 403 | 허용 |
+| 사원 관리 `/admin/users` API (summary·next-emp-id 포함) | 401 | 403 | 403 | 허용 |
+| 직책 관리 `/admin/job-titles` API | 401 | 403 | 403 | 허용 |
 | 부서 관리 `/admin/departments` API | 401 | 403 | 403 | 허용 |
 | 전체 근태 조회·수정 | 401 | 403 | 403 | 허용 |
 | 오늘 전체 현황 | 401 | 403 | 403 | 허용 |
@@ -295,11 +312,11 @@
 | SCR-003 | 출근부: `?month=` 해석(없음·형식 오류는 이번 달)·[前月][翌月][今月](이번 달이면 disabled), 행 수 = `days` 길이, 勤務パターン 우선순위(승인 종일휴가 > 祝日 > 休日 > 通常), 토·일·공휴일·승인 종일휴가 회색(공휴일은 API `dayType` 기준, `WEEKDAY`로 오면 회색 아님), 승인 반차는 흰 배경+배지, 퇴근 누락 행 강조·툴팁, 備考 `文化の日・管理者修正`, 자정 넘김 퇴근 날짜 표시, 休憩 `計算値` 라벨, 申請 배지 → 휴가 상세 모달, 月間集計 항목·`休日労働時間(土日・祝日)`, 월 이동 중 표·집계 흐림, 화면을 연 채 자정 경과 시 오늘 강조 이동, 현재 일시 카드 1분 갱신·unmount 시 타이머 정리, `WorkTimeline` 구간 %·눈금. 폭별 표시(`AttendanceView`·`useMediaQuery`): md 이상은 출근부만(API-ATT-007·LEAVE-006 호출), md 미만은 근태 이력 목록만(API-ATT-004만 호출), 판정 전(서버 렌더) 스피너만·API 미호출, 경계를 넘는 `change`로 화면 교체(router 호출·API 중복 없음), 혼합 Query는 각 화면이 자기 키만 해석. md 미만 근태 이력: 기간 기본값·검증과 URL Query 반영, 상태 토글 복수 선택 즉시 반영, Empty 문구 2종, 카드 목록·Pagination. E2E: `e2e/attendance-status.spec.ts`(390×844, 카드 목록 기준 상태 필터 결과·40일 전 기록 제외·URL 유지, fixture `db:e2e-attendance-fixture`), `e2e/attendance.spec.ts` 폭 전환(1440 출근부 → 390 이력 목록, 360에서 가로 스크롤 없음), `e2e/attendance-sheet-layout.spec.ts` 출근부 좌우 2표 레이아웃(1920×1080·1440×900·1366×768에서 좌우 행 정렬·구분선 색·時間帯 영역만 가로 스크롤·스크롤 후 왼쪽 불변·페이지 가로 스크롤 없음, 1920에서 그래프 무스크롤·폭 480 이상, 日付 `1日（日）` 형식·일요일 빨강·勤務パターン Pill, 월 일수 28~31 좌우 행 수 일치, 1920→1366→1920 리사이즈 후 정렬, 1024·768 태블릿 안전망) |
 | SCR-004 | 탭: EMPLOYEE 할당 0건 → 2개, 할당 1건 이상·ADMIN → 3개, 비대상의 `/leaves/approvals` 직접 접근 → `/leaves` replace, 탭 전환 후 뒤로/앞으로·URL 직접 진입·새로고침 시 선택 탭 일치. 自分の休暇: [休暇申請] 버튼으로 공통 휴가 신청 모달 열기, 휴가 종류 Radio 미선택 검증, 申請期間·休暇種別·ステータス 필터는 [検索] 클릭 시 URL(`appliedFrom`·`appliedTo`·`leaveType`·`status`)·1페이지 반영, 기간 역전 시 필드 오류·검색 안 함, 표 컬럼 6개, 신청 성공 후 모달 닫기·요약·이력 재조회(필터 유지), 반차 선택 시 종료일 자동 고정, 주말 제외 일수 미리보기, 즉시 승인 사용자는 승인자 필드 미표시, 잔여 초과 422 메시지, 중복 클릭 방지(요청 중 버튼 비활성), 취소 버튼 노출 조건. 休暇カレンダー: 부서·이름·사원번호가 한 번의 API 호출 Query에 함께 반영, 월 이동·재조회, 캘린더와 목록이 같은 응답(행 수 = 건수), 막대·「+N件」 → `LeaveDayModal`, 모바일 날짜 선택 → 목록 제목·항목 갱신·[月全体] 전환, 0건 Empty 문구 3종, OTHER → 「休暇」(종류 원문 미표시), PENDING·REJECTED·CANCELLED 미표시. 사이드바·하단 탭: 休暇承認 없음, `/leaves/*`에서 休暇管理 활성, 배지·빨간 점이 休暇管理에 표시. E2E: `e2e/leave-management.spec.ts`(탭·캘린더·검색·모바일 날짜 선택·즉시 승인 신청 반영·承認 탭 승인/반려, fixture `db:e2e-leave-calendar-fixture`), 시각 검증 `e2e/leave-visual.spec.ts`(PC 1920·1440·1366 / 모바일 375·390·430·320 페이지 가로 스크롤 없음, 캘린더 일요일·토요일 색, 캡처) |
 | SCR-005 | (SCR-004 承認 탭) 상태 요약 카드 3개 건수, 카드 클릭 → `status` URL·선택 표시, PENDING만 [承認][却下], 본인 신청 건 버튼 비활성, md 미만 카드에는 [詳細]만, 반려 사유 필수, scope 전환(ADMIN만 노출, 전환 시 status 초기화), 처리 후 목록·건수·배지 재조회, 409 시 목록 재조회, 상태별 Empty 문구 |
-| SCR-006 | 초기 비밀번호 규칙 검증, 입사일 필수 검증, 부서 필수 검증(미선택 시 「部署を選択してください。」), 중복 사원번호 메시지, 등록 후 목록 갱신 |
-| SCR-007 | 입사일 필수 검증, 부서 필수 검증(미선택 시 「部署を選択してください。」), 활성→비활성 전환 시 확인 모달과 대기 건수 경고, 저장하지 않은 변경 있을 때 목록 이동 확인, 404 안내 |
+| SCR-006 | 社員管理(2026-11 재작성): 요약 3개(社員数·管理者数·今月の入社)·요약 실패 시 「—」 3건+再試行, 표 열 8개·행 버튼 aria(「{name}の詳細」「{name}を編集」「{name}を削除」)·無効 행 削除 숨김, keyword 300ms 디바운스·所属部署·役職·ステータス 변경 시 page 1(다른 조건 유지)·[クリア](조건 없으면 비활성)·URL Query 복원, 「全 N 件中 a – b 件を表示」, Empty·목록 로딩·실패. 社員追加: 自動生成 예정 번호 읽기 전용·`empId: null` 안내·直接入力 검증, 필수 7항목·초기 비밀번호 정책·password 타입, 役職 배지 미리보기, 더블 클릭 POST 1회, 바디(initialPassword·role EMPLOYEE·approvalRequired true), 성공 토스트(확정 번호)·닫힘, 409 DUPLICATE_EMP_ID·EMP_ID_EXHAUSTED·400 details·500, 다시 열면 입력 초기화(비밀번호 포함). 役職確認: 목록 N건·필수 오류·미리보기 색·화살표 키·저장 토스트·중복 409·편집 초기값·삭제 409 IN_USE(단계 유지·削除 비활성)·삭제 성공. 社員詳細: 항목 라벨·404 토스트·닫힘. 社員編集: 초기값·비밀번호 항목 없음·변경 없으면 保存 비활성·변경 필드만 PATCH·社員名 제어 문자·無効化 확인 단계·LAST_ADMIN Notice. 社員削除: 승인 대기 경고·PATCH `{isActive:false}`·토스트. 단위 `users/userFormRules.test.ts`, `JobTitleBadge.test.tsx`(tone 8개·pill·null 「—」), `Pagination.test.tsx`(pageSize 범위 문구), `StatCard.test.tsx`·`PageHeader.test.tsx` 회귀. E2E: `e2e/users.spec.ts`(1440 요약·검색·필터 Query·페이지네이션·상세·편집·削除·미로그인 리다이렉트), `e2e/users-create.spec.ts`(예정 번호→등록→확정 번호 토스트→그 계정 로그인→/password, 필수·중복·정책·500 주입·더블 클릭), `e2e/users-job-titles.spec.ts`(追加→編集→削除, 색 변경(緑→黄)이 社員一覧 배지 배경색에 반영, 사용 중 삭제 409 문구), `e2e/users-responsive.spec.ts`(1440·1024·390·375 가로 overflow·表/カード 전환(xl)·役職 행 비겹침·社員追加 footer·높이 640 모달 본문 스크롤). 편집·삭제 E2E는 spec이 만든 E2E 사원만 대상으로 하고 afterAll에서 `db:e2e-users-cleanup` 실행 |
+| SCR-007 | 페이지 미구현(SCR-006 모달로 대체, 검증은 SCR-006 행). 부여 연차(API-USER-005)는 미구현 |
 | SCR-008 | 수정 모달 시간 검증, 기본 정렬(근무일 내림차순, 사원명 오름차순), 페이지 이동 시 검색 조건 유지 |
 | SCR-009 | 확인 비밀번호 불일치, 최초 로그인 시 취소 버튼 미표시, 변경 후 대시보드 이동 |
-| SCR-010 | 등록·수정 모달의 필수·형식·길이 검증(説明 500자 포함)과 중복 code·name 서버 메시지 필드 표시, 未所属 행 [編集][削除] 미표시·[詳細]만·「システム」 배지, 행 액션 [詳細][編集][削除](削除는 Danger 스타일 `danger-100`)·所属社員数 옆 [確認](0명도 열림), 표(`md` 이상) 5건 이하 스크롤 없음·6건 이상 표 내부 스크롤(높이 304 이하, 보이는 행 5)·스크롤 시 헤더 고정·페이지 스크롤 불변, 카드 목록(`md` 미만)은 내부 스크롤 없음, 「選択中の部署情報」 영역 없음, 部署詳細 모달(항목·책임자 「{name}（{empId}）」/「未設定」·無効の社員数는 1명 이상일 때만·未所属은 [この部署を編集] 없음·[この部署を編集]으로 수정 모달 전환), 활성 사원이 있는 부서 삭제 시 API 호출 없이 오류 토스트, 삭제 확인 모달의 비활성 사원 이동 안내(`inactiveMemberCount > 0`일 때만), 409·404 시 모달 닫기·목록 재조회, 부서명 검색 디바운스·정렬(열 제목 `aria-sort`·같은 열 재클릭 방향 전환·md 미만 select)·페이지 URL 반영·복원(기본값 생략, 잘못된 값은 기본값), [条件をクリア] 조건 없을 때 비활성, 요약 2개(部署数 未所属 제외)·요약 실패 시 「—」, 所属社員確認 모달(제목 「所属社員確認」+배지 「{部署名} / 所属社員 N名」, 社員番号·氏名·部署·役職·連絡先 5열(入社日 없음), 役職 tone별 배지 variant(GRAY·BLUE·VIOLET·PINK)·미설정 「—」, 連絡先 메일 아이콘+주소·미설정 「—」(아이콘 없음), `limit=100` 전 페이지 수집, 氏名 클라이언트 검색(대소문자·반각/전각 공백 무시, 서버 재조회 없음)·검색 중에도 인원 수는 전체 기준·검색 결과 없음 문구, 로딩·0건·오류 시 표 헤더 유지, 404 시 닫기·토스트 1회, 닫은 뒤 목록 스크롤·검색어 유지), 部署責任者 서버 검색(300ms)·후보 0건에도 입력란 유지·100건 상한 안내·현재 책임자 표시·미변경 시 PATCH에 managerId 미전송·입력란 비우면 null·입력 후 미선택 blur 시 원래 값 복원, 400 INVALID_MANAGER 필드 표시·후보 재조회, 사이드바 「部署管理」에서 진입. E2E: `e2e/departments.spec.ts`(비로그인 리다이렉트·사이드바 진입·등록/수정/삭제·활성 사원 부서 삭제 토스트·정렬/소속 사원/선택 영역 없음), `e2e/departments-manager.spec.ts`(EMPLOYEE 차단, 다른 부서 사원 책임자 지정·해제, 겸임, 部署数 未所属 제외, 부서명 검색·열 정렬), `e2e/departments-responsive.spec.ts`(1440·1366·390·375 화면·등록/수정 모달 가로 스크롤·버튼 화면 밖 없음, 캡처), `e2e/departments-list-modal.spec.ts`(5건/7건 내부 스크롤·헤더 고정·[確認] 대상 부서 모달·닫은 뒤 스크롤·검색어 유지, 部署詳細→編集 전환·削除 Danger 색, 375px 카드·버튼 수용), `e2e/departments-members-modal.spec.ts`(실데이터 부서 인원·검색·공백 무시·새로고침 없음·결과 없음·Esc, 빈 부서·[閉じる], 375px 수용) |
+| SCR-010 | 등록·수정 모달의 필수·형식·길이 검증(説明 500자 포함)과 중복 code·name 서버 메시지 필드 표시, 未所属 행 [編集][削除] 미표시·[詳細]만·「システム」 배지, 행 액션 [詳細][編集][削除](削除는 Danger 스타일 `danger-100`)·所属社員数 옆 [確認](0명도 열림), 표(`md` 이상) 5건 이하 스크롤 없음·6건 이상 표 내부 스크롤(높이 304 이하, 보이는 행 5)·스크롤 시 헤더 고정·페이지 스크롤 불변, 카드 목록(`md` 미만)은 내부 스크롤 없음, 「選択中の部署情報」 영역 없음, 部署詳細 모달(항목·책임자 「{name}（{empId}）」/「未設定」·無効の社員数는 1명 이상일 때만·未所属은 [この部署を編集] 없음·[この部署を編集]으로 수정 모달 전환), 활성 사원이 있는 부서 삭제 시 API 호출 없이 오류 토스트, 삭제 확인 모달의 비활성 사원 이동 안내(`inactiveMemberCount > 0`일 때만), 409·404 시 모달 닫기·목록 재조회, 부서명 검색 디바운스·정렬(열 제목 `aria-sort`·같은 열 재클릭 방향 전환·md 미만 select)·페이지 URL 반영·복원(기본값 생략, 잘못된 값은 기본값), [条件をクリア] 조건 없을 때 비활성, 요약 2개(部署数 未所属 제외)·요약 실패 시 「—」, 所属社員確認 모달(제목 「所属社員確認」+배지 「{部署名} / 所属社員 N名」, 社員番号·氏名·部署·役職·連絡先 5열(入社日 없음), 役職 배지는 공용 `JobTitleBadge`(tone 8색 pill, 2026-11)·미설정 「—」, 連絡先 메일 아이콘+주소·미설정 「—」(아이콘 없음), `limit=100` 전 페이지 수집, 氏名 클라이언트 검색(대소문자·반각/전각 공백 무시, 서버 재조회 없음)·검색 중에도 인원 수는 전체 기준·검색 결과 없음 문구, 로딩·0건·오류 시 표 헤더 유지, 404 시 닫기·토스트 1회, 닫은 뒤 목록 스크롤·검색어 유지), 部署責任者 서버 검색(300ms)·후보 0건에도 입력란 유지·100건 상한 안내·현재 책임자 표시·미변경 시 PATCH에 managerId 미전송·입력란 비우면 null·입력 후 미선택 blur 시 원래 값 복원, 400 INVALID_MANAGER 필드 표시·후보 재조회, 사이드바 「部署管理」에서 진입. E2E: `e2e/departments.spec.ts`(비로그인 리다이렉트·사이드바 진입·등록/수정/삭제·활성 사원 부서 삭제 토스트·정렬/소속 사원/선택 영역 없음), `e2e/departments-manager.spec.ts`(EMPLOYEE 차단, 다른 부서 사원 책임자 지정·해제, 겸임, 部署数 未所属 제외, 부서명 검색·열 정렬), `e2e/departments-responsive.spec.ts`(1440·1366·390·375 화면·등록/수정 모달 가로 스크롤·버튼 화면 밖 없음, 캡처), `e2e/departments-list-modal.spec.ts`(5건/7건 내부 스크롤·헤더 고정·[確認] 대상 부서 모달·닫은 뒤 스크롤·검색어 유지, 部署詳細→編集 전환·削除 Danger 색, 375px 카드·버튼 수용), `e2e/departments-members-modal.spec.ts`(실데이터 부서 인원·검색·공백 무시·새로고침 없음·결과 없음·Esc, 빈 부서·[閉じる], 375px 수용) |
 | 공통 | Loading 스켈레톤, Error의 [다시 시도], 401 시 Refresh 1회 재시도, 네트워크 오류 토스트 |
 
 ## 8. E2E 핵심 여정
@@ -309,7 +326,7 @@
 | E2E-01 | 직원: 로그인 → 출근 → 퇴근 → 근태 이력에서 확인 | 대시보드 상태 변화, 이력 반영 |
 | E2E-02 | 직원: 승인 필요 사용자가 휴가 신청 → 승인자 로그인 → 승인 → 신청자 이력에서 APPROVED 확인 | 상태 전이, 잔여 연차 감소 |
 | E2E-03 | 승인 불필요 사용자: 신청 → 즉시 APPROVED, 승인 대기 목록 미표시 | FR-LEAVE-001 즉시 승인 흐름(추가-1) |
-| E2E-04 | 관리자: 사원 등록 → 신규 사원 최초 로그인 → 비밀번호 변경 → 대시보드 | 초기 비밀번호 흐름 |
+| E2E-04 | 관리자: 사원 등록 → 신규 사원 최초 로그인 → 비밀번호 변경 → 대시보드 | 초기 비밀번호 흐름(`e2e/users-create.spec.ts`는 등록 → 로그인 → `/password` 이동까지) |
 | E2E-05 | 관리자: 사원 비활성화 → 해당 사원 로그인 실패, 신청 건 취소 확인 | D11 계정 비활성화 흐름 |
 
 ## 9. 비기능 검증

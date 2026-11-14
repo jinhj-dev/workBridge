@@ -13,6 +13,7 @@ interface FormModalProps {
   icon: ReactNode;
   description: ReactNode;
   size?: 'lg' | 'xl';
+  iconVariant?: 'square' | 'circle';
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   submitLabel: string;
   cancelLabel?: string;
@@ -28,6 +29,7 @@ export function FormModal({
   icon,
   description,
   size = 'lg',
+  iconVariant,
   onSubmit,
   submitLabel,
   cancelLabel = messages.common.cancel,
@@ -42,6 +44,7 @@ export function FormModal({
       description={description}
       icon={icon}
       size={size}
+      iconVariant={iconVariant}
       busy={submitting}
       onClose={onClose}
       footer={

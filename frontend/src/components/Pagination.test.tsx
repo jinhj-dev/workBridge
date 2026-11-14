@@ -90,3 +90,25 @@ describe('Pagination', () => {
     expect(onChange.mock.calls).toEqual([[6], [6], [10]]);
   });
 });
+
+// pageSize を渡すと件数の範囲を表示する(社員管理の一覧用)
+describe('Pagination(pageSize 指定)', () => {
+  it('shouldShowRangeTextWhenPageSizeGiven', () => {
+    render(
+      <Pagination page={2} totalPages={12} totalCount={120} pageSize={10} onChange={vi.fn()} />,
+    );
+    expect(screen.getByText('全 120 件中 11 – 20 件を表示')).toBeInTheDocument();
+  });
+
+  it('shouldClampRangeEndToTotalOnLastPage', () => {
+    render(
+      <Pagination page={12} totalPages={12} totalCount={115} pageSize={10} onChange={vi.fn()} />,
+    );
+    expect(screen.getByText('全 115 件中 111 – 115 件を表示')).toBeInTheDocument();
+  });
+
+  it('shouldKeepLegacyTextWhenPageSizeOmitted', () => {
+    render(<Pagination page={1} totalPages={1} totalCount={120} onChange={vi.fn()} />);
+    expect(screen.getByText(t.total(120))).toBeInTheDocument();
+  });
+});
