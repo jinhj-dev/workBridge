@@ -69,11 +69,15 @@ enum JobTitleTone {
   BLUE
   VIOLET
   PINK
+  LAVENDER
+  GREEN
+  YELLOW
+  ORANGE
 
   @@map("job_title_tone")
 }
 
-// 役職(現在は seed でのみ登録する)
+// 役職(管理者が登録・修正・削除する(API-JOB-*)。seed は初期の 4 件のみ)
 model JobTitle {
   id        String       @id @default(uuid()) @db.Uuid
   name      String       @unique @db.VarChar(50)
