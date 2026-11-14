@@ -27,11 +27,11 @@ const eslintConfig = defineConfig([
       'no-restricted-syntax': [
         'error',
         {
-          selector: `JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='className'] Literal[value=/${BUTTON_FORBIDDEN_CLASS}/]`,
+          selector: `JSXOpeningElement[name.name=/^(Button|DetailButton|EditButton)$/] > JSXAttribute[name.name='className'] Literal[value=/${BUTTON_FORBIDDEN_CLASS}/]`,
           message: BUTTON_CLASS_MESSAGE,
         },
         {
-          selector: `JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='className'] TemplateElement[value.raw=/${BUTTON_FORBIDDEN_CLASS}/]`,
+          selector: `JSXOpeningElement[name.name=/^(Button|DetailButton|EditButton)$/] > JSXAttribute[name.name='className'] TemplateElement[value.raw=/${BUTTON_FORBIDDEN_CLASS}/]`,
           message: BUTTON_CLASS_MESSAGE,
         },
         {

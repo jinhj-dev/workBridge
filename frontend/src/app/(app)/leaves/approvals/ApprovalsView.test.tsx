@@ -257,6 +257,22 @@ describe('ApprovalsView(SCR-005 休暇承認)', () => {
     ).toBeInTheDocument();
   });
 
+  it('shouldRenderEyeIconInDetailButtonAndKeepApproveRejectVariants', async () => {
+    mockApi(pageOf([leave()]));
+    renderView(ADMIN);
+    const detail = (await screen.findAllByRole('button', { name: t.detailLabel('申請者') }))[0];
+    expect(detail).toHaveTextContent(messages.common.detail);
+    expect(detail.querySelectorAll('svg')).toHaveLength(1);
+    expect(detail.querySelector('svg')?.parentElement).toHaveAttribute('aria-hidden', 'true');
+    expect(detail).toBeEnabled();
+    expect(screen.getAllByRole('button', { name: t.approveLabel('申請者') })[0]).toHaveClass(
+      'bg-primary-100',
+    );
+    expect(screen.getAllByRole('button', { name: t.rejectLabel('申請者') })[0]).toHaveClass(
+      'border-general-50',
+    );
+  });
+
   it('shouldOpenDetailStepFromDetailButton', async () => {
     mockApi(pageOf([leave()]));
     const ui = renderView(EMPLOYEE);
