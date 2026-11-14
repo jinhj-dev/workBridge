@@ -40,7 +40,7 @@ test('shouldOpenFromSidebarAndShowSystemDepartmentWithoutActions', async ({ page
   const systemRow = page.getByRole('row').filter({ hasText: 'UNASSIGNED' });
   await expect(systemRow.getByText(t.system)).toBeVisible();
   // 未所属は詳細と所属社員の確認のみ(編集・削除は出ない)
-  await expect(systemRow.getByRole('button', { name: t.edit })).toHaveCount(0);
+  await expect(systemRow.getByRole('button', { name: messages.common.edit })).toHaveCount(0);
   await expect(systemRow.getByRole('button', { name: t.delete })).toHaveCount(0);
   await expect(systemRow.getByRole('button', { name: /所属社員を確認/ })).toBeVisible();
 });
@@ -67,7 +67,7 @@ test('shouldCreateEditAndDeleteDepartment', async ({ page }) => {
   await expect(row).toBeVisible();
   await expect(row.getByText(t.members(0))).toBeVisible();
 
-  await row.getByRole('button', { name: t.edit }).click();
+  await row.getByRole('button', { name: messages.common.edit }).click();
   await dialog.getByLabel(t.name).fill(renamed);
   await dialog.getByRole('button', { name: t.form.save }).click();
   await expect(page.getByText(t.form.updated)).toBeVisible();

@@ -278,6 +278,22 @@ describe('LeavesView 申請履歴の検索(FC-10)', () => {
     await waitFor(() => expect(historyCalls().length).toBeGreaterThan(before));
   });
 
+  it('shouldRenderEyeIconSecondaryDetailButtonInHistoryRow', async () => {
+    mockApi(pageOf([leave()]));
+    const ui = renderView();
+    const table = await screen.findByRole('table');
+    const detail = within(table).getByRole('button', {
+      name: h.detailLabel(messages.leave.types.ANNUAL, '2026/11/20 ～ 2026/11/21'),
+    });
+    expect(detail).toHaveTextContent(messages.common.detail);
+    expect(detail.querySelectorAll('svg')).toHaveLength(1);
+    expect(detail).toHaveClass('border-general-50', 'text-general-100');
+    await ui.click(detail);
+    expect(
+      await screen.findByRole('dialog', { name: messages.leave.detail.title }),
+    ).toBeInTheDocument();
+  });
+
   it('shouldOpenDetailModalFromRow', async () => {
     mockApi(pageOf([leave()]));
     const ui = renderView();
