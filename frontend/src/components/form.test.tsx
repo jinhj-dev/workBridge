@@ -1,12 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import {
-  CharCount,
-  FieldHint,
-  confirmMessageClass,
-  modalDangerButtonClass,
-  modalSecondaryButtonClass,
-} from './form';
+import { CharCount, FieldHint, confirmMessageClass } from './form';
 
 describe('FieldHint', () => {
   it('shouldRenderHintWithGivenId', () => {
@@ -40,11 +34,8 @@ describe('CharCount', () => {
   });
 });
 
-describe('モーダル用クラス', () => {
-  it('shouldDefineDisabledLookForSecondaryAndDanger', () => {
-    expect(modalSecondaryButtonClass).toContain('disabled:text-general-60');
-    expect(modalDangerButtonClass).toContain('bg-danger-100');
-    expect(modalDangerButtonClass).toContain('disabled:bg-danger-100/50');
+describe('確認文のクラス', () => {
+  it('shouldUseConfirmMessageClass', () => {
     expect(confirmMessageClass).toBe('break-words text-general-100');
   });
 });

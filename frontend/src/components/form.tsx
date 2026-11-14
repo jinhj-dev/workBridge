@@ -3,8 +3,11 @@ import { messages } from '@/messages/ja';
 
 // ログイン・パスワード変更などのカード型フォームで共通に使う見た目
 // フォーカスリングは内側に描く(外側の box-shadow は小数倍率でフォーカス解除後に残像が残るため)
-export const inputClass =
-  'h-12 w-full rounded-lg border border-input-border bg-white px-4 text-base/6 text-general-100 outline-none focus-visible:border-primary-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-100 aria-invalid:border-danger-100 aria-invalid:focus-visible:ring-danger-100';
+// 高さ・左右余白・文字サイズを除いた入力欄の共通クラス(これらを変える入力欄は inputClass と衝突しないようこちらを使い、各自で指定する)
+export const inputBaseClass =
+  'w-full rounded-lg border border-input-border bg-white text-general-100 outline-none focus-visible:border-primary-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-100 aria-invalid:border-danger-100 aria-invalid:focus-visible:ring-danger-100';
+
+export const inputClass = `h-12 px-4 text-base/6 ${inputBaseClass}`;
 
 // 09 §3 Dropdown(Regular)。Input と同じ高さ・枠線
 export const selectClass = `${inputClass} cursor-pointer`;
@@ -49,33 +52,8 @@ export function IconField({
 
 export const labelClass = 'mb-1 block text-sm/5 font-medium text-general-80';
 
-export const primaryButtonClass =
-  'rounded-lg bg-primary-100 font-bold text-white hover:bg-primary-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
-
-// 09 §3 Button の White(アウトライン)。キャンセルなど主操作の隣に置く操作に使う
-export const secondaryButtonClass =
-  'rounded-lg border border-general-50 bg-white font-bold text-general-100 hover:bg-general-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
-
-// 09 §3 Button の Primary アウトライン(白地 + primary の枠・文字)。主操作の次段階の操作(退勤など)に使う
-export const primaryOutlineButtonClass =
-  'rounded-lg border border-primary-100 bg-white font-bold text-primary-100 hover:bg-primary-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100 disabled:cursor-not-allowed disabled:border-general-50 disabled:text-general-60 disabled:hover:bg-white';
-
-// 09 §3 Button の Danger アウトライン(白地 + danger の枠・文字)。削除など取り消せない操作の入口に使う
-export const dangerOutlineButtonClass =
-  'rounded-lg border border-danger-100 bg-white font-bold text-danger-100 hover:bg-danger-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger-100 disabled:cursor-not-allowed disabled:border-general-50 disabled:text-general-60 disabled:hover:bg-white';
-
-// モーダル footer のボタン(詳細・申請モーダル共通)。高さ 40
-export const modalPrimaryButtonClass = `${primaryButtonClass} flex h-10 items-center justify-center gap-2 px-4 text-sm/5 disabled:cursor-not-allowed disabled:bg-primary-60`;
-export const modalSecondaryButtonClass = `${secondaryButtonClass} flex h-10 items-center justify-center gap-2 px-4 text-sm/5 disabled:cursor-not-allowed disabled:text-general-60 disabled:hover:bg-white`;
-// 取り消せない操作の確定ボタン(削除・取消など)
-export const modalDangerButtonClass =
-  'rounded-lg bg-danger-100 font-bold text-white hover:bg-danger-100/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger-100 flex h-10 items-center justify-center gap-2 px-4 text-sm/5 disabled:cursor-not-allowed disabled:bg-danger-100/50';
 // 確認モーダル本文の文言
 export const confirmMessageClass = 'break-words text-general-100';
-
-// 枠も背景もない文字だけのボタン(補助的な操作)。大きさ・余白は呼び出し側で指定する
-export const textButtonClass =
-  'rounded text-sm/5 font-medium text-primary-100 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
 
 export function ErrorIcon() {
   return (

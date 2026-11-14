@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import { buttonClass } from '@/components/Button';
 import { Logo } from '@/components/Logo';
 import { messages } from '@/messages/ja';
 import { BellIcon, ChevronDownIcon, UserIcon } from './navIcons';
@@ -12,9 +13,6 @@ interface TopBarProps {
   pendingApprovalCount: number | null;
   onLogout: () => void;
 }
-
-const iconButtonClass =
-  'flex size-10 items-center justify-center rounded text-general-80 hover:bg-general-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
 
 const menuItemClass =
   'flex h-10 w-full items-center px-4 text-left text-sm/5 text-general-100 hover:bg-general-30 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-100';
@@ -62,7 +60,7 @@ export function TopBar({ userName, pendingApprovalCount, onLogout }: TopBarProps
               ? messages.nav.pendingCount(pendingApprovalCount)
               : messages.nav.approvalsLink
           }
-          className={`${iconButtonClass} relative`}
+          className={`${buttonClass({ variant: 'ghost', iconOnly: true })} relative`}
         >
           <span aria-hidden="true" className="size-6">
             <BellIcon />

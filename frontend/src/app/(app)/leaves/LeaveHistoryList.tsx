@@ -4,9 +4,9 @@ import { cardFrameClass } from '@/components/Card';
 
 import { useId } from 'react';
 import { DateInput } from '@/components/DateInput';
-import { FieldError, inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '@/components/form';
+import { Button } from '@/components/Button';
+import { FieldError, inputClass, labelClass } from '@/components/form';
 import { LeaveStatusBadge } from '@/components/leave/LeaveStatusBadge';
-import { SearchIcon } from '@/components/leave/leaveIcons';
 import { Pagination } from '@/components/Pagination';
 import { SectionError } from '@/components/SectionError';
 import { Select } from '@/components/Select';
@@ -35,7 +35,6 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   ...LEAVE_STATUSES.map((status) => ({ value: status, label: messages.leave.statuses[status] })),
 ];
 
-const detailButtonClass = `${secondaryButtonClass} h-9 px-4 text-sm/5`;
 const dateInputClass = `${inputClass} h-11 px-3 text-sm/5`;
 
 interface LeaveHistoryListProps {
@@ -66,7 +65,8 @@ export function LeaveHistoryList({
     },
     `${filters.appliedFrom}|${filters.appliedTo}|${filters.leaveType}|${filters.status}`,
   );
-  const rangeInvalid = draft.appliedFrom !== '' && draft.appliedTo !== '' && draft.appliedFrom > draft.appliedTo;
+  const rangeInvalid =
+    draft.appliedFrom !== '' && draft.appliedTo !== '' && draft.appliedFrom > draft.appliedTo;
   const rangeErrorId = `${idPrefix}-range-error`;
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -77,17 +77,16 @@ export function LeaveHistoryList({
 
   function renderDetailButton(leave: Leave) {
     return (
-      <button
-        type="button"
+      <Button
+        size="sm"
         onClick={() => onOpenDetail(leave.id)}
         aria-label={t.detailLabel(
           leaveTypes[leave.leaveType],
           formatPeriod(leave.startDate, leave.endDate),
         )}
-        className={detailButtonClass}
       >
         {t.detail}
-      </button>
+      </Button>
     );
   }
 
@@ -143,12 +142,16 @@ export function LeaveHistoryList({
           <tbody>
             {items.map((leave) => (
               <tr key={leave.id}>
-                <td className={`${bandTdClass} tabular-nums`}>{formatTokyoDate(leave.createdAt)}</td>
+                <td className={`${bandTdClass} tabular-nums`}>
+                  {formatTokyoDate(leave.createdAt)}
+                </td>
                 <td className={`${bandTdClass} tabular-nums`}>
                   {formatPeriod(leave.startDate, leave.endDate)}
                 </td>
                 <td className={bandTdClass}>{leaveTypes[leave.leaveType]}</td>
-                <td className={`${bandTdClass} text-right tabular-nums`}>{formatDays(leave.days)}</td>
+                <td className={`${bandTdClass} text-right tabular-nums`}>
+                  {formatDays(leave.days)}
+                </td>
                 <td className={bandTdClass}>
                   <LeaveStatusBadge status={leave.status} soft />
                 </td>
@@ -199,7 +202,11 @@ export function LeaveHistoryList({
           <span id={`${idPrefix}-period-label`} className={labelClass}>
             {t.appliedPeriod}
           </span>
-          <div role="group" aria-labelledby={`${idPrefix}-period-label`} className="flex items-center gap-2">
+          <div
+            role="group"
+            aria-labelledby={`${idPrefix}-period-label`}
+            className="flex items-center gap-2"
+          >
             <DateInput
               id={`${idPrefix}-from`}
               compact
@@ -248,21 +255,12 @@ export function LeaveHistoryList({
             options={STATUS_OPTIONS}
           />
         </div>
-        <button
-          type="submit"
-          className={`${primaryButtonClass} flex h-12 items-center justify-center gap-2 px-8 text-base/6`}
-        >
-          <span aria-hidden="true" className="size-5">
-            <SearchIcon />
-          </span>
+        <Button variant="primary" size="lg" type="submit" className="w-full sm:w-auto">
           {t.search}
-        </button>
+        </Button>
       </form>
 
-      <section
-        aria-label={t.title}
-        className={`${cardFrameClass} p-4 md:p-5`}
-      >
+      <section aria-label={t.title} className={`${cardFrameClass} p-4 md:p-5`}>
         {/* 結果を待つ間は前の一覧を薄く残す(読み込み表示に置き換えず、ちらつかせない) */}
         <div
           aria-busy={query.isStale}

@@ -74,6 +74,17 @@
   --spacing-notice-y: 0.75rem;
   --spacing-notice-gap: 0.75rem;
 
+  /* ボタンの大きさ(Button。UI_BUTTON_PATTERNS §3.3)。色は追加しない */
+  --spacing-btn-sm: 2.25rem;
+  --spacing-btn-md: 2.5rem;
+  --spacing-btn-lg: 3rem;
+  --spacing-btn-x-sm: 0.75rem;
+  --spacing-btn-x-md: 1rem;
+  --spacing-btn-x-lg: 1.5rem;
+  --spacing-btn-gap-sm: 0.25rem;
+  --spacing-btn-gap: 0.5rem;
+  --radius-btn: 0.5rem;
+
   /* 入力枠線(09 §2.1 でパレット外と明記された値) */
   --color-input-border: #d9e1ec;
 

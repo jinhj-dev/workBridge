@@ -5,14 +5,8 @@ import type { FormEvent, RefObject } from 'react';
 import { useRouter } from 'next/navigation';
 import { ApiError, NetworkError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import {
-  FieldError,
-  inputClass,
-  labelClass,
-  primaryButtonClass,
-  secondaryButtonClass,
-  textButtonClass,
-} from '@/components/form';
+import { Button } from '@/components/Button';
+import { FieldError, inputClass, labelClass } from '@/components/form';
 import { Logo } from '@/components/Logo';
 import { Notice } from '@/components/Notice';
 import { Spinner } from '@/components/Spinner';
@@ -175,31 +169,33 @@ export function PasswordChangeForm() {
             {renderField('confirmPassword', t.confirmPassword, 'new-password')}
 
             <div className="mt-1 flex flex-col gap-3 sm:flex-row-reverse">
-              <button
+              <Button
+                variant="primary"
+                size="lg"
                 type="submit"
-                disabled={submitting}
-                className={`${primaryButtonClass} flex h-12 w-full items-center justify-center gap-2 px-6 text-base/6 disabled:cursor-not-allowed disabled:bg-primary-60 sm:flex-1`}
+                loading={submitting}
+                className="w-full sm:flex-1"
               >
-                {submitting && <Spinner />}
                 {t.submit}
-              </button>
+              </Button>
               {!mustChangePassword && (
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  size="lg"
                   onClick={() => router.back()}
-                  className={`${secondaryButtonClass} h-12 w-full px-6 text-base/6 sm:flex-1`}
+                  className="w-full sm:flex-1"
                 >
                   {t.cancel}
-                </button>
+                </Button>
               )}
             </div>
           </form>
 
           {/* 全体メニュー実装までの暫定: 変更が必要な利用者がログアウトできる手段 */}
           {mustChangePassword && (
-            <button type="button" onClick={handleLogout} className={`${textButtonClass} mt-4`}>
+            <Button variant="text" onClick={handleLogout} className="mt-4">
               {t.logout}
-            </button>
+            </Button>
           )}
         </div>
       )}

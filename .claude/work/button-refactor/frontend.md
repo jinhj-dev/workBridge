@@ -1,0 +1,95 @@
+
+## C1 (공통 Button 추가)
+- 변경 파일: 신규 `frontend/src/components/Button.tsx`, 수정 `frontend/eslint.config.mjs`. `form.tsx`·`globals.css`·테스트 미변경. 사용처 0(화면 변화 없음).
+- Button.tsx: export `Button`·`buttonClass`·`ButtonVariant`·`ButtonSize`. 맵 3종(BASE/VARIANT/SIZE·ICON_ONLY)은 리터럴, 크기는 Tailwind 기본(h-9/10/12, px-3/4/6, size-9/10/12). `iconOnly: true` 판별 유니온, `loading ? <Spinner/> : icon`을 `<span aria-hidden>` 슬롯(sm 16·md/lg 20·ghost iconOnly 24, `[&>svg]:size-full`)에, `loading`이면 disabled, 기본 type=button, `<button>` 1개만 렌더. text는 BASE·size 미적용, 아이콘 있을 때만 `inline-flex items-center gap-1`. ghost radius는 rounded-lg(B9), text는 rounded.
+- ESLint: `no-restricted-syntax` 3 selector(Button className의 Literal/TemplateElement, `buttonClass()` 포함 TemplateLiteral의 quasi)를 `files: ['src/**/*.tsx']` 별도 객체로 `eslintConfigPrettier` 앞에 추가. 정규식은 상수 `BUTTON_FORBIDDEN_CLASS`. 임시 파일로 검증: 허용(mt-1·w-full·sm:w-auto·sm:flex-1·-m-2·relative) 오탐 0, 금지(h-10·sm:px-4·단독 flex·gap-0.5) 4건 검출 후 임시 파일 삭제.
+- 검증: `npx eslint .` exit 0 / `npx tsc --noEmit` exit 0. vitest·build·e2e 미실행(PowerShell 전용·tester 담당).
+- 기존 테스트 깨짐: 없음(사용처 0, 미실행이라 미확인). 
+- 문서 갱신 예정: 설계 문서의 "문서 갱신 예정" 1~4와 동일(09 §6 Button 행 등). 구현 차이 없음.
+- impeccable: 시각 변화 없는 가산이라 화면 확인 생략(사용처 0). 훅 점검 이슈 0.
+- tester 전달: `Button.test.tsx`(T1) — 높이/px/radius는 기본 spacing 클래스(h-9/10/12 등) 기대. sm Spinner 슬롯 크기(`[&>svg]:size-full`이 Spinner `size-5`를 이김), disabled·loading, iconOnly, text withIcon 확인. 빌드 CSS에서 채움 variant의 `disabled:bg-*` 우선 확인(§4.3).
+
+## C2 (버튼 크기 토큰 치환, B6 단독 커밋 단위)
+- 변경 파일: `frontend/src/app/globals.css`(`--spacing-notice-*` 아래 `@theme` 추가), `frontend/src/components/Button.tsx`(맵 클래스만 치환). 그 외 무변경.
+- 토큰: `--spacing-btn-sm/md/lg`=2.25/2.5/3rem, `--spacing-btn-x-sm/md/lg`=0.75/1/1.5rem, `--spacing-btn-gap-sm`=0.25rem, `--spacing-btn-gap`=0.5rem, `--radius-btn`=0.5rem.
+- 치환: h-9/10/12→`h-btn-sm/md/lg`, size-9/10/12→`size-btn-sm/md/lg`, px-3/4/6→`px-btn-x-sm/md/lg`, gap-1(sm)→`gap-btn-gap-sm`, gap-2(md·lg)→`gap-btn-gap`, 채움·아웃라인·ghost의 `rounded-lg`→`rounded-btn`. text의 `rounded`(4), `withIcon`의 `gap-1`, 슬롯 `size-4/5/6`은 토큰 대상 아님(PATTERNS §3.3 표 밖)이라 유지. 모두 완전 리터럴.
+- 검증: `npx eslint .` exit 0 / `npx tsc --noEmit` exit 0 / `npm run build` exit 0. 빌드 CSS(.next/static/chunks)에 `.h-btn-*`·`.size-btn-*`·`.px-btn-x-*`·`.gap-btn-gap(-sm)`·`.rounded-btn` 생성 확인. vitest·e2e 미실행.
+- tester 전달: `Button.test.tsx`의 크기·radius 기대값을 토큰 클래스로 갱신 필요(h-9/h-10/h-12→h-btn-sm/md/lg, px-3/4/6→px-btn-x-*, size-9/10/12→size-btn-*, gap-1/gap-2(버튼 gap)→gap-btn-gap-sm/gap-btn-gap, `rounded-lg`→`rounded-btn`). 계산값(36/40/48px, radius 8px)은 C4 e2e `toHaveCSS`.
+- 문서 갱신 예정: 09 §2.3 버튼 크기 토큰 행(B6) — 설계 문서 "문서 갱신 예정" 1과 동일, 차이 없음.
+
+## C3 (SectionError 이행)
+- 변경 파일: `frontend/src/components/SectionError.tsx` 1개. BT77 [再試行] `<button className={secondaryButtonClass h-9 px-4 text-sm/5}>` → `<Button size="sm" onClick={onRetry}>`(secondary 기본, type=button). `form` 의 `secondaryButtonClass` import 제거, `Button` import 추가. `messages.common.retry`·Notice `action` 슬롯 위치·`onRetry` 그대로.
+- 시각 변화: px 16→12(높이 36 동일).
+- 검증: `npx eslint .` exit 0 / `npx tsc --noEmit` exit 0. `npm run build` 미실행(지시), vitest·e2e 미실행.
+- 기존 테스트: SectionError 사용 테스트는 `getByRole('button', {name: 再試行})`·클릭 기반이라 영향 없을 것으로 판단(클래스 단언 없음, grep 확인). 미실행.
+- 화면 확인: 생략(백엔드·로그인 필요한 조회 실패 상태 재현을 하지 않음).
+- 문서 갱신 예정: 09 §6 SectionError 행에 Button 사용 기록(설계 문서 항목 1과 동일).
+
+## C4 (모달 내부 버튼 BT42~62)
+- 변경 파일(8): `components/Modal.tsx`(X만), `ConfirmDialog.tsx`, `FormModal.tsx`, `components/leave/LeaveDayModal.tsx`, `components/leave/LeaveDetailModal.tsx`, `app/(app)/admin/attendance/AttendanceEditModal.tsx`, `app/(app)/admin/departments/DepartmentDetailModal.tsx`, `DepartmentMembersModal.tsx`. 변경 파일 전부 prettier 적용.
+- Modal X: `<Button variant="ghost" iconOnly aria-label disabled={busy} className="-m-2" icon={<svg…/>}>`(svg는 슬롯 size-6 + size-full). footer 래퍼(그리드) 무변경.
+- ConfirmDialog: 취소 secondary(`disabled={submitting}`, danger일 때 data-autofocus 유지), 확정 `variant={danger?'danger':'primary'}` `loading={submitting}`(disabled 중복 제거, data-autofocus 위치 유지). FormModal: 취소 secondary, 제출 primary `type="submit" form={formId}` `loading`.
+- LeaveDetailModal: 4단계 footer 전부 Button. 取消 확정 danger loading, 承認·却下する primary loading(`disabled={submitting}` 제거), 취소/戻る secondary `disabled={submitting}` 유지. 조건부 렌더(canCancel·canProcess)·`autoFocus`·`data-autofocus`·`setStep`·returnFocus·Fragment key 그대로. AttendanceEditModal: 확인 단계 저장 primary loading·autoFocus·data-autofocus 유지, 입력 단계 버튼은 현행대로 type=button. DepartmentDetailModal: `department && !department.isSystem` 조건 유지.
+- 전 footer 버튼 size 기본(md), w-full 없음, Button은 `<button>` 1개라 footer 개수 판정(D4) 불변. `form.tsx` 무변경(modal* 상수는 이 모달들에서 import 제거만).
+- 시각 변화: 모달 X radius 4→8(B9). 그 외 높이 40·px16·gap8 동일(토큰 계산값 동일).
+- 검증: `npx eslint .` exit 0 / `npx tsc --noEmit` exit 0 / `npm run build` 금지로 미실행 / vitest·e2e 미실행. 
+- 화면 확인: 생략(개발 서버 3000은 응답 200이나 로그인이 필요하고 E2E 계정 환경변수·개발 DB 접근을 쓰지 않음).
+- tester 전달: ① `ConfirmDialog.test.tsx:61,64` `bg-danger-100` 클래스 단언은 Button danger variant(`bg-danger-100`)로 통과 예상. `animate-spin`(ConfirmDialog 80,85 / FormModal 67,72)은 loading 시 Spinner svg 유지로 통과 예상. ② `Modal.test.tsx:60` footer `sm:border-t` 불변. ③ X 버튼 `aria-label=閉じる`·busy 시 disabled 확인. ④ 기존 테스트 중 modal* 클래스(예: `form.test.tsx:46-47`)는 C9까지 form.tsx 무변경이라 영향 없음. ⑤ 단위 T3 + e2e E1(`modal-a11y`·`leaves`·`approvals`·`departments*`), E2 `toHaveCSS` 36/40/48·X radius 8px 단언 추가 필요.
+- 문서 갱신 예정: 09 §6 Modal 행(X = ghost)·ConfirmDialog/FormModal 등(설계 문서 항목 1과 동일), 차이 없음.
+
+## C5 (페이지 주 동작 BT01~03·05~12)
+- 변경 파일(8): `app/login/LoginForm.tsx`, `app/password/PasswordChangeForm.tsx`(BT02·03만. BT04 ログアウト는 C6), `app/(app)/leaves/LeaveManagementLayout.tsx`, `app/(app)/admin/departments/DepartmentsView.tsx`(BT06·12만. 행 버튼은 C6), `app/(app)/dashboard/AttendanceSection.tsx`, `app/(app)/attendance/AttendanceHistoryView.tsx`, `app/(app)/admin/attendance/AdminAttendanceView.tsx`(BT10만), `app/(app)/leaves/LeaveHistoryList.tsx`(BT11만). prettier 적용.
+- 이행: BT01 `primary lg type=submit loading className="mt-1 w-full"`(disabled는 `status==='loading'`만 별도 전달, loading이 submitting 포함), BT02 `primary lg submit loading w-full sm:flex-1`, BT03 `secondary lg w-full sm:flex-1`(제출 중에도 활성 그대로), BT05 `primary lg icon=PlusIcon`, BT06 `primary lg icon=PlusIcon`, BT12 `secondary md disabled={!hasConditions}`, BT07 `primary lg w-full icon=EnterIcon`, BT08 `primaryOutline lg w-full icon=ExitIcon`(로컬 `base` 삭제), BT09 `primary lg submit w-full sm:w-auto sm:mt-6`, BT10 `primary lg submit w-full sm:w-auto`, BT11 `primary lg submit w-full sm:w-auto`(Search 아이콘 제거, `SearchIcon` import 제거). 사용 안 하게 된 `primaryButtonClass` 등 form import와 LoginForm의 Spinner import 제거. `form.tsx` 무변경.
+- 시각 변화: BT05 모바일 44→48, BT06 40→48·글자 16, BT07·08 44→48, 검색 px 32→24·모바일 전폭, BT12 44→40.
+- 검증: `npx eslint .` exit 0 / `npx tsc --noEmit` exit 0 / build 금지로 미실행 / vitest·e2e 미실행.
+- B3 확인: **로그인 필요 화면(PageHeader 한 줄, 部署を追加 48, 条件をクリア 40 정렬, 出勤·退勤 +4)은 미확인**(셸에 E2E_ADMIN_PASSWORD 없음, DB 쓰기 금지). 확인한 것은 로그인 화면의 BT01만: 360폭 높이 48·폭 270, 1440폭 높이 48, radius 8px(screenshots/c5-login-360.png, c5-login-1440.png). 나머지 B3 ①~④는 tester E3 캡처 spec 또는 사용자 확인 필요.
+- tester 전달: ① T4 Enter 제출 5곳(login·password·AttendanceHistory 照会·AdminAttendance 照会·LeaveHistory 検索)과 disabled(`!loaded`·`done`·`!hasConditions`·로그인 중). ② 로그인 제출 중 Spinner(`svg.animate-spin`)·button disabled. ③ 기존 테스트 영향 가능: `DashboardView.test.tsx:337` 출근 카드 button 수 1(Button 단일 요소라 유지 예상), 검색 버튼의 SearchIcon을 단언하는 테스트가 있으면 깨짐(LeaveHistoryList, B14). 클래스 단언(`h-11` 등) 있으면 갱신 필요. 모두 미실행. ④ e2e `login`·`password`·`dashboard*`·`attendance*`·`leaves`·`departments*`.
+- 문서 갱신 예정: 09 §6/§5(버튼 공통 패턴), 설계 문서 항목 1과 동일. 차이 없음.
+
+## C5 Fix 1 (SearchInput 높이 44 충돌 수정)
+- 원인: `SearchInput`이 `${inputClass} h-11`로 `inputClass`의 `h-12`와 같은 속성을 중복 지정 → CSS 출력 순서로 실제 48px.
+- 수정: `components/form.tsx`에서 높이를 뺀 `inputBaseClass`를 분리하고 `inputClass = \`h-12 ${inputBaseClass}\``로 정의(inputClass 문자열은 기존과 동일, 다른 입력란 48px 불변). `components/SearchInput.tsx`는 `inputBaseClass` + `h-11`을 사용.
+- 영향 화면(SearchInput 사용처, 48→44px로 변경): `admin/departments/DepartmentsView.tsx`(부서 검색 1곳), `admin/departments/DepartmentMembersModal.tsx`(소속 사원 확인 모달 검색), `leaves/calendar/CalendarFilters.tsx`(SCR-004 캘린더 필터 2곳: 氏名·社員番号. LeaveCalendarView 경유). 부서관리의 条件をクリア(40)·select(44)와 정렬 차이는 C5 B3 ③ 재확인 대상.
+- 참고(미수정): SearchInput은 `px-4`/`pl-10`, `text-base/6`/`text-sm/5`도 inputClass와 중복 지정 중. 이번 범위 밖이라 그대로 둠(현재 동작 유지).
+- 검증: `npx eslint .` exit 0 / `npx tsc --noEmit` exit 0. prettier --check는 두 파일 경고(CRLF 추정, 미수정 상태 비교 안 함). vitest 미실행.
+
+## C6 (표 내부 액션·텍스트 링크 BT22~33·38·04)
+- 변경 파일(8): `app/(app)/leaves/LeaveHistoryList.tsx`(로컬 `detailButtonClass` 삭제, 詳細 `Button sm`), `app/(app)/leaves/approvals/ApprovalsView.tsx`(로컬 3종 삭제. 詳細 secondary sm, 承認 primary sm, 却下 secondary sm(B11), `disabled={own}`·`PENDING` 조건·aria-label 유지), `app/(app)/admin/attendance/AdminAttendanceView.tsx`(`smallButtonClass` 삭제, 修正 `primaryOutline sm icon=PencilIcon`(B10), 사원명 Link 2곳 `buttonClass({variant:'text'})`), `app/(app)/admin/departments/DepartmentsView.tsx`(`rowButtonClass` 삭제. 詳細·確認(MemberCountWithCheck) secondary sm, 編集 primaryOutline sm+Pencil, 削除 dangerOutline sm+Trash. `!item.isSystem` 조건·aria-label 유지), `app/(app)/dashboard/CardLink.tsx`(`buttonClass({variant:'text', withIcon:true})`, `flex gap-0.5` 제거, › span aria-hidden 유지), `app/password/PasswordChangeForm.tsx`(BT04 `Button variant="text" className="mt-4"`, `textButtonClass` import 제거), `components/leave/leaveIcons.tsx`(PencilIcon 추가: 기존 path·strokeWidth 1.75, `IconProps` 형식), `app/(app)/admin/departments/icons.tsx`(PencilIcon 삭제). 사용 안 하게 된 form import 정리. prettier 적용, `form.tsx` 무변경.
+- 시각 변화: sm px 16→12, 勤怠 修正 회색→Primary 아웃라인+아이콘(폭 약 +20px), CardLink 아이콘 간격 2→4px(gap-0.5→gap-1, PATTERNS §4.3), 詳細·확인 sm은 높이 36 동일.
+- 검증: `npx eslint .` exit 0(처음 unused import 경고 1건 수정 후 0 경고) / `npx tsc --noEmit` exit 0 / build 금지로 미실행 / vitest·e2e 미실행. 화면 확인: 생략(로그인 필요·DB 쓰기 금지).
+- tester 전달: ① T5 단위: 詳細·承認·却下·編集·削除·確認·修正 클릭·aria-label·disabled(`own`), 勤怠 修正 Pencil 포함(svg aria-hidden), 사원명 Link href. ② 기존 테스트 영향 가능(미실행): `DepartmentsView.test`의 `border-danger-100`·`text-danger-100`(dangerOutline이 같은 클래스 보유), 클래스 문자열(`h-9 px-4` 등) 단언이 있으면 갱신 필요. ③ **B10 폭 확인(사용자 확인 대상)**: SCR-008 勤怠 목록 360 카드형·1024 표에서 修正 한 줄 유지·행 높이·표 폭(sm은 `whitespace-nowrap`). E3 캡처. ④ e2e `approvals`·`departments-responsive`·`attendance`.
+- 문서 갱신 예정: 09 §6 `leaveIcons`에 PencilIcon 추가(departments/icons에서 이동), CardLink·Button 사용. 설계 문서 항목 1과 동일.
+
+## C7 (아이콘 버튼 BT17~21·64)
+- 변경 파일(3): `components/layout/TopBar.tsx`(벨 Link `className={`${buttonClass({variant:'ghost', iconOnly:true})} relative`}`, 로컬 `iconButtonClass` 삭제. href·aria-label·빨간 점 absolute·`menuItemClass`·사용자 메뉴 불변), `components/leave/MonthNavigator.tsx`(前月·翌月 `<Button iconOnly icon={Chevron…} aria-label>`(secondary 기본), 로컬 `buttonClass` 삭제, `gap-3`·라벨 서체·onChange(±1) 유지), `app/(app)/attendance/AttendanceSheetView.tsx`(前月·翌月 `Button iconOnly`, 今月 `<Button disabled={month===currentMonth}>`(md), 로컬 `Chevron`·`iconButtonClass`·`textNavButtonClass`·`secondaryButtonClass` import 삭제, `leaveIcons`의 `ChevronLeftIcon`·`ChevronRightIcon` 사용, 헤더 `gap-1 sm:gap-2`·라벨 `text-base/6 font-medium` 유지(B8)). Notice X(BT63) 제외. prettier 적용, `form.tsx` 무변경.
+- 시각 변화: 출근부 월 이동 36→40(헤더 +4px), 今月 sm→md, 벨 radius 4→8(B9), Chevron 굵기 2→1.75.
+- 검증: `npx eslint .` exit 0(경고 0) / `npx tsc --noEmit` exit 0 / build 금지로 미실행 / vitest·e2e 미실행. 화면 확인: 생략(로그인 필요).
+- tester 전달: ① T6 단위: 前月·翌月 aria-label·클릭, 今月 disabled(`month===currentMonth`), 벨 Link href `/leaves/approvals`·aria-label(승인 대기 건수)·빨간 점 유무. ② 기존 테스트 영향 가능(미실행): 클래스 단언(`size-9` 등)이 있으면 갱신. ③ e2e `attendance-sheet-layout`(모바일 360 헤더가 줄바꿈 없이 들어가는지, 월 이동 40px 높이 — 헤더 +4px)·`leave-calendar-mobile`·`leave-visual`·`leave-management`·`leave-sidebar-submenu`. ④ MonthNavigator 사용처(휴가 캘린더)는 이미 40이라 크기 불변, Chevron 굵기만 변화.
+- 문서 갱신 예정: 09 §6 `MonthNavigator`·`TopBar`(벨 = ghost)·`AttendanceSheetView` 관련 기록. 설계 문서 항목 1과 동일.
+
+## C8 (모바일 반응형 검증)
+- 변경 파일: **없음(변경 없음)**. 코드를 바꾸지 않아 lint·tsc는 C7 직후 상태(exit 0/0)에서 재실행 불필요로 판단, 미실행. build 금지.
+- 판단 근거(test-report Run 5~8 수치와 코드 읽기. 측정 원본 `test-results/button-visual-*/measurements.jsonl`은 이후 실행·정리로 현재 존재하지 않아 report 표를 근거로 함):
+  - ② PageHeader 한 줄: /leaves·/admin/departments 見出し 높이=line-height(30/30@360, 36/36@768+)로 1행, 버튼 top 차이 < 버튼 높이 → 통과(Run 5, 4폭). 部署を追加 48, 条件をクリア 40, 出勤·退勤 48 통과. 修正(B10): 360 카드 74px·nowrap·행 180, 1024 표 scrollWidth=clientWidth(644) → 가로 넘침 없음(Run 7). 벨·MonthNavigator·出勤簿 월 이동 40 통과(Run 8).
+  - ① 모달 footer: C4에서 footer 래퍼 무변경, Button은 `<button>` 1개, md·lg에는 `whitespace-nowrap` 없음(코드 확인) → D4 개수 판정·긴 문구 줄바꿈 구조적으로 불변. 단 360 실측은 없음.
+  - ③ 카드형 목록 행 동작: 修正 카드 행 360 실측(위)만 있음. 承認·却下·詳細(ApprovalsView 카드 `flex-wrap`)·부서 RowActions(`flex-wrap`)는 줄바꿈 가능한 래퍼 유지라 구조상 문제 없음, 실측은 없음.
+  - ④ 검색 버튼: 코드상 3곳 모두 `w-full sm:w-auto`(sm 미만 전폭). 실측 없음.
+  - 기록(판정 없음): 360에서 条件をクリア와 SearchInput이 다른 줄(중심 차이 106~108, Run 5·6). 768 이상은 0.
+- 미충족 의심(수정은 하지 않음, 측정 필요): ⑤ 텍스트 링크 BT04(ログアウト)·BT32·33(사원명 링크)·BT38(CardLink「すべて見る」)은 text variant가 `inline`+`text-sm/5`(line-height 20, padding 없음)라 높이 20 < 24. WCAG 2.5.8은 24px 원 간격 예외로 통과할 수 있으나 실측 전이라 판정 불가. 측정에서 24×24도 간격 예외도 미충족인 곳만 `className="py-0.5"`(Link는 `buttonClass(...)` 뒤에 붙임)를 적용하고, Button의 py-*는 ESLint 금지 목록이므로 해당 줄에 `eslint-disable-next-line` + 일본어 사유 주석이 필요.
+- tester 전달(E3·E4): ① 360/768/1024/1440에서 SCR-001~004·008~010 + 모달 9종 캡처. 모달 footer(2열·3개 이상 우측 정렬)·긴 확정 문구 줄바꿈 ② 검색 버튼 3곳 sm 미만 전폭(`getBoundingClientRect().width ≈ 컨테이너 폭`) ③ 승인·부서 카드형 행 동작 줄바꿈 ④ **텍스트 링크 4종(BT04·32·33·38)의 getBoundingClientRect 폭·높이와 인접 타깃과의 거리** — 높이 < 24이고 간격 예외도 불성립한 곳을 알려주면 frontend가 py-0.5를 적용 ⑤ `overflow-hidden` 안 버튼(표 셀·카드)의 포커스 링 잘림(키보드 Tab 후 캡처) ⑥ 대상 외 BT16·34·40은 측정만 ⑦ 키보드 도달(E4).
+- 문서 갱신 예정: PLAN 단계 7 결과 요약(위 근거·미확인 항목 포함). 문서 반영 모드에서.
+
+## C9 (form.tsx 버튼 상수 삭제)
+- 사전 grep(`src` 전체, `form.tsx` 제외, 단어 경계): `primaryButtonClass|secondaryButtonClass|primaryOutlineButtonClass|dangerOutlineButtonClass|modalPrimaryButtonClass|modalSecondaryButtonClass|modalDangerButtonClass|textButtonClass` → 사용처 **0건**(참조는 `components/form.test.tsx:7-8,45-47`의 테스트 import뿐). 크기 조합 잔존 grep(`h-9 px-4`·`h-12 px-8`·`h-10 items-center justify-center gap-2`, 테스트 제외) 0건. 이행 필요 없음.
+- 변경 파일: `frontend/src/components/form.tsx` 1개. 삭제: primary/secondary/primaryOutline/dangerOutline/modalPrimary/modalSecondary/modalDanger/textButtonClass 상수 8개와 그 주석. `inputClass`·`inputBaseClass`·`labelClass`·`confirmMessageClass` 등 입력 관련 export 불변. 대상 외 V8~V11·BT16·34·40은 손대지 않음.
+- 검증: `npx eslint .` exit 0 / `npx tsc --noEmit` exit **2**(오류 2건 모두 `src/components/form.test.tsx(7,3)(8,3)`: `modalDangerButtonClass`·`modalSecondaryButtonClass` 미export. 테스트 소유 tester) / build 금지로 미실행 / vitest 미실행. prettier --check는 form.tsx 경고(CRLF 추정, 이전 상태와 비교 안 함).
+- tester 전달: `form.test.tsx`의 import(7-8행)와 버튼 상수 단언(45-47행: `modalSecondaryButtonClass` `disabled:text-general-60`, `modalDangerButtonClass` `bg-danger-100`·`disabled:bg-danger-100/50`)을 삭제하고 `Button.test.tsx`의 danger/secondary variant 단언으로 이전(`danger`: `bg-danger-100`·`disabled:bg-danger-100/50`, `secondary`: `disabled:text-general-60`). 이후 vitest 전체·`npm run test:e2e` 전체 회귀 확인.
+- 개발 도구 "1 Issue" 확인: Playwright(360폭)로 `/login`·`/password`를 열어 콘솔 수집. 에러는 `Failed to load resource: 401 (Unauthorized)` 1건만(두 화면 모두), pageerror·hydration·React 경고 없음. 비로그인 상태에서 인증 확인 API가 401을 돌려주는 것이 Next 개발 오버레이의 Issue 1건으로 집계된 것으로 판단(console.error 카운트). 버튼 리팩터링(Button·토큰·ESLint)과 무관한 기존 동작이라 수정하지 않음. 로그인 후 화면의 Issue는 로그인 필요로 미확인.
+- 문서 갱신 예정: 설계 문서 "문서 갱신 예정" 1~4(09 §6 form.tsx 버튼 상수 행 삭제 등). 차이 없음.
+
+## Review Fix 1
+- #1 입력 클래스 충돌 제거: `components/form.tsx`의 `inputBaseClass`에서 높이에 더해 좌우 padding(`px-4`)·글자 크기(`text-base/6`)도 분리. `inputClass = \`h-12 px-4 text-base/6 ${inputBaseClass}\``(다른 입력란·selectClass 최종 계산값 48px·px-4·text-base/6 불변, 클래스 순서만 다름). `components/SearchInput.tsx`는 `${inputBaseClass} h-11 pr-4 pl-10 text-sm/5 …`로 각자 지정(충돌 클래스 0). 현재 보이는 값 보존 근거: 개발 서버 CSS에서 `.pl-10`이 `.px-4`보다 뒤, `.text-sm/5`가 `.text-base/6`보다 뒤라 이전 최종값은 높이 44·왼쪽 40·오른쪽 16·text-sm/5 → `pr-4 pl-10`으로 동일하게 지정. 같은 종류의 충돌이 남은 곳(범위 밖, 미수정): `LeaveHistoryList.tsx`의 `dateInputClass`(`${inputClass} h-11 px-3 text-sm/5`).
+- #9 `frontend/eslint.config.mjs`: `const eslintConfig =defineConfig([`는 C1 편집으로 생긴 공백 누락(원본은 `= defineConfig`)이라 `= defineConfig`로 복구.
+- 검증: `npx eslint .` / `npx tsc --noEmit` 결과는 아래 줄 참조(최종 응답과 동일). build 금지로 미실행.
+- 문서 갱신 예정(#2, 문서 반영 모드): ① `docs/09_DESIGN_SYSTEM.md` §6 `SearchInput` 행: 높이 44(`h-11`)·`inputBaseClass` 사용·좌 40/우 16 padding·text-sm/5 ② §6 `form.tsx` 행: `inputBaseClass`(높이·좌우 padding·글자 크기 제외) 신설, `inputClass = h-12 px-4 text-base/6 + inputBaseClass`, 버튼 상수 8개 삭제(C9) ③ `.claude/work/context.md` 공용 모듈의 form.tsx 줄: `inputBaseClass` 추가, 버튼 상수·`primaryOutlineButtonClass` 표기 제거, `Button`·`buttonClass`·`PencilIcon`(leaveIcons) 추가.
+- tester 확인: SearchInput 44px(`toHaveCSS`)·왼쪽 padding 40px·오른쪽 16px·글자 14px/20px, 다른 입력란(로그인 등) 48px·padding 16px·글자 16px/24px 불변. `form.test.tsx`에 inputClass 문자열을 단언하는 곳이 있으면 `h-12 px-4 text-base/6` 포함 여부로 확인. 단위·e2e 전체 회귀.

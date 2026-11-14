@@ -204,6 +204,23 @@ describe('ApprovalsView(SCR-005 休暇承認)', () => {
     expect(screen.getAllByRole('button', { name: t.approveLabel('申請者') })[0]).toBeEnabled();
   });
 
+  it('shouldShowNoApproveOrRejectButtonsForProcessedLeave', async () => {
+    mockApi(
+      pageOf([
+        leave({
+          status: 'APPROVED',
+          user: { id: 'u-other', name: '処理済み申請者', empId: '10009', departmentName: '営業部' },
+        }),
+      ]),
+    );
+    renderView(EMPLOYEE);
+    await screen.findAllByText('処理済み申請者');
+
+    expect(screen.queryByRole('button', { name: t.approveLabel('処理済み申請者') })).toBeNull();
+    expect(screen.queryByRole('button', { name: t.rejectLabel('処理済み申請者') })).toBeNull();
+    expect(screen.getAllByRole('button', { name: t.detailLabel('処理済み申請者') })[0]).toBeEnabled();
+  });
+
   it.each([
     ['mine', t.emptyMine],
     ['all', t.emptyAll],

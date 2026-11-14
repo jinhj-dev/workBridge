@@ -6,15 +6,10 @@ import { useRouter } from 'next/navigation';
 import { ApiError, NetworkError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { safeRedirect } from '@/lib/auth/redirect';
-import {
-  FieldError,
-  inputClass,
-  labelClass,
-  primaryButtonClass,
-} from '@/components/form';
+import { Button } from '@/components/Button';
+import { FieldError, inputClass, labelClass } from '@/components/form';
 import { Logo } from '@/components/Logo';
 import { Notice } from '@/components/Notice';
-import { Spinner } from '@/components/Spinner';
 import { messages } from '@/messages/ja';
 
 interface FieldErrors {
@@ -151,14 +146,16 @@ export function LoginForm() {
             )}
           </div>
 
-          <button
+          <Button
+            variant="primary"
+            size="lg"
             type="submit"
-            disabled={submitting || status === 'loading'}
-            className={`${primaryButtonClass} mt-1 flex h-12 w-full items-center justify-center gap-2 px-6 text-base/6 disabled:cursor-not-allowed disabled:bg-primary-60`}
+            loading={submitting}
+            disabled={status === 'loading'}
+            className="mt-1 w-full"
           >
-            {submitting && <Spinner />}
             {t.submit}
-          </button>
+          </Button>
         </form>
       </div>
     </main>

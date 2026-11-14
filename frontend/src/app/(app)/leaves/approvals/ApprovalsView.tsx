@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { ClipboardCheckIcon, ClockIcon } from '@/components/layout/navIcons';
-import { primaryButtonClass, secondaryButtonClass } from '@/components/form';
+import { Button } from '@/components/Button';
 import { usePendingApprovalCount } from '@/components/layout/PendingApprovalCount';
 import { LeaveDetailModal } from '@/components/leave/LeaveDetailModal';
 import { LeaveStatusBadge } from '@/components/leave/LeaveStatusBadge';
@@ -47,10 +47,6 @@ export function parseApprovalsQuery(params: URLSearchParams, isAdmin: boolean): 
   const page = /^\d+$/.test(rawPage) && Number(rawPage) >= 1 ? Number(rawPage) : 1;
   return { scope, status, page };
 }
-
-const smallButtonClass = 'h-9 px-4 text-sm/5 disabled:cursor-not-allowed';
-const detailButtonClass = `${secondaryButtonClass} ${smallButtonClass}`;
-const approveButtonClass = `${primaryButtonClass} ${smallButtonClass} disabled:bg-primary-60 disabled:hover:bg-primary-60`;
 
 const SUMMARY: { status: ApprovalStatus; label: string; icon: ReactNode }[] = [
   { status: 'PENDING', label: t.statusPending, icon: <ClockIcon /> },
@@ -112,34 +108,32 @@ export function ApprovalsView() {
     const own = leave.user.id === me?.id;
     return (
       <div className="flex flex-wrap justify-end gap-2">
-        <button
-          type="button"
+        <Button
+          size="sm"
           onClick={() => setSelected({ id: leave.id, step: 'detail' })}
           aria-label={t.detailLabel(name)}
-          className={detailButtonClass}
         >
           {t.detail}
-        </button>
+        </Button>
         {leave.status === 'PENDING' && (
           <>
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="sm"
               disabled={own}
               onClick={() => setSelected({ id: leave.id, step: 'approve' })}
               aria-label={t.approveLabel(name)}
-              className={approveButtonClass}
             >
               {t.approve}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              size="sm"
               disabled={own}
               onClick={() => setSelected({ id: leave.id, step: 'reject' })}
               aria-label={t.rejectLabel(name)}
-              className={`${detailButtonClass} disabled:text-general-60 disabled:hover:bg-white`}
             >
               {t.reject}
-            </button>
+            </Button>
           </>
         )}
       </div>
@@ -219,7 +213,9 @@ export function ApprovalsView() {
           <tbody>
             {items.map((leave) => (
               <tr key={leave.id}>
-                <td className={`${bandTdClass} tabular-nums`}>{formatTokyoDate(leave.createdAt)}</td>
+                <td className={`${bandTdClass} tabular-nums`}>
+                  {formatTokyoDate(leave.createdAt)}
+                </td>
                 <td className={`${bandTdClass} tabular-nums`}>{leave.user.empId}</td>
                 <td className={`${bandTdClass} font-bold`}>{leave.user.name}</td>
                 <td className={bandTdClass}>
@@ -277,14 +273,13 @@ export function ApprovalsView() {
                 </span>
               )}
               <div className="pt-1">
-                <button
-                  type="button"
+                <Button
+                  size="sm"
                   onClick={() => setSelected({ id: leave.id, step: 'detail' })}
                   aria-label={t.detailLabel(leave.user.name)}
-                  className={detailButtonClass}
                 >
                   {t.detail}
-                </button>
+                </Button>
               </div>
             </li>
           ))}
@@ -305,7 +300,9 @@ export function ApprovalsView() {
             { value: 'all', label: t.scopeAll },
           ]}
           value={scope}
-          onChange={(value) => go({ scope: value === 'all' ? 'all' : 'mine', status: 'PENDING', page: 1 })}
+          onChange={(value) =>
+            go({ scope: value === 'all' ? 'all' : 'mine', status: 'PENDING', page: 1 })
+          }
         />
       )}
 
@@ -316,7 +313,11 @@ export function ApprovalsView() {
             <StatCard
               key={card.status}
               label={card.label}
-              value={result.status === 'success' ? String(result.data?.totalCount ?? 0) : messages.common.noValue}
+              value={
+                result.status === 'success'
+                  ? String(result.data?.totalCount ?? 0)
+                  : messages.common.noValue
+              }
               unit={messages.dashboard.stats.casesUnit}
               icon={card.icon}
               tone={card.status === 'REJECTED' ? 'danger' : 'primary'}
@@ -327,9 +328,7 @@ export function ApprovalsView() {
         })}
       </section>
 
-      <section className={`${cardFrameClass} p-4 md:p-5`}>
-        {renderList()}
-      </section>
+      <section className={`${cardFrameClass} p-4 md:p-5`}>{renderList()}</section>
 
       <LeaveDetailModal
         key={selected ? `${selected.id}-${selected.step}` : 'closed'}

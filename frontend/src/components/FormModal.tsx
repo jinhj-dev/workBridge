@@ -2,9 +2,8 @@
 
 import { useId } from 'react';
 import type { FormEvent, ReactNode } from 'react';
-import { modalPrimaryButtonClass, modalSecondaryButtonClass } from '@/components/form';
+import { Button } from '@/components/Button';
 import { Modal } from '@/components/Modal';
-import { Spinner } from '@/components/Spinner';
 import { messages } from '@/messages/ja';
 
 interface FormModalProps {
@@ -47,23 +46,12 @@ export function FormModal({
       onClose={onClose}
       footer={
         <>
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={onClose}
-            className={modalSecondaryButtonClass}
-          >
+          <Button variant="secondary" disabled={submitting} onClick={onClose}>
             {cancelLabel}
-          </button>
-          <button
-            type="submit"
-            form={formId}
-            disabled={submitting}
-            className={modalPrimaryButtonClass}
-          >
-            {submitting && <Spinner />}
+          </Button>
+          <Button variant="primary" type="submit" form={formId} loading={submitting}>
             {submitLabel}
-          </button>
+          </Button>
         </>
       }
     >

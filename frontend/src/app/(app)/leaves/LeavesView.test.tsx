@@ -189,6 +189,18 @@ describe('LeavesView 申請履歴の検索(FC-10)', () => {
     expect(router.push).toHaveBeenLastCalledWith('/leaves?status=PENDING');
   });
 
+  it('shouldSearchWhenEnterPressedInAppliedDateInput', async () => {
+    mockApi(pageOf([leave()]));
+    const ui = renderView();
+    await screen.findByRole('table');
+
+    const startDate = screen.getByLabelText(`${h.appliedPeriod} ${messages.dateRange.startDate}`);
+    await ui.click(startDate);
+    await ui.keyboard('{Enter}');
+
+    expect(router.push).toHaveBeenCalledTimes(1);
+  });
+
   it('shouldNotSearchWhenAppliedRangeIsReversed', async () => {
     mockApi(pageOf([leave()]));
     const ui = renderView();

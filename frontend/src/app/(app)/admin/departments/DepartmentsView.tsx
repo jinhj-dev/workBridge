@@ -3,15 +3,10 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/Badge';
+import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import {
-  dangerOutlineButtonClass,
-  primaryButtonClass,
-  primaryOutlineButtonClass,
-  secondaryButtonClass,
-  selectClass,
-} from '@/components/form';
-import { PlusIcon } from '@/components/leave/leaveIcons';
+import { selectClass } from '@/components/form';
+import { PencilIcon, PlusIcon } from '@/components/leave/leaveIcons';
 import { Notice } from '@/components/Notice';
 import { PageHeader } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
@@ -30,7 +25,7 @@ import { DepartmentDeleteModal } from './DepartmentDeleteModal';
 import { DepartmentDetailModal } from './DepartmentDetailModal';
 import { DepartmentFormModal } from './DepartmentFormModal';
 import { DepartmentMembersModal } from './DepartmentMembersModal';
-import { BuildingIcon, LayersIcon, ListIcon, PeopleIcon, PencilIcon, TrashIcon } from './icons';
+import { BuildingIcon, LayersIcon, ListIcon, PeopleIcon, TrashIcon } from './icons';
 import { SortableTh } from './SortableTh';
 
 const t = messages.departments;
@@ -108,45 +103,33 @@ interface RowActionsProps {
   onDelete: (item: DepartmentDetail) => void;
 }
 
-const rowButtonClass =
-  'inline-flex h-9 items-center justify-center gap-1 px-3 text-sm/5 whitespace-nowrap';
-
 // 編集・削除は未所属(システム部署)には出さない
 function RowActions({ item, onDetail, onEdit, onDelete }: RowActionsProps) {
   return (
     <span className="flex flex-wrap items-center gap-2 md:justify-end">
-      <button
-        type="button"
-        onClick={() => onDetail(item)}
-        aria-label={t.detailLabel(item.name)}
-        className={`${secondaryButtonClass} ${rowButtonClass}`}
-      >
+      <Button size="sm" onClick={() => onDetail(item)} aria-label={t.detailLabel(item.name)}>
         {t.detail}
-      </button>
+      </Button>
       {!item.isSystem && (
         <>
-          <button
-            type="button"
+          <Button
+            variant="primaryOutline"
+            size="sm"
+            icon={<PencilIcon />}
             onClick={() => onEdit(item)}
             aria-label={t.editLabel(item.name)}
-            className={`${primaryOutlineButtonClass} ${rowButtonClass}`}
           >
-            <span aria-hidden="true" className="size-4">
-              <PencilIcon />
-            </span>
             {t.edit}
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="dangerOutline"
+            size="sm"
+            icon={<TrashIcon />}
             onClick={() => onDelete(item)}
             aria-label={t.deleteLabel(item.name)}
-            className={`${dangerOutlineButtonClass} ${rowButtonClass}`}
           >
-            <span aria-hidden="true" className="size-4">
-              <TrashIcon />
-            </span>
             {t.delete}
-          </button>
+          </Button>
         </>
       )}
     </span>
@@ -187,14 +170,9 @@ function MemberCountWithCheck({
   return (
     <span className={`inline-flex items-center gap-2 tabular-nums ${className}`}>
       {t.members(item.memberCount)}
-      <button
-        type="button"
-        onClick={() => onCheck(item)}
-        aria-label={t.viewMembersLabel(item.name)}
-        className={`${secondaryButtonClass} ${rowButtonClass}`}
-      >
+      <Button size="sm" onClick={() => onCheck(item)} aria-label={t.viewMembersLabel(item.name)}>
         {t.viewMembers}
-      </button>
+      </Button>
     </span>
   );
 }
@@ -489,16 +467,9 @@ export function DepartmentsView() {
           title={t.title}
           icon={<LayersIcon />}
           action={
-            <button
-              type="button"
-              onClick={() => openForm(null)}
-              className={`${primaryButtonClass} inline-flex h-10 items-center gap-2 px-4 text-sm/5 sm:px-6`}
-            >
-              <span aria-hidden="true" className="size-5">
-                <PlusIcon />
-              </span>
+            <Button variant="primary" size="lg" icon={<PlusIcon />} onClick={() => openForm(null)}>
               {t.create}
-            </button>
+            </Button>
           }
         />
         <p className="text-sm/5 text-general-80">{t.description}</p>
@@ -532,14 +503,9 @@ export function DepartmentsView() {
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              onClick={handleClear}
-              disabled={!hasConditions}
-              className={`${secondaryButtonClass} h-11 px-4 text-sm/5 disabled:cursor-not-allowed disabled:text-general-60 disabled:hover:bg-white`}
-            >
+            <Button variant="secondary" onClick={handleClear} disabled={!hasConditions}>
               {t.clear}
-            </button>
+            </Button>
           </div>
         }
       >

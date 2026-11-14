@@ -96,4 +96,38 @@ test.describe('モーダルのフォーカス・Esc・送信中', () => {
     });
     test.info().annotations.push({ type: 'focus-after-clock-in', description: focusedLabel });
   });
+
+  test('shouldSizeFooterButtons40pxAndCloseIconRadius8px', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    // 未出勤の状態に固定(GET のみ差し替え)。モーダルを開くだけで出勤 API は呼ばない
+    await page.route(TODAY_PATH, (route) =>
+      route.request().method() === 'GET'
+        ? route.fulfill({ status: 200, contentType: 'application/json', body: 'null' })
+        : route.continue(),
+    );
+
+    await page.goto('/login');
+    await login(page);
+    await expect(page.getByRole('heading', { level: 1, name: /、.+さん$/ })).toBeVisible();
+
+    await clockInButton(page).click();
+    const dialog = confirmDialog(page);
+    await expect(dialog).toBeVisible();
+    // フッターのボタンは md 高さ(40px)
+    await expect(dialog.getByRole('button', { name: t.attendance.confirm })).toHaveCSS(
+      'height',
+      '40px',
+    );
+    await expect(dialog.getByRole('button', { name: messages.common.cancel })).toHaveCSS(
+      'height',
+      '40px',
+    );
+    // 閉じる(X)は ghost の角丸(8px)
+    await expect(dialog.getByRole('button', { name: messages.common.close })).toHaveCSS(
+      'border-radius',
+      '8px',
+    );
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+  });
 });

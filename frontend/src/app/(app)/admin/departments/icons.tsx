@@ -93,15 +93,6 @@ export function ListIcon() {
   );
 }
 
-export function PencilIcon() {
-  return (
-    <Icon>
-      <path d="M4 20h4L19 9a2.1 2.1 0 0 0-4-4L4 16v4Z" />
-      <path d="m13.5 6.5 4 4" />
-    </Icon>
-  );
-}
-
 export function TrashIcon() {
   return (
     <Icon>

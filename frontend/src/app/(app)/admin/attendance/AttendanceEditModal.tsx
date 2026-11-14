@@ -2,21 +2,14 @@
 
 import { Fragment, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import {
-  FieldError,
-  FieldHint,
-  confirmMessageClass,
-  inputClass,
-  modalPrimaryButtonClass,
-  modalSecondaryButtonClass,
-} from '@/components/form';
+import { Button } from '@/components/Button';
+import { FieldError, FieldHint, confirmMessageClass, inputClass } from '@/components/form';
 import { DateInput } from '@/components/DateInput';
 import { FormTable, FormTableRow } from '@/components/FormTable';
 import { ClockIcon } from '@/components/layout/navIcons';
 import { Modal } from '@/components/Modal';
 import { Notice } from '@/components/Notice';
 import { ReadOnlySummary, ReadOnlySummaryItem } from '@/components/ReadOnlySummary';
-import { Spinner } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
 import { ApiError, NetworkError, apiFetch } from '@/lib/api/client';
 import type { Attendance } from '@/lib/api/types';
@@ -116,42 +109,34 @@ export function AttendanceEditModal({ attendance, onClose, onSaved }: Attendance
     if (step === 'confirm') {
       return (
         <>
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => setStep('input')}
-            className={modalSecondaryButtonClass}
-          >
+          <Button variant="secondary" disabled={submitting} onClick={() => setStep('input')}>
             {t.back}
-          </button>
-          <button
-            type="button"
-            disabled={submitting}
+          </Button>
+          <Button
+            variant="primary"
+            loading={submitting}
             onClick={() => void submit()}
             autoFocus
             data-autofocus=""
-            className={modalPrimaryButtonClass}
           >
-            {submitting && <Spinner />}
             {t.submit}
-          </button>
+          </Button>
         </>
       );
     }
     return (
       <>
-        <button type="button" onClick={onClose} className={modalSecondaryButtonClass}>
+        <Button variant="secondary" onClick={onClose}>
           {messages.common.cancel}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="primary"
           onClick={() => {
             if (validate()) setStep('confirm');
           }}
-          className={modalPrimaryButtonClass}
         >
           {t.save}
-        </button>
+        </Button>
       </>
     );
   }

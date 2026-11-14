@@ -12,7 +12,7 @@ import {
 } from 'react';
 import { Badge, type BadgeVariant } from '@/components/Badge';
 import { Modal } from '@/components/Modal';
-import { modalSecondaryButtonClass } from '@/components/form';
+import { Button } from '@/components/Button';
 import { Pagination } from '@/components/Pagination';
 import { SearchInput } from '@/components/SearchInput';
 import { SectionError } from '@/components/SectionError';
@@ -331,9 +331,9 @@ export function DepartmentMembersModal({
       size="xl"
       onClose={onClose}
       footer={
-        <button type="button" onClick={onClose} className={modalSecondaryButtonClass}>
+        <Button variant="secondary" onClick={onClose}>
           {t.close}
-        </button>
+        </Button>
       }
     >
       {department && (
@@ -341,9 +341,7 @@ export function DepartmentMembersModal({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm/5 text-general-80">
               {t.target}{' '}
-              <span className="text-h6 font-bold text-general-100 tabular-nums">
-                {totalCount}
-              </span>{' '}
+              <span className="text-h6 font-bold text-general-100 tabular-nums">{totalCount}</span>{' '}
               {t.countUnit}
             </p>
             <div className="w-full sm:w-64">

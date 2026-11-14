@@ -73,6 +73,26 @@ describe('FormModal', () => {
     ).toBeNull();
   });
 
+  it('shouldEnableSubmitAgainWhenSubmittingEndsAfterFailure', () => {
+    const props = {
+      open: true,
+      title: '入力の見出し',
+      description: '入力の説明文',
+      icon: <svg />,
+      submitLabel: '登録する',
+      onSubmit: vi.fn(),
+      onClose: vi.fn(),
+      children: <input aria-label="名前" />,
+    };
+    const { rerender } = render(<FormModal {...props} submitting />);
+    expect(screen.getByRole('button', { name: '登録する' })).toBeDisabled();
+    rerender(<FormModal {...props} submitting={false} />);
+    const submit = screen.getByRole('button', { name: '登録する' });
+    expect(submit).toBeEnabled();
+    expect(submit.querySelector('svg.animate-spin')).toBeNull();
+    expect(screen.getByRole('button', { name: messages.common.cancel })).toBeEnabled();
+  });
+
   it('shouldDisableCloseIconWhenSubmitting', () => {
     renderModal({ submitting: true });
     expect(screen.getByRole('button', { name: messages.common.close })).toBeDisabled();

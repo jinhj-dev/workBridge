@@ -136,6 +136,18 @@ describe('AdminAttendanceView(SCR-008 全体勤怠管理)', () => {
     expect(target).toContain('page=1');
   });
 
+  it('shouldSubmitSearchWhenEnterPressedInNameInput', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mockApi();
+    renderView();
+    await screen.findAllByText('山田太郎');
+
+    await user.type(screen.getByLabelText(t.name), '山田{Enter}');
+
+    expect(router.push).toHaveBeenCalledTimes(1);
+    expect(String(router.push.mock.calls[0][0])).toContain('name=%E5%B1%B1%E7%94%B0');
+  });
+
   it('shouldShowRangeErrorAndNotQueryListWhenStartAfterEnd', async () => {
     mockApi();
     renderView();
@@ -162,6 +174,17 @@ describe('AdminAttendanceView(SCR-008 全体勤怠管理)', () => {
     renderView();
     expect(await screen.findByText('サーバーの期間エラー')).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('shouldRenderDecorativePencilAndSingleLineSmEditButton', async () => {
+    mockApi();
+    renderView();
+
+    const button = (
+      await screen.findAllByRole('button', { name: t.editLabel('山田太郎', '2026/11/08(日)') })
+    )[0];
+    expect(button).toHaveClass('whitespace-nowrap');
+    expect(button.querySelector('svg')?.parentElement).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('shouldOpenEditModalForRowWithEmployeeAndDate', async () => {

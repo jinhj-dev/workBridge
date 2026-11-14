@@ -5,7 +5,7 @@ import { Badge } from '@/components/Badge';
 import type { BadgeVariant } from '@/components/Badge';
 import { Card } from '@/components/Card';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { primaryButtonClass, primaryOutlineButtonClass } from '@/components/form';
+import { Button } from '@/components/Button';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
@@ -98,36 +98,32 @@ export function AttendanceSection({ onClocked }: AttendanceSectionProps) {
   }
 
   function renderButton() {
-    const base =
-      'flex h-11 w-full items-center justify-center gap-2 rounded-lg px-6 text-base/6 font-bold disabled:cursor-not-allowed [&>span]:size-5 [&>span>svg]:size-full';
     if (state === 'notClockedIn') {
       return (
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          size="lg"
+          icon={<EnterIcon />}
           disabled={!loaded}
           onClick={() => setPending('clockIn')}
-          className={`${primaryButtonClass} ${base} disabled:bg-primary-60`}
+          className="w-full"
         >
-          <span aria-hidden="true">
-            <EnterIcon />
-          </span>
           {t.clockInAction}
-        </button>
+        </Button>
       );
     }
     const done = state === 'done';
     return (
-      <button
-        type="button"
+      <Button
+        variant="primaryOutline"
+        size="lg"
+        icon={<ExitIcon />}
         disabled={done}
         onClick={() => setPending('clockOut')}
-        className={`${primaryOutlineButtonClass} ${base}`}
+        className="w-full"
       >
-        <span aria-hidden="true">
-          <ExitIcon />
-        </span>
         {done ? t.doneAction : t.clockOutAction}
-      </button>
+      </Button>
     );
   }
 
