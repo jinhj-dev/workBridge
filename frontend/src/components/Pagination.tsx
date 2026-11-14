@@ -7,6 +7,10 @@ interface PaginationProps {
   onChange: (page: number) => void;
   // 狭い画面向け。現在ページの前後を省き、セルを詰めて 1 行に収める
   compact?: boolean;
+  // 指定すると総件数の文言を「全 N 件中 a – b 件を表示」にする(表示範囲の算出用)
+  pageSize?: number;
+  // boxed: 角丸の正方形ボタン + 現在ページを青塗り + 前後は矢印(社員管理のレファレンス画像)。既定は従来の見た目
+  variant?: 'default' | 'boxed';
 }
 
 type PageItem = number | 'ellipsis-start' | 'ellipsis-end';
@@ -38,6 +42,29 @@ const compactCellClass =
   'flex h-9 min-w-8 items-center justify-center rounded px-1 text-sm/5 tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
 const compactEllipsisClass = 'flex h-9 w-5 items-center justify-center text-sm/5';
 const compactWideCellClass = 'w-auto px-2.5';
+const boxedCellClass =
+  'flex size-9 items-center justify-center rounded-lg text-sm/5 tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
+
+// boxed + compact: 高さ 36 は保ち、幅だけ詰める
+const boxedCompactCellClass =
+  'flex h-9 min-w-8 items-center justify-center rounded-lg px-1 text-sm/5 tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-100';
+
+function StepIcon({ direction }: { direction: 'previous' | 'next' }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-5"
+    >
+      <path d={direction === 'previous' ? 'm15 6-6 6 6 6' : 'm9 6 6 6-6 6'} />
+    </svg>
+  );
+}
 
 // 09 §3 Pagination: 前へ/次へ + 番号 + … + 総件数(セル 36×36, radius 4)
 export function Pagination({
@@ -46,14 +73,36 @@ export function Pagination({
   totalCount,
   onChange,
   compact = false,
+  pageSize,
+  variant = 'default',
 }: PaginationProps) {
   const t = messages.pagination;
-  const total = <p className="text-sm/5 text-general-80 tabular-nums">{t.total(totalCount)}</p>;
+  const totalText =
+    pageSize === undefined || totalCount === 0
+      ? t.total(totalCount)
+      : t.range(totalCount, (page - 1) * pageSize + 1, Math.min(page * pageSize, totalCount));
+  const total = <p className="text-sm/5 text-general-80 tabular-nums">{totalText}</p>;
   if (totalPages <= 1) return <div className="mt-4 flex justify-end">{total}</div>;
 
-  const cell = compact ? compactCellClass : cellClass;
-  const wideCell = compact ? compactWideCellClass : wideCellClass;
+  const boxed = variant === 'boxed';
+  const cell = boxed
+    ? compact
+      ? boxedCompactCellClass
+      : boxedCellClass
+    : compact
+      ? compactCellClass
+      : cellClass;
+  const wideCell = boxed ? '' : compact ? compactWideCellClass : wideCellClass;
   const ellipsisCell = compact ? compactEllipsisClass : cellClass;
+  const idleClass = boxed
+    ? 'border border-general-50 bg-white text-general-100 hover:bg-general-30'
+    : 'text-general-100 hover:bg-general-30';
+  const currentClass = boxed
+    ? 'border border-primary-100 bg-primary-100 font-bold text-white'
+    : 'bg-primary-30 font-bold text-primary-100';
+  const stepClass = boxed
+    ? 'border border-general-50 bg-white text-general-100 hover:bg-general-30 disabled:cursor-not-allowed disabled:text-general-60 disabled:hover:bg-white'
+    : 'text-general-100 hover:bg-general-30 disabled:cursor-not-allowed disabled:text-general-60 disabled:hover:bg-transparent';
 
   return (
     <div className="mt-4 flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-between">
@@ -67,9 +116,16 @@ export function Pagination({
               type="button"
               disabled={page <= 1}
               onClick={() => onChange(page - 1)}
-              className={`${cell} ${wideCell} text-general-100 hover:bg-general-30 disabled:cursor-not-allowed disabled:text-general-60 disabled:hover:bg-transparent`}
+              className={`${cell} ${wideCell} ${stepClass}`}
             >
-              {t.previous}
+              {boxed ? (
+                <>
+                  <StepIcon direction="previous" />
+                  <span className="sr-only">{t.previous}</span>
+                </>
+              ) : (
+                t.previous
+              )}
             </button>
           </li>
           {buildItems(page, totalPages, compact).map((item) =>
@@ -84,11 +140,7 @@ export function Pagination({
                   aria-label={t.page(item)}
                   aria-current={item === page ? 'page' : undefined}
                   onClick={() => onChange(item)}
-                  className={`${cell} ${
-                    item === page
-                      ? 'bg-primary-30 font-bold text-primary-100'
-                      : 'text-general-100 hover:bg-general-30'
-                  }`}
+                  className={`${cell} ${item === page ? currentClass : idleClass}`}
                 >
                   {item}
                 </button>
@@ -100,9 +152,16 @@ export function Pagination({
               type="button"
               disabled={page >= totalPages}
               onClick={() => onChange(page + 1)}
-              className={`${cell} ${wideCell} text-general-100 hover:bg-general-30 disabled:cursor-not-allowed disabled:text-general-60 disabled:hover:bg-transparent`}
+              className={`${cell} ${wideCell} ${stepClass}`}
             >
-              {t.next}
+              {boxed ? (
+                <>
+                  <StepIcon direction="next" />
+                  <span className="sr-only">{t.next}</span>
+                </>
+              ) : (
+                t.next
+              )}
             </button>
           </li>
         </ul>

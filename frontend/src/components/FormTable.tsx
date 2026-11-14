@@ -36,3 +36,28 @@ export function FormTableRow({ label, htmlFor, labelId, required, children }: Fo
     </div>
   );
 }
+
+// 項目名を入力欄の上に置く縦積みの入力欄グループ(社員追加モーダルなど、レファレンス画像の配置)。行は FormStackRow で並べる
+export function FormStack({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={`flex flex-col gap-4 ${className ?? ''}`}>{children}</div>;
+}
+
+export function FormStackRow({ label, htmlFor, labelId, required, children }: FormTableRowProps) {
+  const nameClass = 'mb-1.5 block text-base/6 font-bold text-general-100';
+  return (
+    <div className="min-w-0">
+      {htmlFor ? (
+        <label htmlFor={htmlFor} className={nameClass}>
+          {label}
+          {required && <RequiredMark />}
+        </label>
+      ) : (
+        <span id={labelId} className={nameClass}>
+          {label}
+          {required && <RequiredMark />}
+        </span>
+      )}
+      {children}
+    </div>
+  );
+}

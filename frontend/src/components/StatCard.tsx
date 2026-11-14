@@ -10,6 +10,8 @@ interface StatCardProps {
   unit?: string;
   // 左に置く装飾アイコン(aria-hidden のものを渡す)。指定すると色付きグラデーションの大きな表示になる
   icon?: ReactNode;
+  // アイコンを白い円形の台に載せる(社員管理のレファレンス画像)。既定はアイコンのみ
+  iconCircle?: boolean;
   // アイコン付きカードの背景色(primary: 淡い青 / danger: 淡いピンク)
   tone?: StatCardTone;
   // 指定するとカード全体がリンクになる
@@ -32,6 +34,7 @@ export function StatCard({
   value,
   unit,
   icon,
+  iconCircle = false,
   tone = 'primary',
   href,
   selected = false,
@@ -66,7 +69,7 @@ export function StatCard({
     <>
       <span
         aria-hidden="true"
-        className="size-6 text-primary-100 sm:row-span-2 sm:size-10 [&>svg]:size-full"
+        className={`text-primary-100 sm:row-span-2 ${iconCircle ? 'flex size-8 items-center justify-center rounded-full bg-white/70 p-1.5 sm:size-16 sm:p-4' : 'size-6 sm:size-10'} [&>svg]:size-full`}
       >
         {icon}
       </span>

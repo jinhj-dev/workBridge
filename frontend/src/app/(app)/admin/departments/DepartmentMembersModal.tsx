@@ -10,7 +10,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Badge, type BadgeVariant } from '@/components/Badge';
+import { Badge } from '@/components/Badge';
+import { JobTitleBadge } from '@/components/JobTitleBadge';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { Pagination } from '@/components/Pagination';
@@ -20,7 +21,7 @@ import { SkeletonLines } from '@/components/Skeleton';
 import { tdClass, thClass } from '@/components/table';
 import { useToast } from '@/components/Toast';
 import { ApiError, apiFetch } from '@/lib/api/client';
-import type { DepartmentDetail, DepartmentMember, JobTitleTone, Paginated } from '@/lib/api/types';
+import type { DepartmentDetail, DepartmentMember, Paginated } from '@/lib/api/types';
 import { formatDate } from '@/lib/format';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { messages } from '@/messages/ja';
@@ -35,13 +36,6 @@ const PAGE_SIZE = 5;
 const DESKTOP_QUERY = '(min-width: 64rem)';
 // Tailwind の sm 未満(スマホ幅)
 const NARROW_QUERY = '(max-width: 39.99rem)';
-// 役職の色はサーバーの tone で決まる(役職名から色は決めない)
-const JOB_TITLE_TONE_BADGE: Record<JobTitleTone, BadgeVariant> = {
-  GRAY: 'neutral',
-  BLUE: 'info',
-  VIOLET: 'violet',
-  PINK: 'pink',
-};
 // API-DEPT-008 の limit 上限。全ページを集めて検索対象を部署の全所属社員にする
 const FETCH_LIMIT = 100;
 
@@ -121,11 +115,6 @@ function DepartmentBadge({ name }: { name: string }) {
       </Badge>
     </div>
   );
-}
-
-function JobTitleBadge({ jobTitle }: { jobTitle: DepartmentMember['jobTitle'] }) {
-  if (!jobTitle) return <>{messages.common.noValue}</>;
-  return <Badge variant={JOB_TITLE_TONE_BADGE[jobTitle.tone]}>{jobTitle.name}</Badge>;
 }
 
 // 連絡先は表の列幅に収まらないとき省略し、全文は title で見られるようにする
