@@ -1,8 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/Toast';
 import { ApiError } from '@/lib/api/client';
 import type { UserDetail } from '@/lib/api/types';
+import { messages } from '@/messages/ja';
 import { UserDetailModal } from './UserDetailModal';
 import { UserDeleteDialog } from './UserDeleteDialog';
 
@@ -45,6 +47,35 @@ beforeEach(() => {
 });
 
 describe('UserDetailModal', () => {
+  it('shouldShowTextEditButtonDisabledUntilDetailLoads', async () => {
+    apiFetch.mockReturnValue(new Promise(() => undefined));
+    render(
+      <ToastProvider>
+        <UserDetailModal open userId="u-1" onClose={vi.fn()} onEdit={vi.fn()} />
+      </ToastProvider>,
+    );
+    const dialog = await screen.findByRole('dialog', { name: '社員詳細' });
+    const edit = within(dialog).getByRole('button', { name: messages.common.edit });
+    expect(edit).toBeDisabled();
+    expect(edit).toHaveClass('border-primary-100', 'text-primary-100');
+    expect(edit.querySelectorAll('svg')).toHaveLength(1);
+  });
+
+  it('shouldCallOnEditWithDetailWhenFooterEditClicked', async () => {
+    const user = userEvent.setup();
+    const onEdit = vi.fn();
+    render(
+      <ToastProvider>
+        <UserDetailModal open userId="u-1" onClose={vi.fn()} onEdit={onEdit} />
+      </ToastProvider>,
+    );
+    const dialog = await screen.findByRole('dialog', { name: '社員詳細' });
+    const edit = within(dialog).getByRole('button', { name: messages.common.edit });
+    await waitFor(() => expect(edit).toBeEnabled());
+    await user.click(edit);
+    expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'u-1' }));
+  });
+
   it('shouldShowDetailItemsWithLabelsAndBadges', async () => {
     render(
       <ToastProvider>

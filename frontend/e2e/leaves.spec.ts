@@ -83,7 +83,7 @@ test('shouldApplyLeaveAutoApprovedThenCancelFromDetail', async ({ page }) => {
   const row = page.getByRole('row', { name: new RegExp(ymd.replaceAll('-', '/')) });
   await expect(row).toContainText(messages.leave.statuses.APPROVED);
 
-  await row.getByRole('button', { name: t.history.detail }).click();
+  await row.getByRole('button', { name: messages.common.detail }).click();
   const dialog = page.getByRole('dialog', { name: messages.leave.detail.title });
   await dialog.getByRole('button', { name: messages.leave.detail.cancel }).click();
   await page

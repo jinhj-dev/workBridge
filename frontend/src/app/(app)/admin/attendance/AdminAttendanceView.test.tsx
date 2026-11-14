@@ -183,8 +183,23 @@ describe('AdminAttendanceView(SCR-008 全体勤怠管理)', () => {
     const button = (
       await screen.findAllByRole('button', { name: t.editLabel('山田太郎', '2026/11/08(日)') })
     )[0];
-    expect(button).toHaveClass('whitespace-nowrap');
+    expect(button).toHaveClass('whitespace-nowrap', 'border-primary-100', 'text-primary-100');
+    expect(button).toHaveTextContent(messages.common.edit);
     expect(button.querySelector('svg')?.parentElement).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('shouldUseEditWordAndNoShuuseiTextButtonInRowAndSrOnlyHeader', async () => {
+    mockApi();
+    renderView();
+
+    await screen.findAllByRole('button', { name: t.editLabel('山田太郎', '2026/11/08(日)') });
+    expect(
+      (await screen.findAllByRole('columnheader', { name: messages.common.edit })).length,
+    ).toBeGreaterThan(0);
+    const shuusei = screen
+      .queryAllByRole('button')
+      .filter((button) => button.textContent === '修正');
+    expect(shuusei).toHaveLength(0);
   });
 
   it('shouldOpenEditModalForRowWithEmployeeAndDate', async () => {
