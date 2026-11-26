@@ -1,6 +1,7 @@
 import { Badge } from '@/components/Badge';
 import { DetailTable, DetailTableRow } from '@/components/DetailTable';
 import { Button } from '@/components/Button';
+import { EditButton } from '@/components/ActionButtons';
 import { Modal } from '@/components/Modal';
 import type { DepartmentDetail } from '@/lib/api/types';
 import { formatTokyoDate } from '@/lib/format';
@@ -31,9 +32,7 @@ export function DepartmentDetailModal({ department, onClose, onEdit }: Departmen
             {t.detailModal.close}
           </Button>
           {department && !department.isSystem && (
-            <Button variant="primary" onClick={() => onEdit(department)}>
-              {t.editSelected}
-            </Button>
+            <EditButton size="md" onClick={() => onEdit(department)} />
           )}
         </>
       }

@@ -340,7 +340,7 @@ describe('DepartmentsView(SCR-010 部署管理)', () => {
     const [detailButton] = await screen.findAllByRole('button', { name: t.detailLabel('開発部') });
     await user.click(detailButton);
     const modal = await screen.findByRole('dialog', { name: t.detailModal.title });
-    await user.click(within(modal).getByRole('button', { name: t.editSelected }));
+    await user.click(within(modal).getByRole('button', { name: messages.common.edit }));
     expect(await screen.findByText(t.form.editTitle)).toBeInTheDocument();
     // 詳細モーダルは閉じて編集モーダルに切り替わる
     expect(screen.queryByRole('dialog', { name: t.detailModal.title })).toBeNull();
@@ -358,7 +358,7 @@ describe('DepartmentsView(SCR-010 部署管理)', () => {
     const modal = await screen.findByRole('dialog', { name: t.detailModal.title });
     expect(within(modal).getByText(t.system)).toBeInTheDocument();
     expect(within(modal).getAllByRole('button', { name: t.detailModal.close }).length).toBe(2);
-    expect(within(modal).queryByRole('button', { name: t.editSelected })).toBeNull();
+    expect(within(modal).queryByRole('button', { name: messages.common.edit })).toBeNull();
   });
 
   it('shouldShowUnsetManagerAndNoValueDescriptionWhenBothAreEmpty', async () => {
@@ -372,6 +372,30 @@ describe('DepartmentsView(SCR-010 部署管理)', () => {
     const modal = await screen.findByRole('dialog', { name: t.detailModal.title });
     expect(within(modal).getByText(t.managerUnset)).toBeInTheDocument();
     expect(within(modal).getByText(messages.common.noValue)).toBeInTheDocument();
+  });
+
+  it('shouldRenderEyeIconInDetailButtonInRow', async () => {
+    mockList([EMPTY_DEPT]);
+    renderView();
+    const row = await waitFor(() => tableRow('開発部'));
+    const detail = within(row).getByRole('button', { name: t.detailLabel('開発部') });
+    expect(detail).toHaveTextContent(messages.common.detail);
+    expect(detail.querySelectorAll('svg')).toHaveLength(1);
+    expect(detail.querySelector('svg')?.parentElement).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('shouldRenderPencilPrimaryOutlineEditButtonInDetailFooter', async () => {
+    mockList([dept({ id: 'd-1', name: '開発部' })]);
+    renderView();
+    const user = userEvent.setup();
+    const [detailButton] = await screen.findAllByRole('button', { name: t.detailLabel('開発部') });
+    await user.click(detailButton);
+    const modal = await screen.findByRole('dialog', { name: t.detailModal.title });
+    const edit = within(modal).getByRole('button', { name: messages.common.edit });
+    expect(edit).toHaveClass('border-primary-100', 'text-primary-100');
+    expect(edit.querySelectorAll('svg')).toHaveLength(1);
+    await user.click(edit);
+    expect(await screen.findByText(t.form.editTitle)).toBeInTheDocument();
   });
 
   it('shouldApplyDangerStyleToDeleteButtonOnly', async () => {

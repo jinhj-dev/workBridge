@@ -3,9 +3,10 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/Button';
+import { DetailButton, EditButton } from '@/components/ActionButtons';
 import { Card } from '@/components/Card';
 import { JobTitleBadge } from '@/components/JobTitleBadge';
-import { PencilIcon, PlusIcon } from '@/components/leave/leaveIcons';
+import { PlusIcon } from '@/components/leave/leaveIcons';
 import { PageHeader } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
 import { SearchInput } from '@/components/SearchInput';
@@ -32,7 +33,7 @@ import { useSyncedState } from '@/lib/useSyncedState';
 import { messages } from '@/messages/ja';
 import { TrashIcon } from '../departments/icons';
 import { EmploymentStatusBadge } from './EmploymentStatusBadge';
-import { EyeIcon, OrgChartIcon, PeopleIcon, ShieldIcon, UserIcon, UserPlusIcon } from './icons';
+import { OrgChartIcon, PeopleIcon, ShieldIcon, UserIcon, UserPlusIcon } from './icons';
 import { JobTitlesModal } from './JobTitlesModal';
 import { UserCreateModal } from './UserCreateModal';
 import { UserDeleteDialog } from './UserDeleteDialog';
@@ -133,24 +134,12 @@ interface RowActionsProps {
 function RowActions({ item, busy, onDetail, onEdit, onDelete }: RowActionsProps) {
   return (
     <span className="flex flex-wrap items-center gap-2">
-      <Button
-        size="sm"
-        icon={<EyeIcon />}
-        onClick={() => onDetail(item)}
-        aria-label={t.detailLabel(item.name)}
-      >
-        {t.detail}
-      </Button>
-      <Button
-        size="sm"
-        variant="secondary"
-        icon={<PencilIcon />}
+      <DetailButton onClick={() => onDetail(item)} aria-label={t.detailLabel(item.name)} />
+      <EditButton
         disabled={busy}
         onClick={() => onEdit(item)}
         aria-label={t.editLabel(item.name)}
-      >
-        {t.edit}
-      </Button>
+      />
       {item.isActive && (
         <Button
           size="sm"

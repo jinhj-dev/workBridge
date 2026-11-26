@@ -59,7 +59,7 @@ async function gotoTodayAdminList(page: Page, today: string): Promise<void> {
 
 // 今日の記録の修正モーダルで退勤時刻を設定し、確認を経て保存する
 async function saveClockOut(page: Page, clockOut: string): Promise<void> {
-  await page.getByRole('button', { name: /の勤怠を修正$/ }).click();
+  await page.getByRole('button', { name: /の勤怠を編集$/ }).click();
   const modal = page.getByRole('dialog', { name: adminAttendance.modal.title });
   await modal.locator('#attendance-edit-clock-out').fill(clockOut);
   await modal.getByRole('button', { name: adminAttendance.modal.save, exact: true }).click();
@@ -128,7 +128,7 @@ test('shouldEditTodayClockOutFromAdminAttendanceAndRestoreIt', async ({ page }) 
 
   try {
     await gotoTodayAdminList(page, today);
-    await expect(page.getByRole('button', { name: /の勤怠を修正$/ })).toHaveCount(1);
+    await expect(page.getByRole('button', { name: /の勤怠を編集$/ })).toHaveCount(1);
     clockOutSaveAttempted = true;
     await saveClockOut(page, `${today}T23:59`);
     await expect(page.getByRole('row').filter({ hasText: t.statuses.DONE })).toHaveCount(1);

@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { ClipboardCheckIcon, ClockIcon } from '@/components/layout/navIcons';
+import { DetailButton } from '@/components/ActionButtons';
 import { Button } from '@/components/Button';
 import { usePendingApprovalCount } from '@/components/layout/PendingApprovalCount';
 import { LeaveDetailModal } from '@/components/leave/LeaveDetailModal';
@@ -108,13 +109,10 @@ export function ApprovalsView() {
     const own = leave.user.id === me?.id;
     return (
       <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          size="sm"
+        <DetailButton
           onClick={() => setSelected({ id: leave.id, step: 'detail' })}
           aria-label={t.detailLabel(name)}
-        >
-          {t.detail}
-        </Button>
+        />
         {leave.status === 'PENDING' && (
           <>
             <Button
@@ -172,8 +170,8 @@ export function ApprovalsView() {
 
     return (
       <>
-        {/* md 以上: 表 */}
-        <table className="hidden w-full border-collapse md:table">
+        {/* xl 以上: 表 */}
+        <table className="hidden w-full border-collapse xl:table">
           <thead>
             <tr>
               <th scope="col" className={bandThClass}>
@@ -240,8 +238,8 @@ export function ApprovalsView() {
           </tbody>
         </table>
 
-        {/* md 未満: 申請者ごとのカード(承認・却下は詳細モーダルの中で行う) */}
-        <ul className="flex flex-col gap-3 md:hidden">
+        {/* xl 未満: 申請者ごとのカード(承認・却下は詳細モーダルの中で行う) */}
+        <ul className="flex flex-col gap-3 xl:hidden">
           {items.map((leave) => (
             <li
               key={leave.id}
@@ -273,13 +271,10 @@ export function ApprovalsView() {
                 </span>
               )}
               <div className="pt-1">
-                <Button
-                  size="sm"
+                <DetailButton
                   onClick={() => setSelected({ id: leave.id, step: 'detail' })}
                   aria-label={t.detailLabel(leave.user.name)}
-                >
-                  {t.detail}
-                </Button>
+                />
               </div>
             </li>
           ))}

@@ -1,9 +1,9 @@
 'use client';
 
 import { Button } from '@/components/Button';
+import { EditButton } from '@/components/ActionButtons';
 import { DetailTable, DetailTableRow } from '@/components/DetailTable';
 import { JobTitleBadge } from '@/components/JobTitleBadge';
-import { PencilIcon } from '@/components/leave/leaveIcons';
 import { Modal } from '@/components/Modal';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
@@ -104,14 +104,7 @@ export function UserDetailModal({
           <Button variant="secondary" onClick={onClose}>
             {t.close}
           </Button>
-          <Button
-            variant="primaryOutline"
-            icon={<PencilIcon />}
-            disabled={!user}
-            onClick={() => user && onEdit(user)}
-          >
-            {t.edit}
-          </Button>
+          <EditButton size="md" disabled={!user} onClick={() => user && onEdit(user)} />
         </>
       }
     >

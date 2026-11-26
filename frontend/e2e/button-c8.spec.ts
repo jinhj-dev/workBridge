@@ -8,6 +8,7 @@ import {
   appendMeasurement,
   blockWrites,
   captureScreenshot,
+  focusRingClipping,
   login,
   measureBox,
   navigateInApp,
@@ -112,32 +113,6 @@ function meetsTargetSizeRule(metrics: { height: number; clearanceFromCenter: num
 }
 
 // フォーカス時のリングが、スクロール・オーバーフロー枠(hidden/clip/auto/scroll)で切れていないか(リングは 2px+offset 2px = 4px)
-async function focusRingClipping(locator: Locator) {
-  await locator.focus();
-  return locator.evaluate((el) => {
-    const r = el.getBoundingClientRect();
-    const ring = 4;
-    let clipped = false;
-    let containerFound = false;
-    let node = el.parentElement;
-    const clipping = ['hidden', 'clip', 'auto', 'scroll'];
-    while (node && node !== document.body) {
-      const cs = getComputedStyle(node);
-      if (clipping.includes(cs.overflowX) || clipping.includes(cs.overflowY)) {
-        containerFound = true;
-        const a = node.getBoundingClientRect();
-        clipped =
-          r.top - ring < a.top ||
-          r.bottom + ring > a.bottom ||
-          r.left - ring < a.left ||
-          r.right + ring > a.right;
-        break;
-      }
-      node = node.parentElement;
-    }
-    return { containerFound, clipped, outlineStyle: getComputedStyle(el).outlineStyle };
-  });
-}
 
 // モーダルのフッター: 2 列(同じ top)か、ボタン幅、はみ出し
 async function footerMetrics(dialog: Locator) {
@@ -300,7 +275,7 @@ for (const width of WIDTHS) {
       }
 
       // 修正ボタンのフォーカスリング切れ(表・カードの枠の中か)
-      const editButton = page.getByRole('button', { name: messages.adminAttendance.edit }).first();
+      const editButton = page.getByRole('button', { name: messages.common.edit }).first();
       const ring = await focusRingClipping(editButton);
       record(width, 'C8-focus-ring-edit', ring);
       expect.soft(ring.clipped, '修正ボタンのフォーカスリングが枠で切れている').toBe(false);

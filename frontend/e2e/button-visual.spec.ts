@@ -192,7 +192,7 @@ for (const width of [360, 1024] as const) {
       await navigateInApp(page, '/admin/attendance');
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
-      const editButton = page.getByRole('button', { name: messages.adminAttendance.edit }).first();
+      const editButton = page.getByRole('button', { name: messages.common.edit }).first();
       await expect(editButton).toBeVisible();
       const editBox = await measureBox(editButton);
       const measured = await editButton.evaluate((el) => {

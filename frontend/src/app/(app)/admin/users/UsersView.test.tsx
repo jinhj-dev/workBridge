@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/Toast';
+import { messages } from '@/messages/ja';
 import { UsersView } from './UsersView';
 
 // 社員管理一覧(design-frontend §1)。URL Query・デバウンス・ページ 1 リセット・Empty/Error を確認
@@ -99,6 +100,20 @@ describe('UsersView(社員管理)', () => {
     expect(await screen.findByRole('button', { name: '山田 太郎の詳細' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '山田 太郎を編集' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '山田 太郎を削除' })).toBeInTheDocument();
+  });
+
+  it('shouldRenderDetailWithEyeIconSecondaryAndEditWithPencilPrimaryOutline', async () => {
+    renderView();
+    const detail = await screen.findByRole('button', { name: '山田 太郎の詳細' });
+    expect(detail).toHaveTextContent(messages.common.detail);
+    expect(detail.querySelectorAll('svg')).toHaveLength(1);
+    expect(detail).toHaveClass('border-general-50', 'text-general-100');
+
+    const edit = screen.getByRole('button', { name: '山田 太郎を編集' });
+    expect(edit).toHaveTextContent(messages.common.edit);
+    expect(edit.querySelectorAll('svg')).toHaveLength(1);
+    expect(edit).toHaveClass('border-primary-100', 'text-primary-100');
+    expect(edit).not.toHaveClass('border-general-50');
   });
 
   it('shouldHideDeleteButtonForInactiveRow', async () => {

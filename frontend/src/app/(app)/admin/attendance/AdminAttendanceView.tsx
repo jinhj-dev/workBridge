@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { EditButton } from '@/components/ActionButtons';
 import { DateRangeFields } from '@/components/attendance/DateRangeFields';
 import {
   ATTENDANCE_STATUS_BADGE,
@@ -13,7 +14,6 @@ import { Badge } from '@/components/Badge';
 import { Button, buttonClass } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { inputClass, labelClass, selectClass } from '@/components/form';
-import { PencilIcon } from '@/components/leave/leaveIcons';
 import { Pagination } from '@/components/Pagination';
 import { SectionError } from '@/components/SectionError';
 import { SkeletonLines } from '@/components/Skeleton';
@@ -146,7 +146,7 @@ export function AdminAttendanceView() {
                 {common.status}
               </th>
               <th scope="col" className={thClass}>
-                <span className="sr-only">{t.edit}</span>
+                <span className="sr-only">{messages.common.edit}</span>
               </th>
             </tr>
           </thead>
@@ -179,7 +179,10 @@ export function AdminAttendanceView() {
                   </Badge>
                 </td>
                 <td className={`${tdClass} text-right`}>
-                  <EditButton item={item} onEdit={setEditing} />
+                  <EditButton
+                    onClick={() => setEditing(item)}
+                    aria-label={t.editLabel(item.user.name, formatWorkDate(item.workDate))}
+                  />
                 </td>
               </tr>
             ))}
@@ -218,7 +221,10 @@ export function AdminAttendanceView() {
                 {formatWorkMinutes(item.workMinutes)}
               </span>
               <span>
-                <EditButton item={item} onEdit={setEditing} />
+                <EditButton
+                  onClick={() => setEditing(item)}
+                  aria-label={t.editLabel(item.user.name, formatWorkDate(item.workDate))}
+                />
               </span>
             </li>
           ))}
@@ -317,19 +323,5 @@ export function AdminAttendanceView() {
         onSaved={query.reload}
       />
     </div>
-  );
-}
-
-function EditButton({ item, onEdit }: { item: Attendance; onEdit: (item: Attendance) => void }) {
-  return (
-    <Button
-      variant="primaryOutline"
-      size="sm"
-      icon={<PencilIcon />}
-      onClick={() => onEdit(item)}
-      aria-label={t.editLabel(item.user.name, formatWorkDate(item.workDate))}
-    >
-      {t.edit}
-    </Button>
   );
 }

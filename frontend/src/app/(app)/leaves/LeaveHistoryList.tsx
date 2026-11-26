@@ -4,6 +4,7 @@ import { cardFrameClass } from '@/components/Card';
 
 import { useId } from 'react';
 import { DateInput } from '@/components/DateInput';
+import { DetailButton } from '@/components/ActionButtons';
 import { Button } from '@/components/Button';
 import { FieldError, inputClass, labelClass } from '@/components/form';
 import { LeaveStatusBadge } from '@/components/leave/LeaveStatusBadge';
@@ -77,16 +78,13 @@ export function LeaveHistoryList({
 
   function renderDetailButton(leave: Leave) {
     return (
-      <Button
-        size="sm"
+      <DetailButton
         onClick={() => onOpenDetail(leave.id)}
         aria-label={t.detailLabel(
           leaveTypes[leave.leaveType],
           formatPeriod(leave.startDate, leave.endDate),
         )}
-      >
-        {t.detail}
-      </Button>
+      />
     );
   }
 

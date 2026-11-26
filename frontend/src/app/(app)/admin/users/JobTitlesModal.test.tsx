@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/Toast';
 import { ApiError } from '@/lib/api/client';
+import { messages } from '@/messages/ja';
 import { JobTitlesModal } from './JobTitlesModal';
 
 // 役職確認モーダル(design-frontend §3)。文言は設計書の「테스트 근거 문구」そのまま
@@ -118,6 +119,19 @@ describe('JobTitlesModal', () => {
     await user.click(screen.getByRole('radio', { name: '紫' }));
     await user.click(screen.getByRole('button', { name: '保存' }));
     expect(await screen.findByText('この役職名は既に登録されています。')).toBeInTheDocument();
+  });
+
+  it('shouldShowIconOnlyPrimaryOutlineEditButtonAndDisableItWhileEditing', async () => {
+    const user = userEvent.setup();
+    renderModal();
+    const edit = await screen.findByRole('button', { name: 'マネージャーを編集' });
+    expect(edit).toHaveClass('border-primary-100', 'text-primary-100');
+    expect(edit).not.toHaveTextContent(messages.common.edit);
+    expect(edit.querySelectorAll('svg')).toHaveLength(1);
+    expect(edit).toBeEnabled();
+
+    await user.click(edit);
+    expect(screen.getByRole('button', { name: 'マネージャーを編集' })).toBeDisabled();
   });
 
   it('shouldPrefillFormWhenEditing', async () => {

@@ -4,9 +4,10 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
+import { DetailButton, EditButton } from '@/components/ActionButtons';
 import { Card } from '@/components/Card';
 import { selectClass } from '@/components/form';
-import { PencilIcon, PlusIcon } from '@/components/leave/leaveIcons';
+import { PlusIcon } from '@/components/leave/leaveIcons';
 import { Notice } from '@/components/Notice';
 import { PageHeader } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
@@ -106,21 +107,11 @@ interface RowActionsProps {
 // 編集・削除は未所属(システム部署)には出さない
 function RowActions({ item, onDetail, onEdit, onDelete }: RowActionsProps) {
   return (
-    <span className="flex flex-wrap items-center gap-2 md:justify-end">
-      <Button size="sm" onClick={() => onDetail(item)} aria-label={t.detailLabel(item.name)}>
-        {t.detail}
-      </Button>
+    <span className="flex flex-wrap items-center gap-2 xl:justify-end">
+      <DetailButton onClick={() => onDetail(item)} aria-label={t.detailLabel(item.name)} />
       {!item.isSystem && (
         <>
-          <Button
-            variant="primaryOutline"
-            size="sm"
-            icon={<PencilIcon />}
-            onClick={() => onEdit(item)}
-            aria-label={t.editLabel(item.name)}
-          >
-            {t.edit}
-          </Button>
+          <EditButton onClick={() => onEdit(item)} aria-label={t.editLabel(item.name)} />
           <Button
             variant="dangerOutline"
             size="sm"
@@ -342,9 +333,9 @@ export function DepartmentsView() {
 
     return (
       <>
-        {/* md 以上: 表。見出し 44 + 行 52 x 5 を上限にデータ部だけ縦スクロール(見出しは固定)。
+        {/* xl 以上: 表。見出し 44 + 行 52 x 5 を上限にデータ部だけ縦スクロール(見出しは固定)。
             幅が足りないときは表の中だけ横スクロール */}
-        <div className="hidden max-h-76 overflow-auto md:block">
+        <div className="hidden max-h-76 overflow-auto xl:block">
           <table className="w-full border-separate border-spacing-0">
             <thead className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-white">
               <tr>
@@ -410,8 +401,8 @@ export function DepartmentsView() {
           </table>
         </div>
 
-        {/* md 未満: 同じ情報のカード一覧 */}
-        <ul className="flex flex-col gap-3 md:hidden">
+        {/* xl 未満: 同じ情報のカード一覧 */}
+        <ul className="flex flex-col gap-3 xl:hidden">
           {items.map((item) => {
             return (
               <li
@@ -495,7 +486,7 @@ export function DepartmentsView() {
               aria-label={t.sort.label}
               value={`${applied.sort}:${applied.order}`}
               onChange={(e) => handleSortSelect(e.target.value)}
-              className={`${selectClass} h-11 w-full text-sm/5 sm:w-auto md:hidden`}
+              className={`${selectClass} h-11 w-full text-sm/5 sm:w-auto xl:hidden`}
             >
               {SORT_SELECT_VALUES.map((value) => (
                 <option key={value} value={value}>

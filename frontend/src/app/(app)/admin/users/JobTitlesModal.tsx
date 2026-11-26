@@ -3,9 +3,10 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Button } from '@/components/Button';
+import { EditButton } from '@/components/ActionButtons';
 import { CharCount, FieldError, RequiredMark, inputClass } from '@/components/form';
 import { JobTitleBadge } from '@/components/JobTitleBadge';
-import { PencilIcon, PlusIcon } from '@/components/leave/leaveIcons';
+import { PlusIcon } from '@/components/leave/leaveIcons';
 import { Modal } from '@/components/Modal';
 import { Notice } from '@/components/Notice';
 import { SectionError } from '@/components/SectionError';
@@ -154,8 +155,7 @@ export function JobTitlesModal({ open, onClose, onChanged }: JobTitlesModalProps
         if (error.code === 'JOB_TITLE_IN_USE') {
           setDeleteError(t.inUse);
           setDeleteBlocked(true);
-        }
-        else if (error.statusCode === 404) handleNotFound();
+        } else if (error.statusCode === 404) handleNotFound();
         else setDeleteError(error.message);
       } else if (error instanceof NetworkError) {
         setDeleteError(error.message);
@@ -200,10 +200,8 @@ export function JobTitlesModal({ open, onClose, onChanged }: JobTitlesModalProps
                     </td>
                     <td className={bandTdClass}>
                       <span className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
+                        <EditButton
                           iconOnly
-                          icon={<PencilIcon />}
                           aria-label={t.editLabel(jobTitle.name)}
                           disabled={editing}
                           onClick={() => openForm(jobTitle)}

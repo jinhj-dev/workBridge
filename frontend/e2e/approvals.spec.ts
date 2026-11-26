@@ -94,9 +94,9 @@ test('shouldShowListOrEmptyWithoutHorizontalScrollOnNarrowViewport', async ({ pa
   await loginAsAdmin(page);
   await page.goto('/leaves/approvals');
 
-  // 表は md 未満で非表示、カード一覧か Empty のどちらかが見える
+  // 表は xl 未満で非表示、カード一覧か Empty のどちらかが見える
   await expect(page.getByRole('table')).toBeHidden();
-  const cards = page.locator('ul.md\\:hidden > li');
+  const cards = page.locator('ul.xl\\:hidden > li');
   const emptyMessages = page.getByText(new RegExp(`${t.emptyMine}|${t.emptyAll}`));
   await expect(cards.first().or(emptyMessages)).toBeVisible();
 

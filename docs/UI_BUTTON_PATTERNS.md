@@ -1,6 +1,6 @@
 # UI 버튼 공통 패턴 설계 (UI_BUTTON_PATTERNS)
 
-> 상태: **v3 — 사용자 결정 B1~B17 반영(2026-11-13), 확정**. 결정 원문: `.claude/work/button-audit/decisions.md`. 결정 목록과 조건은 §11. 변경 내역은 §12.
+> 상태: **v4 — 사용자 결정 B1~B17(2026-11-13) + B18·B19(詳細·編集 버튼 통일, 2026-11-14) 반영, 확정**. 결정 원문: `.claude/work/button-audit/decisions.md`, `.claude/work/button-unify/decisions.md`. 결정 목록과 조건은 §11. 변경 내역은 §12.
 > 근거 조사: `docs/UI_BUTTON_AUDIT.md`(이하 AUDIT, 버튼 ID BT01~BT80). 단계 계획: `docs/UI_BUTTON_REFACTOR_PLAN.md`. frontend 검토: `.claude/work/button-audit/frontend-review.md`(이하 REVIEW).
 > 모달 표준(`docs/UI_MODAL_PATTERNS.md` v3, D1~D15)과 충돌하지 않는다. 특히 **D3' footer 버튼 높이 40, D4 개수별 배치, D5 위험 확정 = 빨간 채움, D8 취소 = 아웃라인**은 그대로 이 문서의 `md` 크기·`danger`·`secondary` 규칙이 된다.
 > 원칙: 기존 `components/form.tsx` 버튼 클래스의 **색(variant) 값을 그대로 재사용**한다. 새 variant 색은 만들지 않는다. 크기만 공통화한다(CLAUDE.md §2·§3).
@@ -55,9 +55,10 @@ AUDIT §2의 V1~V7(57건)에서 V6의 BT16·BT34·BT40을 뺀 **54건**. 이 중
 |---|---|
 | 한 영역(카드·모달·폼·페이지 헤더)의 주 동작 | `primary` — **영역당 최대 1개**. 예외: 표 행 반복(행마다 [承認]) |
 | 주 동작 옆의 취소·닫기·이전 단계 | `secondary`(D8) |
-| 조회·확인·상세 열기 | `secondary` |
+| 조회·확인 | `secondary` |
+| 상세 열기(「詳細」) | `secondary` + Eye 아이콘 — 공통 `DetailButton`(§4.7, B18) |
 | 주 동작과 쌍을 이루는 다음 단계(출근 후 퇴근) | `primaryOutline` |
-| 수정 입구(표 행·상세) | `primaryOutline` + Pencil 아이콘(B10) |
+| 수정 입구(표 행·상세, 「編集」) | `primaryOutline` + Pencil 아이콘(B10) — 공통 `EditButton`(§4.7, B18). 문구는 「編集」(「修正」 쓰지 않음, B19) |
 | 삭제·비활성화 등 되돌릴 수 없는 동작의 입구 | `dangerOutline` |
 | 위 동작의 모달 확정 버튼 | `danger`(D5). 모달 밖에서 쓰지 않는다 |
 | 승인·반려 확정(却下する) | `primary`(반려는 정상 업무 처리, B11) |
@@ -211,6 +212,22 @@ Tailwind는 **CSS 출력 순서**로 우선순위를 정한다(문자열 안 순
 
 채택하지 않은 대안: `tailwind-merge`(의존성 추가 + 커스텀 토큰 `h-btn-md`·`text-page-title`·`rounded-btn` 등을 `extendTailwindMerge`로 등록해야 판정이 맞아 유지 비용이 큼), 기반을 `@layer components` CSS로 이동(클래스 이름 기반 테스트 `toHaveClass('bg-danger-100')`가 깨지고 09의 "Tailwind 클래스 + 토큰" 방식과 달라짐).
 
+ESLint 대상 요소는 `Button`·`DetailButton`·`EditButton`이다(selector `JSXOpeningElement[name.name=/^(Button|DetailButton|EditButton)$/]`, 2026-11-14 B18).
+
+### 4.7 역할 프리셋 `DetailButton`·`EditButton` (B18, 2026-11-14)
+
+`components/ActionButtons.tsx`. 기존 `Button`을 감싸 **variant·아이콘·기본 문구만 고정**한 프리셋이다. 새 외형·클래스·토큰은 없다(§4.5 `IconButton` 불채택과 충돌하지 않음 — 새 외형이 아니라 역할 고정).
+
+| 컴포넌트 | 고정값 | 받는 props |
+|---|---|---|
+| `DetailButton` | `secondary` + `EyeIcon`, 기본 문구 `messages.common.detail`(「詳細」) | `size?`(`'sm'`(기본)·`'md'`), `children?`, `className?`(배치 전용), 그 밖 `<button>` 속성(`onClick`·`disabled`·`aria-label`·`autoFocus`·`data-autofocus`·`ref`) |
+| `EditButton` | `primaryOutline` + `PencilIcon`, 기본 문구 `messages.common.edit`(「編集」) | 위와 같음 + `iconOnly`(리터럴 판별자. `true`면 `aria-label` 필수·`children` 금지) |
+
+- `type`은 항상 `button`(Button 기본), `variant`·`icon`·`loading`은 받지 않는다. `<button>` 1개만 렌더한다(§4.4).
+- size는 §3 위치 규칙대로: 표·카드 행 sm(36), 모달 footer md(40).
+- **`children`에 의한 문구 대체는 예외적으로만 쓴다.** 기본 문구 「詳細」「編集」을 우선한다(2026-11-14 현재 사용처 0. 部署詳細 footer도 기본 문구 「編集」, Q5).
+- 「詳細」「編集」 역할의 버튼을 새로 만들 때는 `Button`에 variant·아이콘을 직접 지정하지 말고 이 프리셋을 쓴다.
+
 ---
 
 ## 5. 상태별 디자인
@@ -290,6 +307,7 @@ Tailwind는 **CSS 출력 순서**로 우선순위를 정한다(문자열 안 순
 - 반복되는 표 행 버튼은 `aria-label`에 대상 이름을 넣는다(현행 `detailLabel(name)` 등 유지). 테스트가 이 이름으로 버튼을 찾으므로 이행 시 바꾸지 않는다.
 - 아이콘 전용은 `aria-label` 필수, 아이콘은 `aria-hidden`.
 - 장식 기호(✓, ›)는 `aria-hidden`.
+- 보이는 문구는 접근 이름에 포함되어야 한다(WCAG 2.5.3). 버튼 문구를 바꾸면 그 버튼의 `aria-label`도 같이 바꾼다(예: B19 「修正」→「編集」에 따라 SCR-008 `adminAttendance.editLabel` 「…の勤怠を編集」). 모달 footer의 `EditButton`처럼 `aria-label`이 없으면 보이는 문구가 이름이다.
 
 ### 6.3 상태 속성
 
@@ -351,8 +369,12 @@ Tailwind는 **CSS 출력 순서**로 우선순위를 정한다(문자열 안 순
 ```tsx
 // 페이지 헤더 주 동작
 <Button variant="primary" size="lg" icon={<PlusIcon />} onClick={openApply}>{messages.leaves.applyButton}</Button>
-// 표 행 동작
-<Button size="sm" aria-label={t.detailLabel(item.name)} onClick={() => onDetail(item)}>{t.detail}</Button>
+// 표 행 동작(詳細·編集은 프리셋, §4.7)
+<DetailButton aria-label={t.detailLabel(item.name)} onClick={() => onDetail(item)} />
+<EditButton aria-label={t.editLabel(item.name)} onClick={() => onEdit(item)} />
+<EditButton iconOnly aria-label={t.editLabel(item.name)} onClick={() => onEdit(item)} />
+// 모달 footer의 수정 입구
+<EditButton size="md" onClick={onEdit} />
 <Button variant="dangerOutline" size="sm" icon={<TrashIcon />} aria-label={t.deleteLabel(item.name)} onClick={() => onDelete(item)}>{t.delete}</Button>
 // 모달 footer
 <Button type="submit" form={formId} variant="primary" loading={submitting}>{submitLabel}</Button>
@@ -379,7 +401,7 @@ Tailwind는 **CSS 출력 순서**로 우선순위를 정한다(문자열 안 순
 ### 9.3 신규 버튼 구현 기준 (체크리스트)
 
 1. 동작이 화면 이동인가? → `<Link>` + `buttonClass()`. 아니면 `Button`.
-2. variant는 §2.1 표로 고른다. 영역의 `primary`는 1개인가.
+2. variant는 §2.1 표로 고른다. 영역의 `primary`는 1개인가. 「詳細」·「編集」(수정 입구)이면 `DetailButton`·`EditButton`(§4.7)을 쓰고, 수정 입구 문구는 「編集」(B19).
 3. size는 위치로 고른다: 표·목록 행 = sm / 모달·일반 = md / 페이지 주 동작·인증 폼·검색 = lg.
 4. 서버 요청이면 `loading`, 조건부 비활성이면 `disabled`(조건은 로직). 제출 버튼은 `type="submit"`.
 5. 아이콘은 기존 자산(`leaveIcons`·`departments/icons`·`dashboard/icons`·`navIcons`)을 재사용, 아이콘 전용이면 `aria-label`(링크도).
@@ -432,6 +454,9 @@ Tailwind는 **CSS 출력 순서**로 우선순위를 정한다(문자열 안 순
 | B15 | 단계 1 진행 방식 | `form.tsx` 무변경 가산. 기존 상수는 단계 8에서 사용처 0 확인 후 삭제 | 이행 기간 중 `form.tsx` 버튼 상수 신규 사용 금지 |
 | B16 | `className` 오용 방지 | ESLint `no-restricted-syntax` + 리뷰 체크리스트 | 허용·금지 목록은 §4.6 |
 | B17 | `fullWidth` prop | 두지 않음. 전폭은 `className="w-full"`(반응형 `w-full sm:w-auto`) | |
+| B18 | 詳細·編集 버튼 통일(2026-11-14) | 詳細 = `secondary` + Eye, 編集 = `primaryOutline` + Pencil. 공통 프리셋 `DetailButton`·`EditButton`(§4.7). 행 sm·모달 footer md | 적용: SCR-004 신청 이력·SCR-005 표/카드·SCR-006 행·SCR-010 행의 [詳細], SCR-006 행·社員詳細 footer·役職確認, SCR-008 행, SCR-010 행·部署詳細 footer의 [編集]. SCR-006 [編集] secondary → primaryOutline, SCR-010 部署詳細 footer primary → primaryOutline. `EyeIcon`은 `components/leave/leaveIcons.tsx`로 이동. 화면별 `detail`/`edit` 문구 키는 `messages.common.detail/edit`로 통합 |
+| B19 | 「修正」→「編集」 버튼 명칭 통일(2026-11-14) | 수정 입구 버튼 문구는 「編集」. 바꾸는 범위는 **버튼 문구와 그 `aria-label`·sr-only 열 제목만**(SCR-008 행 버튼·`adminAttendance.editLabel`·조작 열 제목) | 대상 외: 확인 단계 확정 버튼 [修正する](확인문 「勤怠を修正しますか？」와 짝), 모달 제목·설명·확인문·토스트, 상태 표시 「管理者修正」, 툴팁 |
+| Q1~Q7 | B18·B19 적용 시 개별 결정(`.claude/work/button-unify/decisions.md`) | Q1 SCR-008 확인 단계 [修正する] 유지 / Q2 役職確認 아이콘 전용 편집 = `EditButton iconOnly`(primaryOutline) / Q3 SCR-008 sr-only 열 제목 「修正」→「編集」 / Q4 部署詳細 footer primary → primaryOutline + Pencil / Q5 部署詳細 footer 문구 「この部署を編集」→「編集」(360px 2줄 줄바꿈 해소) / Q6 SCR-010 목록 표/카드 전환점 `md`→`xl`(1280) / Q7 SCR-005 표/카드 전환점 `md`→`xl` | Q6·Q7: 詳細 Eye 추가(폭 +20px)로 768·1024px에서 표 操作 열이 스크롤 영역·`overflow: hidden` 밖으로 잘림(SCR-010 1024에서 138px, SCR-005 1024에서 87px). `lg`로는 해소되지 않아 `xl`. 표·카드 디자인은 불변 |
 
 
 ---
@@ -443,3 +468,4 @@ Tailwind는 **CSS 출력 순서**로 우선순위를 정한다(문자열 안 순
 | v1 | 2026-11-13 | 최초 설계안(B1~B14) |
 | v2 | 2026-11-13 | frontend 검토(`.claude/work/button-audit/frontend-review.md`) 반영. ① `ghost` 근거를 "3곳 같은 값"에서 "모달 X·벨 2곳"으로 정정, Notice X 대상 외(E1·E7) ② 대상 54건·이행 53건 명시(E2) ③ `buttonClass` 내부를 base/variant/size 리터럴 맵으로 구조화, 공통 기반에서 `whitespace-nowrap`·`select-none` 제외(sm만 nowrap, text는 기반 미적용), radius를 variant 맵으로, `enabled:hover` 미채택(R3·Q1·Q4) ④ `className` 규약(허용·금지 목록)과 ESLint 방지책 §4.6 신설, `tailwind-merge` 비채택 명시(R2) ⑤ `form.tsx` 별칭 방식 폐기 → 무변경 가산(B15, R1) ⑥ 아이콘 전용을 `iconOnly` 리터럴 판별자로(Q2), `fullWidth` 제거(B17), loading 슬롯 규칙·Spinner 유지 조건(Q9), Button 단일 요소 조건(Q3) ⑦ 토큰 도입 조건(별도 커밋·`toHaveCSS`·리터럴, B6) ⑧ 링크 Enter 전용·인라인 링크 금지(§6.1), 터치 영역 padding 방식(Q8) ⑨ 모달 footer 판정 표기 정정(E9), 모달 X를 단계 3으로 ⑩ B3·B8·B10·B14 조건 추가, B15~B17 신설 |
 | v3 | 2026-11-13 | **사용자 결정 B1~B17 반영**(전부 권장안, `.claude/work/button-audit/decisions.md`). §11을 선택지 비교표에서 "결정 사항(확정)" 표(결정값·적용 조건)로 교체. 본문의 "권장"·"B6에서 도입 안 함" 등 미결 표현을 확정 표현으로 정리(§2.1·§3·§4·§5.3·§5.7·§6.1·§7). §10 09 변경안은 확정안으로 유지 |
+| v4 | 2026-11-14 | **詳細·編集 버튼 통일(B18·B19, Q1~Q7)**. §2.1 상세 열기 = `secondary` + Eye, 수정 입구 문구 「編集」, §4.6 ESLint 대상에 `DetailButton`·`EditButton` 추가, §4.7 역할 프리셋 신설(`children` 대체는 예외적으로만), §6.2 보이는 문구 ⊂ 접근 이름, §9.1 예시·§9.3 체크리스트, §11 B18·B19·Q1~Q7 |

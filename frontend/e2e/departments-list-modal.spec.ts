@@ -166,7 +166,7 @@ test('shouldShowDetailModalAndSwitchToEditAndStyleDeleteAsDanger', async ({ page
 
     // 操作ボタンは [詳細] [編集] [削除] の順。旧「所属社員確認」ボタンは無い
     const buttons = row.locator('td').last().getByRole('button');
-    await expect(buttons).toHaveText([t.detail, t.edit, t.delete]);
+    await expect(buttons).toHaveText([messages.common.detail, messages.common.edit, t.delete]);
     await expect(row.getByRole('button', { name: '所属社員確認' })).toHaveCount(0);
 
     // 削除ボタンは Danger(danger-100 = #f0142f)
@@ -188,7 +188,7 @@ test('shouldShowDetailModalAndSwitchToEditAndStyleDeleteAsDanger', async ({ page
     await page.screenshot({ path: `${SCREENSHOT_DIR}/fix3-detail-modal-1440.png` });
 
     // 編集モーダルへ切り替え
-    await detail.getByRole('button', { name: t.editSelected }).click();
+    await detail.getByRole('button', { name: messages.common.edit }).click();
     const edit = page.getByRole('dialog', { name: t.form.editTitle });
     await expect(edit).toBeVisible();
     await expect(detail).toBeHidden();
@@ -217,7 +217,7 @@ test('shouldFitCardListAndButtonsAt375', async ({ page }) => {
     await search(page);
     const card = page.getByRole('listitem').filter({ hasText: `${PREFIX}2` });
     await expect(card).toBeVisible();
-    await expect(card.getByRole('button')).toHaveText([t.viewMembers, t.detail, t.edit, t.delete]);
+    await expect(card.getByRole('button')).toHaveText([t.viewMembers, messages.common.detail, messages.common.edit, t.delete]);
 
     const overflow = await page.evaluate(() => {
       const doc = document.documentElement;

@@ -75,6 +75,38 @@ export async function measureBox(
   return box;
 }
 
+// フォーカスリングが表・カードの枠で切れていないか(リングの幅 4px を見込む)。button-c8・button-unify で共有
+export async function focusRingClipping(locator: Locator): Promise<{
+  containerFound: boolean;
+  clipped: boolean;
+  outlineStyle: string;
+}> {
+  await locator.focus();
+  return locator.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const ring = 4;
+    let clipped = false;
+    let containerFound = false;
+    let node = el.parentElement;
+    const clipping = ['hidden', 'clip', 'auto', 'scroll'];
+    while (node && node !== document.body) {
+      const cs = getComputedStyle(node);
+      if (clipping.includes(cs.overflowX) || clipping.includes(cs.overflowY)) {
+        containerFound = true;
+        const a = node.getBoundingClientRect();
+        clipped =
+          r.top - ring < a.top ||
+          r.bottom + ring > a.bottom ||
+          r.left - ring < a.left ||
+          r.right + ring > a.right;
+        break;
+      }
+      node = node.parentElement;
+    }
+    return { containerFound, clipped, outlineStyle: getComputedStyle(el).outlineStyle };
+  });
+}
+
 // 通信が落ち着くまで待ってから撮る(スケルトンを撮らない。落ち着かなければそのまま撮る)
 export async function captureScreenshot(
   page: Page,
